@@ -41,7 +41,7 @@ contains
 
 
 
-  subroutine mortality_rates( cohort_in,bc_in,cmort,hmort,bmort,frmort,smort,asmort )
+  subroutine mortality_rates( cohort_in,bc_in,cmort,hmort,bmort,frmort,heatmort,smort,asmort )
 
     ! ============================================================================
     !  Calculate mortality rates from carbon storage, hydraulic cavitation, 
@@ -58,6 +58,7 @@ contains
     real(r8),intent(out) :: cmort  ! carbon starvation mortality
     real(r8),intent(out) :: hmort  ! hydraulic failure mortality
     real(r8),intent(out) :: frmort ! freezing stress mortality
+    real(r8),intent(out) :: heatmort ! heat stress mortality
     real(r8),intent(out) :: smort  ! size dependent senescence term
     real(r8),intent(out) :: asmort ! age dependent senescence term 
 
@@ -71,6 +72,7 @@ contains
     real(r8) :: mort_ip_age_senescence ! inflection point for increase in mortality with age
     real(r8) :: mort_r_age_senescence ! rate of mortality increase with age in senescence term 
     real(r8) :: temp_dep_fraction  ! Temp. function (freezing mortality)
+    real(r8) :: temp_heat_fraction  ! Temp. function (heat mortality)
     real(r8) :: temp_in_C          ! Daily averaged temperature in Celcius
     real(r8) :: min_fmc_ag         ! minimum fraction of maximum conductivity for aboveground
     real(r8) :: min_fmc_tr         ! minimum fraction of maximum conductivity for transporting root
@@ -153,7 +155,8 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
        store_c = cohort_in%prt%GetState(store_organ,all_carbon_elements)
 
        call storage_fraction_of_target(leaf_c_target, store_c, frac)
-       if( frac .lt. 1._r8) then
+    ! [JStenzel 1.27.2022] Added cstarvetol parameter in place of "1" to allow mortality threshold to vary.
+       if( frac .lt. EDPftvarcon_inst%cstarvetol(cohort_in%pft) ) then
           cmort = max(0.0_r8,EDPftvarcon_inst%mort_scalar_cstarvation(cohort_in%pft) * &
                (1.0_r8 - frac))
        else
@@ -177,6 +180,20 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
                          EDPftvarcon_inst%freezetol(cohort_in%pft))/frost_mort_buffer) )
     frmort    = EDPftvarcon_inst%mort_scalar_coldstress(cohort_in%pft) * temp_dep_fraction
 
+    !--------------------------------------------------------------------------------
+    ! [JStenzel 2.2.2022] Mortality due to heat stress (heatmort). 
+
+    temp_heat_fraction  = max(0.0_r8, min(1.0_r8, (temp_in_C - &
+                         EDPftvarcon_inst%heat_tol(cohort_in%pft)) ) )
+
+    !if( cohort_in%dbh < 10.0_r8 ) then
+    if( cohort_in%dbh < EDPftvarcon_inst%heat_hard_dbh(cohort_in%pft) ) then
+       heatmort    = EDPftvarcon_inst%mort_scalar_heatstress(cohort_in%pft) * temp_heat_fraction
+    else
+       heatmort = 0.0_r8
+    endif
+
+    !------------------------------------------------------------------------------------
 
     !mortality_rates = bmort + hmort + cmort
 
@@ -190,12 +207,14 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
        cmort  = 0._r8
        hmort  = 0._r8
        frmort = 0._r8
+       heatmort = 0._r8
     endif
 
     if (test_zero_mortality) then
        cmort = 0.0_r8
        hmort = 0.0_r8
        frmort = 0.0_r8
+       heatmort = 0.0_r8
        bmort = 0.0_r8
        smort = 0.0_r8
        asmort = 0.0_r8
@@ -229,6 +248,7 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     real(r8) :: bmort    ! background mortality rate (fraction per year)
     real(r8) :: hmort    ! hydraulic failure mortality rate (fraction per year)
     real(r8) :: frmort   ! freezing mortality rate (fraction per year)
+    real(r8) :: heatmort   ! heat mortality rate (fraction per year)
     real(r8) :: smort    ! size dependent senescence mortality rate (fraction per year)
     real(r8) :: asmort   ! age dependent senescence mortality rate (fraction per year)
     real(r8) :: dndt_logging      ! Mortality rate (per day) associated with the a logging event
@@ -239,7 +259,7 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     
     ! Mortality for trees in the understorey. 
     !if trees are in the canopy, then their death is 'disturbance'. This probably needs a different terminology
-    call mortality_rates(currentCohort,bc_in,cmort,hmort,bmort,frmort,smort, asmort)
+    call mortality_rates(currentCohort,bc_in,cmort,hmort,bmort,frmort,heatmort,smort, asmort)
     call LoggingMortality_frac(ipft, currentCohort%dbh, currentCohort%canopy_layer, &
                                currentCohort%lmort_direct,                       &
                                currentCohort%lmort_collateral,                    &
@@ -263,7 +283,7 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
 
        
        currentCohort%dndt = -1.0_r8 * &
-            (cmort+hmort+bmort+frmort+smort+asmort + dndt_logging) &
+            (cmort+hmort+bmort+frmort+heatmort+smort+asmort + dndt_logging) &
             * currentCohort%n
     else
 
@@ -272,7 +292,7 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
        ! Mortality from logging in the canopy is ONLY disturbance generating, don't
        ! update number densities via non-disturbance inducing death
        currentCohort%dndt= -(1.0_r8-fates_mortality_disturbance_fraction) &
-            * (cmort+hmort+bmort+frmort+smort+asmort) * &
+            * (cmort+hmort+bmort+frmort+heatmort+smort+asmort) * &
             currentCohort%n
 
     endif
