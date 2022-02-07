@@ -171,6 +171,7 @@ contains
     real(r8) :: bmort
     real(r8) :: hmort
     real(r8) :: frmort
+    real(r8) :: heatmort
     real(r8) :: smort
     real(r8) :: asmort
 
@@ -204,8 +205,8 @@ contains
           ! Mortality for trees in the understorey.
           currentCohort%patchptr => currentPatch
 
-          call mortality_rates(currentCohort,bc_in,cmort,hmort,bmort,frmort,smort,asmort)
-          currentCohort%dmort  = cmort+hmort+bmort+frmort+smort+asmort
+          call mortality_rates(currentCohort,bc_in,cmort,hmort,bmort,frmort,heatmort,smort,asmort)
+          currentCohort%dmort  = cmort+hmort+bmort+frmort+heatmort+smort+asmort
           call carea_allom(currentCohort%dbh,currentCohort%n,site_in%spread,currentCohort%pft, &
                currentCohort%c_area)
 
@@ -214,6 +215,7 @@ contains
           currentCohort%bmort = bmort
           currentCohort%hmort = hmort
           currentCohort%frmort = frmort
+	  currentCohort%heatmort = heatmort
           currentCohort%smort = smort
           currentCohort%asmort = asmort
 
@@ -368,6 +370,7 @@ contains
                 currentCohort%bmort = currentCohort%bmort*(1.0_r8 - fates_mortality_disturbance_fraction)
                 currentCohort%dmort = currentCohort%dmort*(1.0_r8 - fates_mortality_disturbance_fraction)
                 currentCohort%frmort = currentCohort%frmort*(1.0_r8 - fates_mortality_disturbance_fraction)
+		currentCohort%heatmort = currentCohort%heatmort*(1.0_r8 - fates_mortality_disturbance_fraction)
                 currentCohort%smort = currentCohort%smort*(1.0_r8 - fates_mortality_disturbance_fraction)
                 currentCohort%asmort = currentCohort%asmort*(1.0_r8 - fates_mortality_disturbance_fraction)
              end if
@@ -390,6 +393,7 @@ contains
                 currentCohort%bmort = currentCohort%bmort*(1.0_r8 - fates_mortality_disturbance_fraction)
                 currentCohort%dmort = currentCohort%dmort*(1.0_r8 - fates_mortality_disturbance_fraction)
                 currentCohort%frmort = currentCohort%frmort*(1.0_r8 - fates_mortality_disturbance_fraction)
+		currentCohort%heatmort = currentCohort%heatmort*(1.0_r8 - fates_mortality_disturbance_fraction)
                 currentCohort%smort = currentCohort%smort*(1.0_r8 - fates_mortality_disturbance_fraction)
                 currentCohort%asmort = currentCohort%asmort*(1.0_r8 - fates_mortality_disturbance_fraction)
                 currentCohort%lmort_direct    = 0.0_r8
@@ -747,6 +751,7 @@ contains
                       nc%hmort = nan
                       nc%bmort = nan
                       nc%frmort = nan
+		      nc%heatmort = nan
                       nc%smort = nan
                       nc%asmort = nan
                       nc%lmort_direct     = nan
@@ -801,6 +806,7 @@ contains
                          nc%hmort            = currentCohort%hmort
                          nc%bmort            = currentCohort%bmort
                          nc%frmort           = currentCohort%frmort
+			 nc%heatmort         = currentCohort%heatmort
                          nc%smort            = currentCohort%smort
                          nc%asmort           = currentCohort%asmort
                          nc%dmort            = currentCohort%dmort
@@ -827,6 +833,7 @@ contains
                          nc%hmort            = currentCohort%hmort
                          nc%bmort            = currentCohort%bmort
                          nc%frmort           = currentCohort%frmort
+			 nc%heatmort         = currentCohort%heatmort
                          nc%smort            = currentCohort%smort
                          nc%asmort           = currentCohort%asmort
                          nc%dmort            = currentCohort%dmort
@@ -884,6 +891,7 @@ contains
                    nc%hmort            = currentCohort%hmort
                    nc%bmort            = currentCohort%bmort
                    nc%frmort           = currentCohort%frmort
+		   nc%heatmort         = currentCohort%heatmort
                    nc%smort            = currentCohort%smort
                    nc%asmort           = currentCohort%asmort
                    nc%dmort            = currentCohort%dmort
@@ -959,6 +967,7 @@ contains
                       nc%hmort            = currentCohort%hmort
                       nc%bmort            = currentCohort%bmort
                       nc%frmort           = currentCohort%frmort
+		      nc%heatmort         = currentCohort%heatmort
                       nc%smort            = currentCohort%smort
                       nc%asmort           = currentCohort%asmort
                       nc%dmort            = currentCohort%dmort
@@ -1020,6 +1029,7 @@ contains
                          nc%hmort            = currentCohort%hmort
                          nc%bmort            = currentCohort%bmort
                          nc%frmort           = currentCohort%frmort
+			 nc%heatmort         = currentCohort%heatmort
                          nc%smort            = currentCohort%smort
                          nc%asmort           = currentCohort%asmort
                          nc%dmort            = currentCohort%dmort
@@ -1042,6 +1052,7 @@ contains
                          nc%hmort            = currentCohort%hmort
                          nc%bmort            = currentCohort%bmort
                          nc%frmort           = currentCohort%frmort
+			 nc%heatmort         = currentCohort%heatmort
                          nc%smort            = currentCohort%smort
                          nc%asmort           = currentCohort%asmort
                          nc%dmort            = currentCohort%dmort
