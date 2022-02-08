@@ -1,9 +1,3 @@
-# mortality_1 edits
-
-(JS Add)
-
-
-
 # FATES
 ------------------------------
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3825473.svg)](https://doi.org/10.5281/zenodo.3825473)
