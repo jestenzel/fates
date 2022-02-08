@@ -115,6 +115,7 @@ module FatesRestartInterfaceMod
   integer :: ir_hmort_co
   integer :: ir_cmort_co
   integer :: ir_frmort_co
+  integer :: ir_heatmort_co
   integer :: ir_smort_co
   integer :: ir_asmort_co
   integer :: ir_c_area_co
@@ -838,6 +839,11 @@ contains
          long_name='ed cohort - freezing mortality rate', &
          units='/year', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_frmort_co )
+
+    call this%set_restart_var(vname='fates_heatmort', vtype=cohort_r8, &
+         long_name='ed cohort - max heat mortality rate', &
+         units='/year', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_heatmort_co )
 
     call this%set_restart_var(vname='fates_smort', vtype=cohort_r8, &
          long_name='ed cohort - senescence mortality rate', &
@@ -1796,6 +1802,7 @@ contains
            rio_smort_co                => this%rvars(ir_smort_co)%r81d, &
            rio_asmort_co               => this%rvars(ir_asmort_co)%r81d, &
            rio_frmort_co               => this%rvars(ir_frmort_co)%r81d, &
+           rio_heatmort_co             => this%rvars(ir_heatmort_co)%r81d, &
            rio_lmort_direct_co         => this%rvars(ir_lmort_direct_co)%r81d, &
            rio_lmort_collateral_co     => this%rvars(ir_lmort_collateral_co)%r81d, &
            rio_lmort_infra_co          => this%rvars(ir_lmort_infra_co)%r81d, &
@@ -2018,6 +2025,7 @@ contains
                 rio_smort_co(io_idx_co)        = ccohort%smort
                 rio_asmort_co(io_idx_co)       = ccohort%asmort
                 rio_frmort_co(io_idx_co)       = ccohort%frmort
+                rio_heatmort_co(io_idx_co)     = ccohort%heatmort
 
                 ! Nutrient uptake/efflux
                 rio_daily_no3_uptake_co(io_idx_co) = ccohort%daily_no3_uptake
@@ -2627,6 +2635,7 @@ contains
           rio_smort_co                => this%rvars(ir_smort_co)%r81d, &
           rio_asmort_co               => this%rvars(ir_asmort_co)%r81d, &
           rio_frmort_co               => this%rvars(ir_frmort_co)%r81d, &
+          rio_heatmort_co             => this%rvars(ir_heatmort_co)%r81d, &
           rio_lmort_direct_co         => this%rvars(ir_lmort_direct_co)%r81d, &
           rio_lmort_collateral_co     => this%rvars(ir_lmort_collateral_co)%r81d, &
           rio_lmort_infra_co          => this%rvars(ir_lmort_infra_co)%r81d, &
@@ -2819,7 +2828,8 @@ contains
                 ccohort%cmort        = rio_cmort_co(io_idx_co)
                 ccohort%smort        = rio_smort_co(io_idx_co)
                 ccohort%asmort       = rio_asmort_co(io_idx_co)
-                ccohort%frmort        = rio_frmort_co(io_idx_co)
+                ccohort%frmort       = rio_frmort_co(io_idx_co)
+                ccohort%heatmort     = rio_heatmort_co(io_idx_co)
 
                 ! Nutrient uptake / efflux
                 ccohort%daily_nh4_uptake = rio_daily_nh4_uptake_co(io_idx_co)
