@@ -1417,6 +1417,7 @@ contains
                                       currentCohort%smort = (currentCohort%n*currentCohort%smort + nextc%n*nextc%smort)/newn
                                       currentCohort%asmort = (currentCohort%n*currentCohort%asmort + nextc%n*nextc%asmort)/newn
                                       currentCohort%frmort = (currentCohort%n*currentCohort%frmort + nextc%n*nextc%frmort)/newn
+				      currentCohort%heatmort = (currentCohort%n*currentCohort%heatmort + nextc%n*nextc%heatmort)/newn
 
                                       ! Nutrient fluxes
                                       currentCohort%daily_nh4_uptake = (currentCohort%n*currentCohort%daily_nh4_uptake + &
@@ -1881,6 +1882,7 @@ contains
     n%smort = o%smort
     n%asmort = o%asmort
     n%frmort = o%frmort
+    n%heatmort = o%heatmort
 
     ! logging mortalities, Yi Xu
     n%lmort_direct     =o%lmort_direct
