@@ -405,6 +405,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_m8_si_scpf
   integer :: ih_m9_si_scpf
   integer :: ih_m10_si_scpf
+  integer :: ih_m11_si_scpf           ! Jstenzel 2.2.2022 heat stress mortality
   integer :: ih_crownfiremort_si_scpf
   integer :: ih_cambialfiremort_si_scpf
 
@@ -454,6 +455,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_m8_si_scls
   integer :: ih_m9_si_scls
   integer :: ih_m10_si_scls
+  integer :: ih_m11_si_scls
 
   integer :: ih_m10_si_cacls
   integer :: ih_nplant_si_cacls
@@ -1935,6 +1937,7 @@ end subroutine flush_hvars
                hio_m8_si_scpf          => this%hvars(ih_m8_si_scpf)%r82d, &
                hio_m9_si_scpf          => this%hvars(ih_m9_si_scpf)%r82d, &
                hio_m10_si_scpf         => this%hvars(ih_m10_si_scpf)%r82d, &
+               hio_m11_si_scpf         => this%hvars(ih_m11_si_scpf)%r82d, &
                hio_m10_si_capf         => this%hvars(ih_m10_si_capf)%r82d, &
 
                hio_crownfiremort_si_scpf     => this%hvars(ih_crownfiremort_si_scpf)%r82d, &
@@ -1953,6 +1956,7 @@ end subroutine flush_hvars
                hio_m8_si_scls          => this%hvars(ih_m8_si_scls)%r82d, &
                hio_m9_si_scls          => this%hvars(ih_m9_si_scls)%r82d, &
                hio_m10_si_scls         => this%hvars(ih_m10_si_scls)%r82d, &
+               hio_m11_si_scls          => this%hvars(ih_m11_si_scls)%r82d, &
                hio_m10_si_cacls        => this%hvars(ih_m10_si_cacls)%r82d, &
 
                hio_c13disc_si_scpf     => this%hvars(ih_c13disc_si_scpf)%r82d, &
@@ -2567,6 +2571,8 @@ end subroutine flush_hvars
 
                hio_m8_si_scpf(io_si,scpf) = hio_m8_si_scpf(io_si,scpf) +       &
                   ccohort%frmort*ccohort%n / m2_per_ha
+	       hio_m11_si_scpf(io_si,scpf) = hio_m11_si_scpf(io_si,scpf) +       &
+                  ccohort%heatmort*ccohort%n / m2_per_ha
                hio_m9_si_scpf(io_si,scpf) = hio_m9_si_scpf(io_si,scpf) +       &
                   ccohort%smort*ccohort%n / m2_per_ha
 
@@ -2588,6 +2594,8 @@ end subroutine flush_hvars
                   (ccohort%lmort_direct+ccohort%lmort_collateral+ccohort%lmort_infra) * ccohort%n / m2_per_ha
                hio_m8_si_scls(io_si,scls) = hio_m8_si_scls(io_si,scls) + &
                   ccohort%frmort*ccohort%n / m2_per_ha
+	       hio_m11_si_scls(io_si,scls) = hio_m11_si_scls(io_si,scls) + &
+                  ccohort%heatmort*ccohort%n / m2_per_ha
                hio_m9_si_scls(io_si,scls) = hio_m9_si_scls(io_si,scls) + ccohort%smort*ccohort%n / m2_per_ha
 
                !C13 discrimination
@@ -2656,7 +2664,7 @@ end subroutine flush_hvars
                   hio_nplant_canopy_si_scag(io_si,iscag) = hio_nplant_canopy_si_scag(io_si,iscag) + ccohort%n / m2_per_ha
                   hio_mortality_canopy_si_scag(io_si,iscag) = hio_mortality_canopy_si_scag(io_si,iscag) + &
                      (ccohort%bmort + ccohort%hmort + ccohort%cmort + &
-                     ccohort%frmort + ccohort%smort + ccohort%asmort) * ccohort%n / m2_per_ha
+                     ccohort%frmort + ccohort%heatmort + ccohort%smort + ccohort%asmort) * ccohort%n / m2_per_ha
                   hio_ddbh_canopy_si_scag(io_si,iscag) = hio_ddbh_canopy_si_scag(io_si,iscag) + &
                      ccohort%ddbhdt*ccohort%n * m_per_cm / m2_per_ha
                   hio_bstor_canopy_si_scpf(io_si,scpf) = hio_bstor_canopy_si_scpf(io_si,scpf) + &
@@ -2672,7 +2680,7 @@ end subroutine flush_hvars
 
                   hio_mortality_canopy_si_scpf(io_si,scpf) = hio_mortality_canopy_si_scpf(io_si,scpf)+ &
                      (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%frmort + &
-                  ccohort%smort + ccohort%asmort) * ccohort%n / m2_per_ha + &
+                  ccohort%heatmort +ccohort%smort + ccohort%asmort) * ccohort%n / m2_per_ha + &
                      (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * &
                      ccohort%n * sec_per_day * days_per_year / m2_per_ha
 
@@ -2699,13 +2707,13 @@ end subroutine flush_hvars
                   ! sum of all mortality
                   hio_mortality_canopy_si_scls(io_si,scls) = hio_mortality_canopy_si_scls(io_si,scls) + &
                      (ccohort%bmort + ccohort%hmort + ccohort%cmort +   &
-                  ccohort%frmort + ccohort%smort + ccohort%asmort) * ccohort%n / m2_per_ha + &
+                  ccohort%frmort + ccohort%heatmort + ccohort%smort + ccohort%asmort) * ccohort%n / m2_per_ha + &
                      (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * &
                      ccohort%n * sec_per_day * days_per_year / m2_per_ha
 
                   hio_canopy_mortality_carbonflux_si(io_si) = hio_canopy_mortality_carbonflux_si(io_si) + &
                      (ccohort%bmort + ccohort%hmort + ccohort%cmort + &
-                     ccohort%frmort + ccohort%smort + ccohort%asmort) * &
+                     ccohort%frmort + ccohort%heatmort + ccohort%smort + ccohort%asmort) * &
                   total_m * ccohort%n * days_per_sec * years_per_day * ha_per_m2 + &
                      (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * total_m * &
                      ccohort%n * ha_per_m2
@@ -2747,7 +2755,7 @@ end subroutine flush_hvars
                   hio_nplant_understory_si_scag(io_si,iscag) = hio_nplant_understory_si_scag(io_si,iscag) + ccohort%n / m2_per_ha
                   hio_mortality_understory_si_scag(io_si,iscag) = hio_mortality_understory_si_scag(io_si,iscag) + &
                      (ccohort%bmort + ccohort%hmort + ccohort%cmort + &
-                     ccohort%frmort + ccohort%smort + ccohort%asmort) * ccohort%n / m2_per_ha
+                     ccohort%frmort + ccohort%heatmort + ccohort%smort + ccohort%asmort) * ccohort%n / m2_per_ha
                   hio_ddbh_understory_si_scag(io_si,iscag) = hio_ddbh_understory_si_scag(io_si,iscag) + &
                      ccohort%ddbhdt*ccohort%n * m_per_cm / m2_per_ha
                   hio_bstor_understory_si_scpf(io_si,scpf) = hio_bstor_understory_si_scpf(io_si,scpf) + &
@@ -2763,7 +2771,7 @@ end subroutine flush_hvars
 
                   hio_mortality_understory_si_scpf(io_si,scpf) = hio_mortality_understory_si_scpf(io_si,scpf)+ &
                      (ccohort%bmort + ccohort%hmort + ccohort%cmort + &
-                  ccohort%frmort + ccohort%smort + ccohort%asmort) * ccohort%n / m2_per_ha + &
+                  ccohort%frmort + ccohort%heatmort + ccohort%smort + ccohort%asmort) * ccohort%n / m2_per_ha + &
                      (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * &
                      ccohort%n * sec_per_day * days_per_year / m2_per_ha
 
@@ -2791,13 +2799,13 @@ end subroutine flush_hvars
                   ! sum of all mortality
                   hio_mortality_understory_si_scls(io_si,scls) = hio_mortality_understory_si_scls(io_si,scls) + &
                      (ccohort%bmort + ccohort%hmort + ccohort%cmort +   &
-                     ccohort%frmort + ccohort%smort + ccohort%asmort) * ccohort%n / m2_per_ha + &
+                     ccohort%frmort + ccohort%heatmort + ccohort%smort + ccohort%asmort) * ccohort%n / m2_per_ha + &
                      (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * &
                      ccohort%n * sec_per_day * days_per_year / m2_per_ha
 
                   hio_understory_mortality_carbonflux_si(io_si) = hio_understory_mortality_carbonflux_si(io_si) + &
                      (ccohort%bmort + ccohort%hmort + ccohort%cmort +   &
-                     ccohort%frmort + ccohort%smort + ccohort%asmort) * &
+                     ccohort%frmort + ccohort%heatmort + ccohort%smort + ccohort%asmort) * &
                   total_m * ccohort%n * days_per_sec * years_per_day * ha_per_m2 + &
                      (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * total_m * &
                      ccohort%n * ha_per_m2
@@ -3088,6 +3096,7 @@ end subroutine flush_hvars
                hio_m7_si_scpf(io_si,i_scpf) + &
                hio_m8_si_scpf(io_si,i_scpf) + &
                hio_m9_si_scpf(io_si,i_scpf) + &
+	       hio_m11_si_scpf(io_si,i_scpf) + &
                hio_m10_si_scpf(io_si,i_scpf)
 
          end do
@@ -5740,6 +5749,13 @@ end subroutine update_history_hifrq
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_m8_si_scpf)
 
+    call this%set_history_var(vname='FATES_MORTALITY_HEAT_SZPF',           &
+          units = 'm-2 yr-1',                                                  &
+          long='heat stress mortality by pft/size in number of plants per m2 per year', &
+          use_default='inactive', avgflag='A', vtype=site_size_pft_r8,         &
+          hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
+          initialize=initialize_variables, index = ih_m11_si_scpf)
+
     call this%set_history_var(vname='FATES_MORTALITY_SENESCENCE_SZPF',         &
            units = 'm-2 yr-1',                                                 &
           long='senescence mortality by pft/size in number of plants per m2 per year', &
@@ -6089,6 +6105,14 @@ end subroutine update_history_hifrq
           use_default='active', avgflag='A', vtype=site_size_r8,               &
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_m8_si_scls)
+
+    call this%set_history_var(vname='FATES_MORTALITY_HEAT_SZ',             &
+          units = 'm-2 event-1',                                               &
+          long='freezing mortality by size in number of plants per m2 per event', &
+          use_default='active', avgflag='A', vtype=site_size_r8,               &
+          hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
+          initialize=initialize_variables, index = ih_m11_si_scls)
+
 
     call this%set_history_var(vname='FATES_MORTALITY_SENESCENCE_SZ',           &
           units = 'm-2 yr-1',                                                  &
