@@ -186,8 +186,7 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     temp_heat_fraction  = max(0.0_r8, min(1.0_r8, (temp_in_C - &
                          EDPftvarcon_inst%heat_tol(cohort_in%pft)) ) )
 
-    !if( cohort_in%dbh < 10.0_r8 ) then
-    if( cohort_in%dbh < EDPftvarcon_inst%heat_hard_dbh(cohort_in%pft) ) then
+    if( cohort_in%dbh < EDPftvarcon_inst%hard_dbh(cohort_in%pft) ) then
        heatmort    = EDPftvarcon_inst%mort_scalar_heatstress(cohort_in%pft) * temp_heat_fraction
     else
        heatmort = 0.0_r8
