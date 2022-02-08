@@ -48,6 +48,9 @@ module EDPftvarcon
      real(r8), allocatable :: z0mr(:)                ! ratio of roughness length of vegetation to height (-)
      real(r8), allocatable :: displar(:)             ! ratio of displacement height to canopy top height
      real(r8), allocatable :: bark_scaler(:)         ! scaler from dbh to bark thickness. For fire model.
+     real(r8), allocatable :: cstarvetol(:)          ! [JStenzel 1.27.2022] Added parameter throughout file. Purpose: Set threshold store:leaf c for mortality.
+     real(r8), allocatable :: heat_tol(:)            ! [JStenzel 2.1.2022] maximum temperature tolerance 
+     real(r8), allocatable :: heat_hard_dbh(:)       ! [JStenzel 2.2.2022] minimum dbh above which heat mortality does not occur
      real(r8), allocatable :: crown_kill(:)          ! scaler on fire death. For fire model.
      real(r8), allocatable :: initd(:)               ! initial seedling density
 
@@ -86,6 +89,7 @@ module EDPftvarcon
      real(r8), allocatable :: mort_ip_age_senescence(:) ! inflection point of age dependent senescence
      real(r8), allocatable :: mort_r_age_senescence(:) ! rate of change in mortality with age
      real(r8), allocatable :: mort_scalar_coldstress(:)
+     real(r8), allocatable :: mort_scalar_heatstress(:)
      real(r8), allocatable :: mort_scalar_cstarvation(:)
      real(r8), allocatable :: mort_scalar_hydrfailure(:)
      real(r8), allocatable :: hf_sm_threshold(:)
@@ -325,6 +329,18 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_mort_cstarvetol'                                                         
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_mort_heat_tol'                                                         
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_mort_heat_hard_dbh'                                                         
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
     name = 'fates_recruit_hgt_min'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -487,6 +503,10 @@ contains
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fates_mort_scalar_coldstress'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_mort_scalar_heatstress'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -658,6 +678,18 @@ contains
     name = 'fates_mort_freezetol'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%freezetol)
+    
+    name = 'fates_mort_cstarvetol'                              
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%cstarvetol)
+
+    name = 'fates_mort_heat_tol'                              
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%heat_tol)
+
+    name = 'fates_mort_heat_hard_dbh'                              
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%heat_hard_dbh)
 
     name = 'fates_recruit_hgt_min'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -811,6 +843,10 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%mort_scalar_coldstress)
 
+    name = 'fates_mort_scalar_heatstress'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%mort_scalar_heatstress)
+
     name = 'fates_mort_scalar_cstarvation'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%mort_scalar_cstarvation)
@@ -839,6 +875,10 @@ contains
     name = 'fates_mort_scalar_coldstress'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%mort_scalar_coldstress)
+
+    name = 'fates_mort_scalar_heatstress'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%mort_scalar_heatstress)
 
     name = 'fates_mort_scalar_cstarvation'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -1384,6 +1424,9 @@ contains
 
         write(fates_log(),*) '-----------  FATES PFT Parameters -----------------'
         write(fates_log(),fmt0) 'freezetol = ',EDPftvarcon_inst%freezetol
+	write(fates_log(),fmt0) 'cstarvetol = ',EDPftvarcon_inst%cstarvetol
+ 	write(fates_log(),fmt0) 'heat_tol = ',EDPftvarcon_inst%heat_tol
+        write(fates_log(),fmt0) 'heat_hard_dbh = ',EDPftvarcon_inst%heat_hard_dbh
         write(fates_log(),fmt0) 'hgt_min = ',EDPftvarcon_inst%hgt_min
         write(fates_log(),fmt0) 'dleaf = ',EDPftvarcon_inst%dleaf
         write(fates_log(),fmt0) 'z0mr = ',EDPftvarcon_inst%z0mr
@@ -1413,6 +1456,7 @@ contains
         write(fates_log(),fmt0) 'mort_ip_age_senescence = ', EDPftvarcon_inst%mort_ip_age_senescence
         write(fates_log(),fmt0) 'mort_r_age_senescence = ', EDPftvarcon_inst%mort_r_age_senescence
         write(fates_log(),fmt0) 'mort_scalar_coldstress = ',EDPftvarcon_inst%mort_scalar_coldstress
+	write(fates_log(),fmt0) 'mort_scalar_heatstress = ',EDPftvarcon_inst%mort_scalar_heatstress
         write(fates_log(),fmt0) 'mort_scalar_cstarvation = ',EDPftvarcon_inst%mort_scalar_cstarvation
         write(fates_log(),fmt0) 'mort_scalar_hydrfailure = ',EDPftvarcon_inst%mort_scalar_hydrfailure
         write(fates_log(),fmt0) 'hf_sm_threshold = ',EDPftvarcon_inst%hf_sm_threshold
