@@ -194,6 +194,7 @@ module EDParamsMod
    character(len=param_string_length),parameter,public :: eca_name_plant_escalar = "fates_eca_plant_escalar"
 
    real(r8), protected, public :: temp_delay     !delay (in days) before temperature mortality begins to occur (heat, freeze)
+   character(len=param_string_length),parameter,public :: name_temp_delay = "fates_temp_delay"
 
    public :: FatesParamsInit
    public :: FatesRegisterParams
@@ -257,7 +258,7 @@ contains
     theta_cj_c3                           = nan
     theta_cj_c4                           = nan
     dev_arbitrary                         = nan
-    temp_delay                         = nan
+    temp_delay                            = nan
   end subroutine FatesParamsInit
 
   !-----------------------------------------------------------------------
@@ -425,6 +426,9 @@ contains
          dimension_names=dim_names_scalar)
 
     call fates_params%RegisterParameter(name=name_dev_arbitrary, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
+    call fates_params%RegisterParameter(name=name_temp_delay, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
     ! non-scalar parameters
@@ -616,6 +620,9 @@ contains
 
     call fates_params%RetreiveParameter(name=fates_name_cg_strikes, &
           data=cg_strikes)
+
+    call fates_params%RetreiveParameter(name=name_temp_delay, &
+          data=temp_delay)
 
     ! parameters that are arrays of size defined within the params file and thus need allocating as well
     call fates_params%RetreiveParameterAllocate(name=ED_name_history_sizeclass_bin_edges, &
