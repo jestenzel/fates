@@ -214,7 +214,7 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
 
     if ( hlm_model_day > temp_delay ) then    ! temperature mortality only after temp_delay days are exceeded
 
-      if( cohort_in%dbh < EDPftvarcon_inst%hard_dbh(cohort_in%pft) ) then
+      if ( cohort_in%dbh < EDPftvarcon_inst%hard_dbh(cohort_in%pft) ) then
         temp_heat_fraction  = max(0.0_r8, min(1.0_r8, (temp_in_C - &
                              EDPftvarcon_inst%heat_tol_seedling(cohort_in%pft)) ) )
         heatmort    = EDPftvarcon_inst%mort_scalar_heatstress(cohort_in%pft) * temp_heat_fraction
