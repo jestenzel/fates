@@ -22,7 +22,7 @@ module EDTypesMod
   use FatesInterfaceTypesMod,only : bc_in_type
   use FatesInterfaceTypesMod,only : bc_out_type
 
-  
+
   implicit none
   private               ! By default everything is private
   save
@@ -31,7 +31,7 @@ module EDTypesMod
   integer, parameter, public :: maxPatchesPerSite_by_disttype(n_anthro_disturbance_categories)  = &
                                                      (/ 10, 4 /)  !!! MUST SUM TO maxPatchesPerSite !!!
   integer,  public :: maxCohortsPerPatch = 100            ! maximum number of cohorts per patch
-  
+
   integer, parameter, public :: nclmax = 2                ! Maximum number of canopy layers
   integer, parameter, public :: ican_upper = 1            ! Nominal index for the upper canopy
   integer, parameter, public :: ican_ustory = 2           ! Nominal index for diagnostics that refer
@@ -43,8 +43,8 @@ module EDTypesMod
                                                           ! the parameter file may determine that fewer
                                                           ! are used, but this helps allocate scratch
                                                           ! space and output arrays.
-                                                  
-  
+
+
   real(r8), parameter, public :: init_recruit_trim = 0.8_r8    ! This is the initial trimming value that
                                                                ! new recruits start with
 
@@ -56,7 +56,7 @@ module EDTypesMod
 
 
   integer, parameter, public :: n_rad_stream_types = 2    ! The number of radiation streams used (direct/diffuse)
- 
+
   integer, parameter, public :: idirect   = 1             ! This is the array index for direct radiation
   integer, parameter, public :: idiffuse  = 2             ! This is the array index for diffuse radiation
 
@@ -74,12 +74,12 @@ module EDTypesMod
   integer, parameter, public :: ivis = 1        ! This is the array index for short-wave
                                                 ! radiation in the visible spectrum, as expected
                                                 ! in boundary condition files and parameter
-                                                ! files.  This will be compared with 
+                                                ! files.  This will be compared with
                                                 ! the HLM's expectation in FatesInterfaceMod
   integer, parameter, public :: inir = 2        ! This is the array index for short-wave
                                                 ! radiation in the near-infrared spectrum, as expected
                                                 ! in boundary condition files and parameter
-                                                ! files.  This will be compared with 
+                                                ! files.  This will be compared with
                                                 ! the HLM's expectation in FatesInterfaceMod
 
   integer, parameter, public :: ipar = ivis     ! The photosynthetically active band
@@ -107,7 +107,7 @@ module EDTypesMod
   ! plants should have crown areas at maximum spread for their size and PFT.
   ! A value of 0 means that they have the least amount of spread for their
   ! size and PFT.
-  
+
   real(r8), parameter, public :: init_spread_near_bare_ground = 1.0_r8
   real(r8), parameter, public :: init_spread_inventory        = 0.0_r8
 
@@ -123,7 +123,7 @@ module EDTypesMod
                                                                    ! The actual number of soil layers should not exceed this
 
 
-  ! BIOLOGY/BIOGEOCHEMISTRY        
+  ! BIOLOGY/BIOGEOCHEMISTRY
   integer , parameter, public :: num_vegtemp_mem      = 10         ! Window of time over which we track temp for cold sensecence (days)
   real(r8), parameter, public :: dinc_ed              = 1.0_r8     ! size of VAI bins (LAI+SAI)  [CHANGE THIS NAME WITH NEXT INTERFACE
                                                            ! UPDATE]
@@ -145,7 +145,7 @@ module EDTypesMod
   integer, parameter, public :: phen_dstat_timeon    = 3       ! Leaves on due to time exceedance  (drought phenology)
 
 
-  ! SPITFIRE     
+  ! SPITFIRE
 
   integer,  parameter, public :: NFSC                 = NCWD+2     ! number fuel size classes  (4 cwd size classes, leaf litter, and grass)
   integer,  parameter, public :: tw_sf                = 1          ! array index of twig pool for spitfire
@@ -154,7 +154,7 @@ module EDTypesMod
   integer,  parameter, public :: dl_sf                = 5          ! array index of dead leaf pool for spitfire (dead grass and dead leaves)
   integer,  parameter, public :: lg_sf                = 6          ! array index of live grass pool for spitfire
 
-  ! PATCH FUSION 
+  ! PATCH FUSION
   real(r8), parameter, public :: force_patchfuse_min_biomass = 0.005_r8   ! min biomass (kg / m2 patch area) below which to force-fuse patches
   integer , parameter, public :: N_DBH_BINS           = 6                 ! no. of dbh bins used when comparing patches
   real(r8), parameter, public :: patchfusion_dbhbin_loweredges(N_DBH_BINS) = &
@@ -163,7 +163,7 @@ module EDTypesMod
   real(r8), parameter, public :: max_age_of_second_oldest_patch = 200._r8 ! age in years above which to combine all patches
 
   ! COHORT FUSION
-  real(r8), parameter, public :: HITEMAX              = 30.0_r8    ! max dbh value used in hgt profile comparison 
+  real(r8), parameter, public :: HITEMAX              = 30.0_r8    ! max dbh value used in hgt profile comparison
   integer , parameter, public :: N_HITE_BINS          = 60         ! no. of hite bins used to distribute LAI
 
   ! COHORT TERMINATION
@@ -179,12 +179,12 @@ module EDTypesMod
   real(r8), parameter, public :: min_n_safemath = 1.0E-12_r8              ! in some cases, we want to immediately remove super small
                                                                           ! number densities of cohorts to prevent FPEs
 
-  character*4 yearchar                    
+  character*4 yearchar
 
   ! special mode to cause PFTs to create seed mass of all currently-existing PFTs
   logical, parameter, public :: homogenize_seed_pfts  = .false.
 
-  
+
   ! Global identifier of how nutrients interact with the host land model
   ! either they are fully coupled, or they generate uptake rates synthetically
   ! in prescribed mode. In the latter, there is both NO mass removed from the HLM's soil
@@ -199,12 +199,12 @@ module EDTypesMod
   type, public :: ed_cohort_type
 
      ! POINTERS
-     type (ed_cohort_type) , pointer :: taller   => null()       ! pointer to next tallest cohort     
-     type (ed_cohort_type) , pointer :: shorter  => null()       ! pointer to next shorter cohort     
+     type (ed_cohort_type) , pointer :: taller   => null()       ! pointer to next tallest cohort
+     type (ed_cohort_type) , pointer :: shorter  => null()       ! pointer to next shorter cohort
      type (ed_patch_type)  , pointer :: patchptr => null()       ! pointer to patch that cohort is in
 
 
-     
+
      ! Multi-species, multi-organ Plant Reactive Transport (PRT)
      ! Contains carbon and nutrient state variables for various plant organs
 
@@ -222,7 +222,7 @@ module EDTypesMod
      real(r8) ::  structmemory                           ! target structural biomass- set from previous year: kGC per indiv
      integer  ::  canopy_layer                           ! canopy status of cohort (1 = canopy, 2 = understorey, etc.)
      real(r8) ::  canopy_layer_yesterday                 ! recent canopy status of cohort
-                                                         ! (1 = canopy, 2 = understorey, etc.)  
+                                                         ! (1 = canopy, 2 = understorey, etc.)
                                                          ! real to be conservative during fusion
 
      real(r8) ::  lai                                    ! leaf area index of cohort: m2 leaf area of entire cohort per m2 of canopy area of a patch
@@ -243,27 +243,27 @@ module EDTypesMod
                                                          ! this is used for history output. We maintain this in the main cohort memory
                                                          ! because we don't want to continually re-calculate the cohort's position when
                                                          ! performing size diagnostics at high-frequency calls
-     integer  ::  coage_class                            ! An index that indicates which age bin the cohort currently resides in 
+     integer  ::  coage_class                            ! An index that indicates which age bin the cohort currently resides in
                                                          ! used for history output.
      integer  ::  size_by_pft_class                      ! An index that indicates the cohorts position of the joint size-class x functional
                                                          ! type classification. We also maintain this in the main cohort memory
                                                          ! because we don't want to continually re-calculate the cohort's position when
                                                          ! performing size diagnostics at high-frequency calls
-     integer  ::  coage_by_pft_class                     ! An index that indicates the cohorts position of the join cohort age class x PFT 
+     integer  ::  coage_by_pft_class                     ! An index that indicates the cohorts position of the join cohort age class x PFT
      integer ::  size_class_lasttimestep                 ! size class of the cohort at the last time step
 
-     ! CARBON FLUXES 
-     
+     ! CARBON FLUXES
+
      ! ----------------------------------------------------------------------------------
      ! NPP, GPP and RESP: Instantaneous, accumulated and accumulated-hold types.*
-     ! 
+     !
      ! _tstep:    The instantaneous estimate that is calculated at each rapid plant biophysics
      !            time-step (ie photosynthesis, sub-hourly). (kgC/indiv/timestep)
      ! _acc:      The accumulation of the _tstep variable from the beginning to ending of
      !            the dynamics time-scale.  This variable is zero'd during initialization and
      !            after the dynamics call-sequence is completed.  (kgC/indiv/day)
-     ! _acc_hold: While _acc is zero'd after the dynamics call sequence and then integrated, 
-     !            _acc_hold "holds" the integrated value until the next time dynamics is 
+     ! _acc_hold: While _acc is zero'd after the dynamics call sequence and then integrated,
+     !            _acc_hold "holds" the integrated value until the next time dynamics is
      !            called. This is necessary for restarts. This variable also has units
      !            converted to a useful rate (kgC/indiv/yr)
      ! ----------------------------------------------------------------------------------
@@ -279,7 +279,7 @@ module EDTypesMod
      real(r8) ::  resp_tstep         ! Autotrophic respiration (see above *)
      real(r8) ::  resp_acc
      real(r8) ::  resp_acc_hold
-     
+
      ! carbon 13c discrimination
      real(r8) ::  c13disc_clm         ! carbon 13 discrimination in new synthesized carbon: part-per-mil, at each indiv/timestep
      real(r8) ::  c13disc_acc         ! carbon 13 discrimination in new synthesized carbon: part-per-mil, at each indiv/day, at the end of a day
@@ -302,19 +302,19 @@ module EDTypesMod
      ! These variables are used in two scenarios. 1) They work with the prescribed uptake fraction
      ! in un-coupled mode, and 2) They are the plant's demand subbmitted to the Relative-Demand
      ! type soil BGC scheme.
-     
+
      real(r8) :: daily_n_demand ! The daily amount of N demanded by the plant [kgN]
      real(r8) :: daily_p_demand ! The daily amount of P demanded by the plant [kgN]
 
-     
+
      ! The following four biophysical rates are assumed to be
-     ! at the canopy top, at reference temp 25C, and based on the 
+     ! at the canopy top, at reference temp 25C, and based on the
      ! leaf age weighted average of the PFT parameterized values. The last
      ! condition is why it is dynamic and tied to the cohort
 
-     real(r8) :: vcmax25top  ! Maximum carboxylation at the cohort's top 
+     real(r8) :: vcmax25top  ! Maximum carboxylation at the cohort's top
                              ! at reference temperature (25C).
-     real(r8) :: jmax25top   ! canopy top: maximum electron transport 
+     real(r8) :: jmax25top   ! canopy top: maximum electron transport
                              ! rate at 25C (umol electrons/m**2/s)
      real(r8) :: tpu25top    ! canopy top: triose phosphate utilization
                              ! rate at 25C (umol CO2/m**2/s)
@@ -330,7 +330,7 @@ module EDTypesMod
      real(r8) ::  rdark                                  ! Dark respiration: kgC/indiv/s
 
      real(r8) ::  resp_g_tstep                           ! Growth respiration:  kgC/indiv/timestep
-     real(r8) ::  resp_m                                 ! Maintenance respiration:  kgC/indiv/timestep 
+     real(r8) ::  resp_m                                 ! Maintenance respiration:  kgC/indiv/timestep
      real(r8) ::  resp_m_def                             ! Optional: (NOT IMPLEMENTED YET)
                                                          ! It may be possible to not respire at desired rate
                                                          ! because of low carbon stores, and thus build
@@ -349,21 +349,22 @@ module EDTypesMod
      real(r8) ::  cmort                                  ! carbon starvation mortality rate n/year
      real(r8) ::  hmort                                  ! hydraulic failure mortality rate n/year
      real(r8) ::  frmort                                 ! freezing mortality               n/year
+     real(r8) ::  heatmort                               ! heat mortality               n/year
      real(r8) ::  smort                                  ! senesence mortality              n/year
      real(r8) ::  asmort                                 ! age senescence mortality         n/year
-     
-      ! Logging Mortality Rate 
+
+      ! Logging Mortality Rate
       ! Yi Xu & M. Huang
      real(r8) ::  lmort_direct                           ! directly logging rate            fraction /per logging activity
      real(r8) ::  lmort_collateral                       ! collaterally damaged rate        fraction /per logging activity
      real(r8) ::  lmort_infra                            ! mechanically damaged rate        fraction /per logging activity
      real(r8) ::  l_degrad                               ! rate of trees that are not killed but suffer from forest degradation
-                                                         ! (i.e. they are moved to newly-anthro-disturbed secondary 
+                                                         ! (i.e. they are moved to newly-anthro-disturbed secondary
                                                          !  forest patch).  fraction /per logging activity
 
      real(r8) :: seed_prod                               ! diagnostic seed production rate [kgC/plant/day]
 
-     ! NITROGEN POOLS      
+     ! NITROGEN POOLS
      ! ----------------------------------------------------------------------------------
      ! Nitrogen pools are not prognostic in the current implementation.
      ! They are diagnosed during photosynthesis using a simple C2N parameter. Local values
@@ -378,9 +379,9 @@ module EDTypesMod
 
      ! FIRE
      real(r8) ::  fraction_crown_burned                  ! proportion of crown affected by fire:-
-     real(r8) ::  cambial_mort                           ! probability that trees dies due to cambial char 
+     real(r8) ::  cambial_mort                           ! probability that trees dies due to cambial char
                                                          ! (conditional on the tree being subjected to the fire)
-     real(r8) ::  crownfire_mort                         ! probability of tree post-fire mortality 
+     real(r8) ::  crownfire_mort                         ! probability of tree post-fire mortality
                                                          ! due to crown scorch (conditional on the tree being subjected to the fire)
      real(r8) ::  fire_mort                              ! post-fire mortality from cambial and crown damage assuming two are independent:-
 
@@ -394,7 +395,7 @@ module EDTypesMod
      !class(rmean_type), pointer :: tveg_lpa              ! exponential moving average of leaf temperature at the
                                                           ! leaf photosynthetic acclimation time-scale [K]
 
-     
+
   end type ed_cohort_type
 
   !************************************
@@ -404,18 +405,18 @@ module EDTypesMod
   type, public :: ed_patch_type
 
      ! POINTERS
-     type (ed_cohort_type), pointer :: tallest => null()           ! pointer to patch's tallest cohort    
+     type (ed_cohort_type), pointer :: tallest => null()           ! pointer to patch's tallest cohort
      type (ed_cohort_type), pointer :: shortest => null()          ! pointer to patch's shortest cohort
-     type (ed_patch_type),  pointer :: older => null()             ! pointer to next older patch   
-     type (ed_patch_type),  pointer :: younger => null()           ! pointer to next younger patch      
+     type (ed_patch_type),  pointer :: older => null()             ! pointer to next older patch
+     type (ed_patch_type),  pointer :: younger => null()           ! pointer to next younger patch
 
      !INDICES
      integer  :: patchno                                           ! unique number given to each new patch created for tracking
 
      ! PATCH INFO
-     real(r8) ::  age                                              ! average patch age: years                   
+     real(r8) ::  age                                              ! average patch age: years
      integer  ::  age_class                                        ! age class of the patch for history binning purposes
-     real(r8) ::  area                                             ! patch area: m2  
+     real(r8) ::  area                                             ! patch area: m2
      integer  ::  countcohorts                                     ! Number of cohorts in patch
      integer  ::  ncl_p                                            ! Number of occupied canopy layers
      integer  ::  anthro_disturbance_label                         ! patch label for anthropogenic disturbance classification
@@ -427,7 +428,7 @@ module EDTypesMod
      class(rmean_type), pointer :: tveg24                        ! 24-hour mean vegetation temperature (K)
      class(rmean_type), pointer :: tveg_lpa                      ! Running mean of vegetation temperature at the
                                                                  ! leaf photosynthesis acclimation timescale [K]
-     integer  ::  nocomp_pft_label                                 ! where nocomp is active, use this label for patch ID.   
+     integer  ::  nocomp_pft_label                                 ! where nocomp is active, use this label for patch ID.
 
      ! LEAF ORGANIZATION
      real(r8) ::  pft_agb_profile(maxpft,n_dbh_bins)            ! binned above ground biomass, for patch fusion: KgC/m2
@@ -440,10 +441,10 @@ module EDTypesMod
 
      real(r8) :: c_stomata                                      ! Mean stomatal conductance of all leaves in the patch   [umol/m2/s]
      real(r8) :: c_lblayer                                      ! Mean boundary layer conductance of all leaves in the patch [umol/m2/s]
-      
+
                                                                 ! UNITS for the ai profiles
                                                                 ! [ m2 leaf / m2 contributing crown footprints]
-     real(r8) ::  tlai_profile(nclmax,maxpft,nlevleaf)          ! total   leaf area in each canopy layer, pft, and leaf layer. 
+     real(r8) ::  tlai_profile(nclmax,maxpft,nlevleaf)          ! total   leaf area in each canopy layer, pft, and leaf layer.
      real(r8) ::  elai_profile(nclmax,maxpft,nlevleaf)          ! exposed leaf area in each canopy layer, pft, and leaf layer
      real(r8) ::  tsai_profile(nclmax,maxpft,nlevleaf)          ! total   stem area in each canopy layer, pft, and leaf layer
      real(r8) ::  esai_profile(nclmax,maxpft,nlevleaf)          ! exposed stem area in each canopy layer, pft, and leaf layer
@@ -456,11 +457,11 @@ module EDTypesMod
 
 
      ! layer, pft, and leaf layer:-
-     integer  ::  canopy_mask(nclmax,maxpft)                    ! is there any of this pft in this canopy layer?      
+     integer  ::  canopy_mask(nclmax,maxpft)                    ! is there any of this pft in this canopy layer?
      integer  ::  nrad(nclmax,maxpft)                           ! number of exposed leaf layers for each canopy layer and pft
      integer  ::  ncan(nclmax,maxpft)                           ! number of total   leaf layers for each canopy layer and pft
 
-     !RADIATION FLUXES      
+     !RADIATION FLUXES
      real(r8) :: fcansno                                        ! Fraction of canopy covered in snow
 
      logical  ::  solar_zenith_flag                             ! integer flag specifying daylight (based on zenith angle)
@@ -468,41 +469,41 @@ module EDTypesMod
 
      real(r8) ::  gnd_alb_dif(maxSWb)                           ! ground albedo for diffuse rad, both bands (fraction)
      real(r8) ::  gnd_alb_dir(maxSWb)                           ! ground albedo for direct rad, both bands (fraction)
-     
-     real(r8) ::  fabd_sun_z(nclmax,maxpft,nlevleaf)            ! sun fraction of direct light absorbed by each canopy 
+
+     real(r8) ::  fabd_sun_z(nclmax,maxpft,nlevleaf)            ! sun fraction of direct light absorbed by each canopy
      ! layer, pft, and leaf layer:-
-     real(r8) ::  fabd_sha_z(nclmax,maxpft,nlevleaf)            ! shade fraction of direct light absorbed by each canopy 
+     real(r8) ::  fabd_sha_z(nclmax,maxpft,nlevleaf)            ! shade fraction of direct light absorbed by each canopy
      ! layer, pft, and leaf layer:-
-     real(r8) ::  fabi_sun_z(nclmax,maxpft,nlevleaf)            ! sun fraction of indirect light absorbed by each canopy 
+     real(r8) ::  fabi_sun_z(nclmax,maxpft,nlevleaf)            ! sun fraction of indirect light absorbed by each canopy
      ! layer, pft, and leaf layer:-
-     real(r8) ::  fabi_sha_z(nclmax,maxpft,nlevleaf)            ! shade fraction of indirect light absorbed by each canopy 
+     real(r8) ::  fabi_sha_z(nclmax,maxpft,nlevleaf)            ! shade fraction of indirect light absorbed by each canopy
      ! layer, pft, and leaf layer:-
 
-     real(r8) ::  ed_laisun_z(nclmax,maxpft,nlevleaf)           ! amount of LAI in the sun   in each canopy layer, 
+     real(r8) ::  ed_laisun_z(nclmax,maxpft,nlevleaf)           ! amount of LAI in the sun   in each canopy layer,
      ! pft, and leaf layer. m2/m2
      real(r8) ::  ed_laisha_z(nclmax,maxpft,nlevleaf)           ! amount of LAI in the shade in each canopy layer,
      real(r8) ::  ed_parsun_z(nclmax,maxpft,nlevleaf)           ! PAR absorbed  in the sun   in each canopy layer,
      real(r8) ::  ed_parsha_z(nclmax,maxpft,nlevleaf)           ! PAR absorbed  in the shade in each canopy layer,
-     real(r8) ::  f_sun(nclmax,maxpft,nlevleaf)                 ! fraction of leaves in the sun in each canopy layer, pft, 
+     real(r8) ::  f_sun(nclmax,maxpft,nlevleaf)                 ! fraction of leaves in the sun in each canopy layer, pft,
 
      ! radiation profiles for comparison against observations
 
-     ! normalized direct photosynthetically active radiation profiles by 
+     ! normalized direct photosynthetically active radiation profiles by
      ! incident type (direct/diffuse at top of canopy),leaf,pft,leaf (unitless)
-     real(r8) ::  nrmlzd_parprof_pft_dir_z(n_rad_stream_types,nclmax,maxpft,nlevleaf)  
+     real(r8) ::  nrmlzd_parprof_pft_dir_z(n_rad_stream_types,nclmax,maxpft,nlevleaf)
 
-     ! normalized diffuse photosynthetically active radiation profiles by 
+     ! normalized diffuse photosynthetically active radiation profiles by
      ! incident type (direct/diffuse at top of canopy),leaf,pft,leaf (unitless)
-     real(r8) ::  nrmlzd_parprof_pft_dif_z(n_rad_stream_types,nclmax,maxpft,nlevleaf)  
+     real(r8) ::  nrmlzd_parprof_pft_dif_z(n_rad_stream_types,nclmax,maxpft,nlevleaf)
 
-     ! normalized direct photosynthetically active radiation profiles by 
-     ! incident type (direct/diffuse at top of canopy),leaf,leaf (unitless) 
-     real(r8) ::  nrmlzd_parprof_dir_z(n_rad_stream_types,nclmax,nlevleaf)         
+     ! normalized direct photosynthetically active radiation profiles by
+     ! incident type (direct/diffuse at top of canopy),leaf,leaf (unitless)
+     real(r8) ::  nrmlzd_parprof_dir_z(n_rad_stream_types,nclmax,nlevleaf)
 
-     ! normalized diffuse photosynthetically active radiation profiles by 
-     ! incident type (direct/diffuse at top of canopy),leaf,leaf (unitless) 
+     ! normalized diffuse photosynthetically active radiation profiles by
+     ! incident type (direct/diffuse at top of canopy),leaf,leaf (unitless)
      real(r8) ::  nrmlzd_parprof_dif_z(n_rad_stream_types,nclmax,nlevleaf)
-         
+
      real(r8) ::  parprof_pft_dir_z(nclmax,maxpft,nlevleaf)   ! direct-beam PAR profile through canopy, by canopy,PFT,leaf level (w/m2)
      real(r8) ::  parprof_pft_dif_z(nclmax,maxpft,nlevleaf)   ! diffuse     PAR profile through canopy, by canopy,PFT,leaf level (w/m2)
      real(r8) ::  parprof_dir_z(nclmax,nlevleaf)              ! direct-beam PAR profile through canopy, by canopy,leaf level (w/m2)
@@ -511,9 +512,9 @@ module EDTypesMod
      ! and leaf layer. m2/m2
      real(r8),allocatable ::  tr_soil_dir(:)                              ! fraction of incoming direct  radiation that (cm_numSWb)
      ! is transmitted to the soil as direct
-     real(r8),allocatable ::  tr_soil_dif(:)                              ! fraction of incoming diffuse radiation that 
+     real(r8),allocatable ::  tr_soil_dif(:)                              ! fraction of incoming diffuse radiation that
      ! is transmitted to the soil as diffuse
-     real(r8),allocatable ::  tr_soil_dir_dif(:)                          ! fraction of incoming direct  radiation that 
+     real(r8),allocatable ::  tr_soil_dir_dif(:)                          ! fraction of incoming direct  radiation that
      ! is transmitted to the soil as diffuse
      real(r8),allocatable ::  fab(:)                                      ! fraction of incoming total   radiation that is absorbed by the canopy
      real(r8),allocatable ::  fabd(:)                                     ! fraction of incoming direct  radiation that is absorbed by the canopy
@@ -522,18 +523,18 @@ module EDTypesMod
      real(r8),allocatable ::  sabs_dif(:)                                 ! fraction of incoming diffuse radiation that is absorbed by the canopy
 
 
-     ! PHOTOSYNTHESIS       
+     ! PHOTOSYNTHESIS
 
      real(r8) ::  psn_z(nclmax,maxpft,nlevleaf)               ! carbon assimilation in each canopy layer, pft, and leaf layer. umolC/m2/s
 
      ! ROOTS
      real(r8) ::  btran_ft(maxpft)                              ! btran calculated seperately for each PFT:-
-     real(r8) ::  bstress_sal_ft(maxpft)                        ! bstress from salinity calculated seperately for each PFT:-   
-     
+     real(r8) ::  bstress_sal_ft(maxpft)                        ! bstress from salinity calculated seperately for each PFT:-
 
-     ! DISTURBANCE 
-     real(r8) ::  disturbance_rates(n_dist_types)                  ! disturbance rate from 1) mortality 
-                                                                   !                       2) fire: fraction/day 
+
+     ! DISTURBANCE
+     real(r8) ::  disturbance_rates(n_dist_types)                  ! disturbance rate from 1) mortality
+                                                                   !                       2) fire: fraction/day
                                                                    !                       3) logging mortatliy
      real(r8) ::  disturbance_rate                                 ! larger effective disturbance rate: fraction/day
      integer  ::  disturbance_mode                                 ! index identifying which disturbance was applied
@@ -549,15 +550,15 @@ module EDTypesMod
 
      !FUEL CHARECTERISTICS
      real(r8) ::  sum_fuel                                         ! total ground fuel related to ros (omits 1000hr fuels): KgC/m2
-     real(r8) ::  fuel_frac(nfsc)                                  ! fraction of each litter class in the ros_fuel:-.  
+     real(r8) ::  fuel_frac(nfsc)                                  ! fraction of each litter class in the ros_fuel:-.
      real(r8) ::  livegrass                                        ! total aboveground grass biomass in patch.  KgC/m2
      real(r8) ::  fuel_bulkd                                       ! average fuel bulk density of the ground fuel. kgBiomass/m3
                                                                    ! (incl. live grasses. omits 1000hr fuels). KgC/m3
      real(r8) ::  fuel_sav                                         ! average surface area to volume ratio of the ground fuel. cm-1
                                                                    ! (incl. live grasses. omits 1000hr fuels).
-     real(r8) ::  fuel_mef                                         ! average moisture of extinction factor 
+     real(r8) ::  fuel_mef                                         ! average moisture of extinction factor
                                                                    ! of the ground fuel (incl. live grasses. omits 1000hr fuels).
-     real(r8) ::  fuel_eff_moist                                   ! effective avearage fuel moisture content of the ground fuel 
+     real(r8) ::  fuel_eff_moist                                   ! effective avearage fuel moisture content of the ground fuel
                                                                    ! (incl. live grasses. omits 1000hr fuels)
      real(r8) ::  litter_moisture(nfsc)
 
@@ -570,33 +571,33 @@ module EDTypesMod
      integer  ::  fire                                             ! Is there a fire? 1=yes 0=no
      real(r8) ::  fd                                               ! fire duration: mins
 
-     ! FIRE EFFECTS     
-     real(r8) ::  scorch_ht(maxpft)                                ! scorch height: m 
-     real(r8) ::  frac_burnt                                       ! fraction burnt: frac patch/day  
+     ! FIRE EFFECTS
+     real(r8) ::  scorch_ht(maxpft)                                ! scorch height: m
+     real(r8) ::  frac_burnt                                       ! fraction burnt: frac patch/day
      real(r8) ::  tfc_ros                                          ! total intensity-relevant fuel consumed - no trunks.  KgC/m2 of burned ground/day
      real(r8) ::  burnt_frac_litter(nfsc)                          ! fraction of each litter pool burned, conditional on it being burned
 
 
-     ! PLANT HYDRAULICS   (not currently used in hydraulics RGK 03-2018)  
+     ! PLANT HYDRAULICS   (not currently used in hydraulics RGK 03-2018)
      ! type(ed_patch_hydr_type) , pointer :: pa_hydr              ! All patch hydraulics data, see FatesHydraulicsMemMod.F90
 
 
   end type ed_patch_type
 
-  
+
   !************************************
   !** Resources management type      **
   ! YX
   !************************************
   type, public :: ed_resources_management_type
-    
+
      real(r8) ::  trunk_product_site                       ! Actual  trunk product at site level KgC/site
 
      !debug variables
      real(r8) ::  delta_litter_stock                       ! kgC/site = kgC/ha
      real(r8) ::  delta_biomass_stock                      ! kgC/site
-     real(r8) ::  delta_individual                         ! 
-  
+     real(r8) ::  delta_individual                         !
+
   end type ed_resources_management_type
 
   ! =====================================================================================
@@ -605,26 +606,26 @@ module EDTypesMod
 
      ! ----------------------------------------------------------------------------------
      ! Diagnostics for fluxes into the litter pool from plants
-     ! these fluxes are the total from 
+     ! these fluxes are the total from
      ! (1) turnover from living plants
      ! (2) mass transfer from non-disturbance inducing mortality events
      ! (3) mass transfer from disturbance inducing mortality events
      ! [kg / ha / day]
      ! ---------------------------------------------------------------------------------
 
-     real(r8) :: cwd_ag_input(1:ncwd)               
-     real(r8) :: cwd_bg_input(1:ncwd)               
+     real(r8) :: cwd_ag_input(1:ncwd)
+     real(r8) :: cwd_bg_input(1:ncwd)
      real(r8),allocatable :: leaf_litter_input(:)
      real(r8),allocatable :: root_litter_input(:)
 
      real(r8),allocatable :: nutrient_uptake_scpf(:)
      real(r8),allocatable :: nutrient_efflux_scpf(:)
      real(r8),allocatable :: nutrient_need_scpf(:)
-     
+
    contains
 
      procedure :: ZeroFluxDiags
-     
+
   end type site_fluxdiags_type
 
   ! ====================================================================================
@@ -633,13 +634,13 @@ module EDTypesMod
 
      ! ----------------------------------------------------------------------------------
      ! This type is used for accounting purposes to ensure that we are not
-     ! loosing or creating mass. This type is supposed to be allocated for each element 
+     ! loosing or creating mass. This type is supposed to be allocated for each element
      ! we simulate (e.g. carbon12_element, etc)
      ! Note that the unit of "site", is nominally equivalent to 1 hectare
      !
      ! This set of mass checks are for INCREMENTAL checks during the dynamics step.
      ! ----------------------------------------------------------------------------------
-     
+
      real(r8) :: old_stock    ! remember biomass stock from last time  [Kg/site]
      real(r8) :: err_fates    ! Total mass balance error for FATES processes     [kg/site]
 
@@ -677,37 +678,37 @@ module EDTypesMod
 
      procedure :: ZeroMassBalState
      procedure :: ZeroMassBalFlux
-     
+
   end type site_massbal_type
-  
+
 
   !************************************
   !** Site type structure           **
   !************************************
 
   type, public :: ed_site_type
-     
-     ! POINTERS  
-     type (ed_patch_type), pointer :: oldest_patch => null()   ! pointer to oldest patch at the site  
+
+     ! POINTERS
+     type (ed_patch_type), pointer :: oldest_patch => null()   ! pointer to oldest patch at the site
      type (ed_patch_type), pointer :: youngest_patch => null() ! pointer to yngest patch at the site
-     
+
      ! Resource management
-     type (ed_resources_management_type) :: resources_management ! resources_management at the site 
+     type (ed_resources_management_type) :: resources_management ! resources_management at the site
 
      ! If this simulation uses shared memory then the sites need to know what machine
      ! index they are on. This index is (currently) only used to identify the sites
      ! position in history output fields
-     !integer :: clump_id 
+     !integer :: clump_id
 
      ! Global index of this site in the history output file
      integer :: h_gid
-     
-     ! INDICES 
-     real(r8) ::  lat                                          ! latitude:  degrees 
-     real(r8) ::  lon                                          ! longitude: degrees 
+
+     ! INDICES
+     real(r8) ::  lat                                          ! latitude:  degrees
+     real(r8) ::  lon                                          ! longitude: degrees
 
      ! Fixed Biogeography mode inputs
-     real(r8), allocatable :: area_PFT(:)                      ! Area allocated to individual PFTs    
+     real(r8), allocatable :: area_PFT(:)                      ! Area allocated to individual PFTs
      integer, allocatable  :: use_this_pft(:)                  ! Is area_PFT > 0 ? (1=yes, 0=no)
 
      ! Total area of patches in each age bin [m2]
@@ -717,7 +718,7 @@ module EDTypesMod
      real(r8), allocatable :: sp_tlai(:)                      ! target TLAI per FATES pft
      real(r8), allocatable :: sp_tsai(:)                      ! target TSAI per FATES pft
      real(r8), allocatable :: sp_htop(:)                      ! target HTOP per FATES pft
-     
+
      ! Mass Balance (allocation for each element)
 
      type(site_massbal_type), pointer :: mass_balance(:)
@@ -726,7 +727,7 @@ module EDTypesMod
 
      type(site_fluxdiags_type), pointer :: flux_diags(:)
 
-     ! PHENOLOGY 
+     ! PHENOLOGY
      real(r8) ::  grow_deg_days                                ! Phenology growing degree days
      real(r8) ::  snow_depth                                   ! site-level snow depth (used for ELAI/TLAI calcs)
 
@@ -752,7 +753,7 @@ module EDTypesMod
 
 
      ! FIRE
-     real(r8) ::  wind                                         ! daily wind in m/min for Spitfire units 
+     real(r8) ::  wind                                         ! daily wind in m/min for Spitfire units
      real(r8) ::  acc_ni                                       ! daily nesterov index accumulating over time.
      real(r8) ::  fdi                                          ! daily probability an ignition event will start a fire
      real(r8) ::  NF                                           ! daily ignitions in km2
@@ -780,51 +781,51 @@ module EDTypesMod
 
 
      ! Mineralized nutrient flux from veg to the soil, via multiple mechanisms
-     ! inluding symbiotic fixation, or other 
+     ! inluding symbiotic fixation, or other
 
      !real(r8) :: allocatable :: minn_flux_out  ! kg/ha/day
      !real(r8) :: allocatable :: minp_flux_out  ! kg/ha/day
 
-     
+
      ! DIAGNOSTICS
 
      ! TERMINATION, RECRUITMENT, DEMOTION, and DISTURBANCE
-     
-     real(r8), allocatable :: term_nindivs_canopy(:,:) ! number of canopy individuals that were in cohorts which 
+
+     real(r8), allocatable :: term_nindivs_canopy(:,:) ! number of canopy individuals that were in cohorts which
                                                        ! were terminated this timestep, on size x pft
-     real(r8), allocatable :: term_nindivs_ustory(:,:) ! number of understory individuals that were in cohorts which 
+     real(r8), allocatable :: term_nindivs_ustory(:,:) ! number of understory individuals that were in cohorts which
                                                        ! were terminated this timestep, on size x pft
- 
-     real(r8) :: term_carbonflux_canopy                ! carbon flux from live to dead pools associated 
+
+     real(r8) :: term_carbonflux_canopy                ! carbon flux from live to dead pools associated
                                                        ! with termination mortality, per canopy level
-     real(r8) :: term_carbonflux_ustory                ! carbon flux from live to dead pools associated 
-                                                       ! with termination mortality, per canopy level    
+     real(r8) :: term_carbonflux_ustory                ! carbon flux from live to dead pools associated
+                                                       ! with termination mortality, per canopy level
      real(r8) :: demotion_carbonflux                             ! biomass of demoted individuals from canopy to understory [kgC/ha/day]
      real(r8) :: promotion_carbonflux                            ! biomass of promoted individuals from understory to canopy [kgC/ha/day]
      real(r8) :: imort_carbonflux                                ! biomass of individuals killed due to impact mortality per year. [kgC/ha/day]
      real(r8) :: fmort_carbonflux_canopy                         ! biomass of canopy indivs killed due to fire per year. [gC/m2/sec]
-     real(r8) :: fmort_carbonflux_ustory                         ! biomass of understory indivs killed due to fire per year [gC/m2/sec] 
+     real(r8) :: fmort_carbonflux_ustory                         ! biomass of understory indivs killed due to fire per year [gC/m2/sec]
 
      real(r8) :: recruitment_rate(1:maxpft)            ! number of individuals that were recruited into new cohorts
      real(r8), allocatable :: demotion_rate(:)         ! rate of individuals demoted from canopy to understory per FATES timestep
-    
-     real(r8), allocatable :: promotion_rate(:)                  ! rate of individuals promoted from understory to canopy per FATES timestep
-     
-     real(r8), allocatable :: imort_rate(:,:)                    ! rate of individuals killed due to impact mortality per year.  on size x pft array
-     
 
-     real(r8), allocatable :: fmort_rate_canopy(:,:)             ! rate of canopy individuals killed due to fire mortality per year.  
+     real(r8), allocatable :: promotion_rate(:)                  ! rate of individuals promoted from understory to canopy per FATES timestep
+
+     real(r8), allocatable :: imort_rate(:,:)                    ! rate of individuals killed due to impact mortality per year.  on size x pft array
+
+
+     real(r8), allocatable :: fmort_rate_canopy(:,:)             ! rate of canopy individuals killed due to fire mortality per year.
                                                                  ! on size x pft array  (1:nlevsclass,1:numpft)
-     real(r8), allocatable :: fmort_rate_ustory(:,:)             ! rate of understory individuals killed due to fire mortality per year.  
+     real(r8), allocatable :: fmort_rate_ustory(:,:)             ! rate of understory individuals killed due to fire mortality per year.
                                                                  ! on size x pft array  (1:nlevsclass,1:numpft)
-    
-     real(r8), allocatable :: fmort_rate_cambial(:,:)            ! rate of individuals killed due to fire mortality 
+
+     real(r8), allocatable :: fmort_rate_cambial(:,:)            ! rate of individuals killed due to fire mortality
                                                                  ! from cambial damage per year.  on size x pft array
-     real(r8), allocatable :: fmort_rate_crown(:,:)              ! rate of individuals killed due to fire mortality 
+     real(r8), allocatable :: fmort_rate_crown(:,:)              ! rate of individuals killed due to fire mortality
                                                                  ! from crown damage per year.  on size x pft array
 
      real(r8), allocatable :: growthflux_fusion(:,:)             ! rate of individuals moving into a given size class bin
-     ! due to fusion in a given day. on size x pft array 
+     ! due to fusion in a given day. on size x pft array
 
 
 
@@ -838,7 +839,7 @@ module EDTypesMod
      real(r8) :: potential_disturbance_rates(N_DIST_TYPES)               ! "potential" disturb rates (i.e. prior to the "which is most" logic) [m2/m2/day]
      real(r8) :: primary_land_patchfusion_error                          ! error term in total area of primary patches associated with patch fusion [m2/m2/day]
      real(r8) :: harvest_carbon_flux                                     ! diagnostic site level flux of carbon as harvested plants [kg C / m2 / day]
-     
+
   end type ed_site_type
 
   ! Make public necessary subroutines and functions
@@ -852,9 +853,9 @@ module EDTypesMod
 
 
     subroutine ZeroFluxDiags(this)
-      
+
       class(site_fluxdiags_type) :: this
-      
+
       this%cwd_ag_input(:)      = 0._r8
       this%cwd_bg_input(:)      = 0._r8
       this%leaf_litter_input(:) = 0._r8
@@ -862,24 +863,24 @@ module EDTypesMod
       this%nutrient_uptake_scpf(:) = 0._r8
       this%nutrient_efflux_scpf(:) = 0._r8
       this%nutrient_need_scpf(:)  = 0._r8
-      
+
       return
     end subroutine ZeroFluxDiags
 
     ! =====================================================================================
-    
+
     subroutine ZeroMassBalState(this)
-      
+
       class(site_massbal_type) :: this
-      
+
       this%old_stock = 0._r8
       this%err_fates = 0._r8
-      
+
       return
     end subroutine ZeroMassBalState
-    
+
     subroutine ZeroMassBalFlux(this)
-      
+
       class(site_massbal_type) :: this
 
       this%gpp_acc           = 0._r8
@@ -897,7 +898,7 @@ module EDTypesMod
       return
   end subroutine ZeroMassBalFlux
 
-   
+
   ! =====================================================================================
 
   subroutine val_check_ed_vars(currentPatch,var_aliases,return_code)
@@ -921,9 +922,9 @@ module EDTypesMod
      ! Locals
      type(ed_cohort_type), pointer          :: currentCohort
 
-     
+
      ! Check through a registry of variables to check
-     
+
      if ( check_hlm_list(trim(var_aliases),'co_n') ) then
 
         currentCohort => currentPatch%shortest
@@ -937,11 +938,11 @@ module EDTypesMod
            currentCohort => currentCohort%taller
         end do
      end if
-     
+
      if ( check_hlm_list(trim(var_aliases),'co_dbh') ) then
 
         currentCohort => currentPatch%shortest
-        do while(associated(currentCohort))        
+        do while(associated(currentCohort))
            call check_var_real(currentCohort%dbh,'cohort%dbh',return_code)
            if(.not.(return_code.eq.0)) then
               call dump_patch(currentPatch)
@@ -960,7 +961,7 @@ module EDTypesMod
            return
         end if
      end if
-     
+
 
 
      return
@@ -968,12 +969,12 @@ module EDTypesMod
 
   ! =====================================================================================
 
-  subroutine dump_site(csite) 
+  subroutine dump_site(csite)
 
      type(ed_site_type),intent(in),target :: csite
 
 
-     ! EDTypes is 
+     ! EDTypes is
 
      write(fates_log(),*) '----------------------------------------'
      write(fates_log(),*) ' Site Coordinates                       '
@@ -1033,33 +1034,33 @@ module EDTypesMod
   end subroutine dump_patch
 
   ! =====================================================================================
-  
+
   subroutine dump_cohort(ccohort)
 
 
      type(ed_cohort_type),intent(in),target :: ccohort
-     
+
      write(fates_log(),*) '----------------------------------------'
      write(fates_log(),*) ' Dumping Cohort Information             '
      write(fates_log(),*) '----------------------------------------'
      write(fates_log(),*) 'co%pft                    = ', ccohort%pft
-     write(fates_log(),*) 'co%n                      = ', ccohort%n                         
-     write(fates_log(),*) 'co%dbh                    = ', ccohort%dbh                                        
+     write(fates_log(),*) 'co%n                      = ', ccohort%n
+     write(fates_log(),*) 'co%dbh                    = ', ccohort%dbh
      write(fates_log(),*) 'co%hite                   = ', ccohort%hite
      write(fates_log(),*) 'co%coage                  = ', ccohort%coage
      write(fates_log(),*) 'co%laimemory              = ', ccohort%laimemory
      write(fates_log(),*) 'co%sapwmemory             = ', ccohort%sapwmemory
      write(fates_log(),*) 'co%structmemory           = ', ccohort%structmemory
-     
-     write(fates_log(),*) 'leaf carbon               = ', ccohort%prt%GetState(leaf_organ,all_carbon_elements) 
-     write(fates_log(),*) 'fineroot carbon           = ', ccohort%prt%GetState(fnrt_organ,all_carbon_elements) 
-     write(fates_log(),*) 'sapwood carbon            = ', ccohort%prt%GetState(sapw_organ,all_carbon_elements) 
-     write(fates_log(),*) 'structural (dead) carbon  = ', ccohort%prt%GetState(struct_organ,all_carbon_elements) 
-     write(fates_log(),*) 'storage carbon            = ', ccohort%prt%GetState(store_organ,all_carbon_elements) 
-     write(fates_log(),*) 'reproductive carbon       = ', ccohort%prt%GetState(repro_organ,all_carbon_elements) 
 
-     write(fates_log(),*) 'co%lai                    = ', ccohort%lai                         
-     write(fates_log(),*) 'co%sai                    = ', ccohort%sai  
+     write(fates_log(),*) 'leaf carbon               = ', ccohort%prt%GetState(leaf_organ,all_carbon_elements)
+     write(fates_log(),*) 'fineroot carbon           = ', ccohort%prt%GetState(fnrt_organ,all_carbon_elements)
+     write(fates_log(),*) 'sapwood carbon            = ', ccohort%prt%GetState(sapw_organ,all_carbon_elements)
+     write(fates_log(),*) 'structural (dead) carbon  = ', ccohort%prt%GetState(struct_organ,all_carbon_elements)
+     write(fates_log(),*) 'storage carbon            = ', ccohort%prt%GetState(store_organ,all_carbon_elements)
+     write(fates_log(),*) 'reproductive carbon       = ', ccohort%prt%GetState(repro_organ,all_carbon_elements)
+
+     write(fates_log(),*) 'co%lai                    = ', ccohort%lai
+     write(fates_log(),*) 'co%sai                    = ', ccohort%sai
      write(fates_log(),*) 'co%g_sb_laweight          = ', ccohort%g_sb_laweight
      write(fates_log(),*) 'co%leaf_cost              = ', ccohort%leaf_cost
      write(fates_log(),*) 'co%canopy_layer           = ', ccohort%canopy_layer
@@ -1067,8 +1068,8 @@ module EDTypesMod
      write(fates_log(),*) 'co%nv                     = ', ccohort%nv
      write(fates_log(),*) 'co%status_coh             = ', ccohort%status_coh
      write(fates_log(),*) 'co%canopy_trim            = ', ccohort%canopy_trim
-     write(fates_log(),*) 'co%excl_weight            = ', ccohort%excl_weight               
-     write(fates_log(),*) 'co%prom_weight            = ', ccohort%prom_weight               
+     write(fates_log(),*) 'co%excl_weight            = ', ccohort%excl_weight
+     write(fates_log(),*) 'co%prom_weight            = ', ccohort%prom_weight
      write(fates_log(),*) 'co%size_class             = ', ccohort%size_class
      write(fates_log(),*) 'co%size_by_pft_class      = ', ccohort%size_by_pft_class
      write(fates_log(),*) 'co%coage_class            = ', ccohort%coage_class
@@ -1099,6 +1100,7 @@ module EDTypesMod
      write(fates_log(),*) 'co%asmort                 = ', ccohort%asmort
      write(fates_log(),*) 'co%hmort                  = ', ccohort%hmort
      write(fates_log(),*) 'co%frmort                 = ', ccohort%frmort
+     write(fates_log(),*) 'co%heatmort               = ', ccohort%heatmort
      write(fates_log(),*) 'co%asmort                 = ', ccohort%asmort
      write(fates_log(),*) 'co%isnew                  = ', ccohort%isnew
      write(fates_log(),*) 'co%dndt                   = ', ccohort%dndt
@@ -1113,20 +1115,20 @@ module EDTypesMod
      write(fates_log(),*) 'co%size_by_pft_class      = ', ccohort%size_by_pft_class
      if (associated(ccohort%co_hydr) ) then
         call dump_cohort_hydr(ccohort)
-     endif 
+     endif
      write(fates_log(),*) '----------------------------------------'
      return
   end subroutine dump_cohort
 
   ! =====================================================================================
-  
+
   subroutine dump_cohort_hydr(ccohort)
 
 
      type(ed_cohort_type),intent(in),target :: ccohort
      type(ed_cohort_hydr_type), pointer :: ccohort_hydr
      ccohort_hydr => ccohort%co_hydr
-     
+
      write(fates_log(),*) '--------------------------------------------'
      write(fates_log(),*) ' Dumping Cohort Plant Hydraulic Information '
      write(fates_log(),*) 'ccohort_hydr%th_aroot(:) = ', ccohort_hydr%th_aroot(:)
