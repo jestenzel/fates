@@ -21,7 +21,6 @@ module EDMortalityFunctionsMod
    use EDLoggingMortalityMod , only : LoggingMortality_frac
    use EDParamsMod           , only : fates_mortality_disturbance_fraction
    use EDParamsMod           , only : temp_delay
-
    use PRTGenericMod,          only : all_carbon_elements
    use PRTGenericMod,          only : store_organ
 
@@ -129,27 +128,35 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     ! Proxy for hydraulic failure induced mortality.
     hf_sm_threshold = EDPftvarcon_inst%hf_sm_threshold(cohort_in%pft)
     hf_flc_threshold = EDPftvarcon_inst%hf_flc_threshold(cohort_in%pft)
-    if(hlm_use_planthydro.eq.itrue)then
-     !note the flc is set as the fraction of max conductivity in hydro
-     min_fmc_ag = minval(cohort_in%co_hydr%ftc_ag(:))
-     min_fmc_tr = cohort_in%co_hydr%ftc_troot
-     min_fmc_ar = minval(cohort_in%co_hydr%ftc_aroot(:))
-     min_fmc = min(min_fmc_ag, min_fmc_tr)
-     min_fmc = min(min_fmc, min_fmc_ar)
-     flc = 1.0_r8-min_fmc
-     if(flc >= hf_flc_threshold .and. hf_flc_threshold < 1.0_r8 )then
-       hmort = (flc-hf_flc_threshold)/(1.0_r8-hf_flc_threshold) * &
-           EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)
-     else
-       hmort = 0.0_r8
-     endif
-    else
-     if(cohort_in%patchptr%btran_ft(cohort_in%pft) <= hf_sm_threshold)then
-       hmort = EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)
-     else
-       hmort = 0.0_r8
-     endif
-    endif
+
+
+    if ( hlm_model_day > 183.0_r8 ) then         !!!! temporary shutoff of hydraulic failure mortality until day
+      if(hlm_use_planthydro.eq.itrue)then
+       !note the flc is set as the fraction of max conductivity in hydro
+       min_fmc_ag = minval(cohort_in%co_hydr%ftc_ag(:))
+       min_fmc_tr = cohort_in%co_hydr%ftc_troot
+       min_fmc_ar = minval(cohort_in%co_hydr%ftc_aroot(:))
+       min_fmc = min(min_fmc_ag, min_fmc_tr)
+       min_fmc = min(min_fmc, min_fmc_ar)
+       flc = 1.0_r8-min_fmc
+       if(flc >= hf_flc_threshold .and. hf_flc_threshold < 1.0_r8 )then
+         hmort = (flc-hf_flc_threshold)/(1.0_r8-hf_flc_threshold) * &
+             EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)
+       else
+         hmort = 0.0_r8
+       endif
+      else
+       if(cohort_in%patchptr%btran_ft(cohort_in%pft) <= hf_sm_threshold)then
+         hmort = EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)
+       else
+         hmort = 0.0_r8
+       endif
+      endif
+    else   !!!!
+      hmort = 0.0_r8
+    endif                               !!!!!!!!!!!!! End temporary hmort shutoff
+
+
 
     ! Carbon Starvation induced mortality.
     if ( cohort_in%dbh  >  0._r8 ) then
