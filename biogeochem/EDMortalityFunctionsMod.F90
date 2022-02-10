@@ -20,6 +20,7 @@ module EDMortalityFunctionsMod
    use FatesInterfaceTypesMod     , only : hlm_model_day
    use EDLoggingMortalityMod , only : LoggingMortality_frac
    use EDParamsMod           , only : fates_mortality_disturbance_fraction
+   use EDParamsMod           , only : temp_delay
    use PRTGenericMod,          only : all_carbon_elements
    use PRTGenericMod,          only : store_organ
 
@@ -79,6 +80,7 @@ contains
     real(r8) :: min_fmc_ar         ! minimum fraction of maximum conductivity for absorbing root
     real(r8) :: min_fmc            ! minimum fraction of maximum conductivity for whole plant
     real(r8) :: flc                ! fractional loss of conductivity
+
     real(r8), parameter :: frost_mort_buffer = 5.0_r8  ! 5deg buffer for freezing mortality
     logical, parameter :: test_zero_mortality = .false. ! Developer test which
                                                         ! may help to debug carbon imbalances
@@ -127,6 +129,7 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     hf_sm_threshold = EDPftvarcon_inst%hf_sm_threshold(cohort_in%pft)
     hf_flc_threshold = EDPftvarcon_inst%hf_flc_threshold(cohort_in%pft)
 
+
     if ( hlm_model_day > 183.0_r8 ) then         !!!! temporary shutoff of hydraulic failure mortality until day
       if(hlm_use_planthydro.eq.itrue)then
        !note the flc is set as the fraction of max conductivity in hydro
@@ -154,6 +157,7 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     endif                               !!!!!!!!!!!!! End temporary hmort shutoff
 
 
+
     ! Carbon Starvation induced mortality.
     if ( cohort_in%dbh  >  0._r8 ) then
 
@@ -179,25 +183,51 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     !           of land-use change, CO2 fertilization, and climate variability to the
     !           Eastern US carbon sink.  Glob. Change Biol., 12, 2370-2390,
     !           doi: 10.1111/j.1365-2486.2006.01254.x
+    !
+    ! [Jstenzel 2.8.2022 ]
+    ! Freezing mortality prevented before timestep = (@ 30 min ts = X days) to prevent initial cohort mortality
+    ! Freeze tolerances now set for seedlings vs hardened plants via individual parameters + a dbh cutoff for "seedling" class.
 
     temp_in_C = cohort_in%patchptr%tveg24%GetMean() - tfrz
 
-    temp_dep_fraction  = max(0.0_r8, min(1.0_r8, 1.0_r8 - (temp_in_C - &
-                         EDPftvarcon_inst%freezetol(cohort_in%pft))/frost_mort_buffer) )
-    frmort    = EDPftvarcon_inst%mort_scalar_coldstress(cohort_in%pft) * temp_dep_fraction
+    if ( hlm_model_day > temp_delay ) then         ! temperature mortality only after temp_delay days are exceeded
+
+      if ( cohort_in%dbh < EDPftvarcon_inst%hard_dbh(cohort_in%pft)  ) then
+        temp_dep_fraction  = max(0.0_r8, min(1.0_r8, 1.0_r8 - (temp_in_C - &
+                             EDPftvarcon_inst%freezetol_seedling(cohort_in%pft))/frost_mort_buffer) )
+      else
+        temp_dep_fraction  = max(0.0_r8, min(1.0_r8, 1.0_r8 - (temp_in_C - &
+                             EDPftvarcon_inst%freezetol(cohort_in%pft))/frost_mort_buffer) )
+      end if
+
+      frmort    = EDPftvarcon_inst%mort_scalar_coldstress(cohort_in%pft) * temp_dep_fraction
+
+    else
+      frmort = 0.0_r8
+    end if
+
 
     !--------------------------------------------------------------------------------
-    ! [JStenzel 2.2.2022] Mortality due to heat stress (heatmort).
+    ! [JStenzel 2.8.2022] Mortality due to heat stress (heatmort).
+    ! Heat stress mortality prevented before timestep = (@ 30 min ts = X days) to prevent initial cohort mortality
+    ! Heat tolerances now set for seedlings vs hardened plants via individual parameters + a dbh cutoff for "seedling" class.
 
-    temp_heat_fraction  = max(0.0_r8, min(1.0_r8, (temp_in_C - &
-                         EDPftvarcon_inst%heat_tol(cohort_in%pft)) ) )
+    if ( hlm_model_day > temp_delay ) then    ! temperature mortality only after temp_delay days are exceeded
 
-    !if( cohort_in%dbh < 10.0_r8 ) then
-    if( cohort_in%dbh < EDPftvarcon_inst%heat_hard_dbh(cohort_in%pft) ) then
-       heatmort    = EDPftvarcon_inst%mort_scalar_heatstress(cohort_in%pft) * temp_heat_fraction
+      if( cohort_in%dbh < EDPftvarcon_inst%hard_dbh(cohort_in%pft) ) then
+        temp_heat_fraction  = max(0.0_r8, min(1.0_r8, (temp_in_C - &
+                             EDPftvarcon_inst%heat_tol_seedling(cohort_in%pft)) ) )
+        heatmort    = EDPftvarcon_inst%mort_scalar_heatstress(cohort_in%pft) * temp_heat_fraction
+      else
+        temp_heat_fraction  = max(0.0_r8, min(1.0_r8, (temp_in_C - &
+                             EDPftvarcon_inst%heat_tol(cohort_in%pft)) ) )
+         heatmort    = EDPftvarcon_inst%mort_scalar_heatstress(cohort_in%pft) * temp_heat_fraction
+      endif
     else
-       heatmort = 0.0_r8
-    endif
+      heatmort = 0.0_r8
+    end if
+
+
 
     !------------------------------------------------------------------------------------
 

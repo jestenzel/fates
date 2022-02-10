@@ -42,15 +42,17 @@ module EDPftvarcon
   !ED specific variables.
   type, public ::  EDPftvarcon_type
 
-     real(r8), allocatable :: freezetol(:)           ! minimum temperature tolerance
+     real(r8), allocatable :: freezetol(:)           ! minimum temperature tolerance, post-hardened plants
+     real(r8), allocatable :: freezetol_seedling(:)  ! [JStenzel 2.7.2022] Minimum temperature tolerance, pre-hardened plants
      real(r8), allocatable :: hgt_min(:)             ! sapling height m
      real(r8), allocatable :: dleaf(:)               ! leaf characteristic dimension length (m)
      real(r8), allocatable :: z0mr(:)                ! ratio of roughness length of vegetation to height (-)
      real(r8), allocatable :: displar(:)             ! ratio of displacement height to canopy top height
      real(r8), allocatable :: bark_scaler(:)         ! scaler from dbh to bark thickness. For fire model.
      real(r8), allocatable :: cstarvetol(:)          ! [JStenzel 1.27.2022] Added parameter throughout file. Purpose: Set threshold store:leaf c for mortality.
-     real(r8), allocatable :: heat_tol(:)            ! [JStenzel 2.1.2022] maximum temperature tolerance 
-     real(r8), allocatable :: heat_hard_dbh(:)       ! [JStenzel 2.2.2022] minimum dbh above which heat mortality does not occur
+     real(r8), allocatable :: heat_tol_seedling(:)   ! [JStenzel 2.7.2022] maximum temperature tolerance, pre-hardened plants
+     real(r8), allocatable :: heat_tol(:)            ! [JStenzel 2.7.2022] maximum temperature tolerance, post-hardened plants
+     real(r8), allocatable :: hard_dbh(:)            ! [JStenzel 2.7.2022] minimum dbh above which hardened (vs pre-hardened) mortality occurs
      real(r8), allocatable :: crown_kill(:)          ! scaler on fire death. For fire model.
      real(r8), allocatable :: initd(:)               ! initial seedling density
 
@@ -201,7 +203,7 @@ module EDPftvarcon
      real(r8), allocatable :: hydr_rfrac_stem(:)    ! fraction of total tree resistance from troot to canopy
      real(r8), allocatable :: hydr_avuln_gs(:)      ! shape parameter for stomatal control of water vapor exiting leaf
      real(r8), allocatable :: hydr_p50_gs(:)        ! water potential at 50% loss of stomatal conductance
-     real(r8), allocatable :: hydr_k_lwp(:)         ! inner leaf humidity scaling coefficient 
+     real(r8), allocatable :: hydr_k_lwp(:)         ! inner leaf humidity scaling coefficient
 
      ! PFT x Organ Dimension  (organs are: 1=leaf, 2=stem, 3=transporting root, 4=absorbing root)
      ! ----------------------------------------------------------------------------------
@@ -329,15 +331,23 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_mort_cstarvetol'                                                         
+    name = 'fates_mort_freezetol_seedling'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_mort_heat_tol'                                                         
+    name = 'fates_mort_cstarvetol'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_mort_heat_hard_dbh'                                                         
+    name = 'fates_mort_heat_tol'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_mort_heat_tol_seedling'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_mort_hard_dbh'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -678,18 +688,26 @@ contains
     name = 'fates_mort_freezetol'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%freezetol)
-    
-    name = 'fates_mort_cstarvetol'                              
+
+    name = 'fates_mort_freezetol_seedling'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%freezetol_seedling)
+
+    name = 'fates_mort_cstarvetol'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%cstarvetol)
 
-    name = 'fates_mort_heat_tol'                              
+    name = 'fates_mort_heat_tol'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%heat_tol)
 
-    name = 'fates_mort_heat_hard_dbh'                              
+    name = 'fates_mort_heat_tol_seedling'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%heat_hard_dbh)
+         data=this%heat_tol_seedling)
+
+    name = 'fates_mort_hard_dbh'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%hard_dbh)
 
     name = 'fates_recruit_hgt_min'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -1424,9 +1442,11 @@ contains
 
         write(fates_log(),*) '-----------  FATES PFT Parameters -----------------'
         write(fates_log(),fmt0) 'freezetol = ',EDPftvarcon_inst%freezetol
-	write(fates_log(),fmt0) 'cstarvetol = ',EDPftvarcon_inst%cstarvetol
- 	write(fates_log(),fmt0) 'heat_tol = ',EDPftvarcon_inst%heat_tol
-        write(fates_log(),fmt0) 'heat_hard_dbh = ',EDPftvarcon_inst%heat_hard_dbh
+	      write(fates_log(),fmt0) 'freezetol_seedling = ',EDPftvarcon_inst%freezetol_seedling
+	      write(fates_log(),fmt0) 'cstarvetol = ',EDPftvarcon_inst%cstarvetol
+ 	      write(fates_log(),fmt0) 'heat_tol = ',EDPftvarcon_inst%heat_tol
+	      write(fates_log(),fmt0) 'heat_tol_seedling = ',EDPftvarcon_inst%heat_tol_seedling
+        write(fates_log(),fmt0) 'hard_dbh = ',EDPftvarcon_inst%hard_dbh
         write(fates_log(),fmt0) 'hgt_min = ',EDPftvarcon_inst%hgt_min
         write(fates_log(),fmt0) 'dleaf = ',EDPftvarcon_inst%dleaf
         write(fates_log(),fmt0) 'z0mr = ',EDPftvarcon_inst%z0mr
@@ -1802,7 +1822,7 @@ contains
               end if
            end do !hlm_pft
         end if
-        
+
      end do !ipft
 
 
@@ -1881,4 +1901,3 @@ contains
 
 
 end module EDPftvarcon
-

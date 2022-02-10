@@ -36,7 +36,7 @@ module EDParamsMod
    integer,protected, public :: photo_tempsens_model  ! switch for choosing the model that defines the temperature
                                                       ! sensitivity of photosynthetic parameters (vcmax, jmax).
                                                       ! 1=non-acclimating (NOT YET IMPLEMENTED)
-   
+
    real(r8),protected, public :: fates_mortality_disturbance_fraction ! the fraction of canopy mortality that results in disturbance
    real(r8),protected, public :: ED_val_comp_excln
    real(r8),protected, public :: ED_val_init_litter
@@ -59,7 +59,7 @@ module EDParamsMod
    real(r8),protected, public :: ED_val_patch_fusion_tol
    real(r8),protected, public :: ED_val_canopy_closure_thresh ! site-level canopy closure point where trees take on forest (narrow) versus savannah (wide) crown allometry
    integer,protected, public  :: stomatal_model  !switch for choosing between stomatal conductance models, 1 for Ball-Berry, 2 for Medlyn
-   
+
    logical,protected, public :: active_crown_fire        ! flag, 1=active crown fire 0=no active crown fire
    character(len=param_string_length),parameter :: fates_name_active_crown_fire = "fates_fire_active_crown_fire"
 
@@ -70,16 +70,16 @@ module EDParamsMod
    ! empirical curvature parameters for ac, aj photosynthesis co-limitation, c3 and c4 plants respectively
    real(r8),protected,public  :: theta_cj_c3
    real(r8),protected,public  :: theta_cj_c4
-   
+
    real(r8),protected,public  :: q10_mr     ! Q10 for respiration rate (for soil fragmenation and plant respiration)    (unitless)
    real(r8),protected,public  :: q10_froz   ! Q10 for frozen-soil respiration rates (for soil fragmentation)            (unitless)
 
    ! Unassociated pft dimensioned free parameter that developers can use for testing arbitrary new hypotheses
    ! (THIS PARAMETER IS UNUSED, FEEL FREE TO USE IT FOR WHATEVER PURPOSE YOU LIKE. WE CAN
    !  HELP MIGRATE YOUR USAGE OF THE PARMETER TO A PERMANENT HOME LATER)
-   real(r8),protected,public  :: dev_arbitrary 
+   real(r8),protected,public  :: dev_arbitrary
    character(len=param_string_length),parameter,public :: name_dev_arbitrary = "fates_dev_arbitrary"
-   
+
    ! parameters whose size is defined in the parameter file
    real(r8),protected,allocatable,public :: ED_val_history_sizeclass_bin_edges(:)
    real(r8),protected,allocatable,public :: ED_val_history_ageclass_bin_edges(:)
@@ -89,8 +89,8 @@ module EDParamsMod
    ! Switch that defines the current pressure-volume and pressure-conductivity model
    ! to be used at each node (compartment/organ)
    ! 1  = Christofferson et al. 2016 (TFS),   2 = Van Genuchten 1980
-   integer, protected,allocatable,public :: hydr_htftype_node(:) 
-   
+   integer, protected,allocatable,public :: hydr_htftype_node(:)
+
    character(len=param_string_length),parameter,public :: ED_name_vai_top_bin_width = "fates_vai_top_bin_width"
    character(len=param_string_length),parameter,public :: ED_name_vai_width_increase_factor = "fates_vai_width_increase_factor"
    character(len=param_string_length),parameter,public :: ED_name_photo_temp_acclim_timescale = "fates_photo_temp_acclim_timescale"
@@ -102,45 +102,45 @@ module EDParamsMod
    character(len=param_string_length),parameter,public :: ED_name_init_litter = "fates_init_litter"
    character(len=param_string_length),parameter,public :: ED_name_nignitions = "fates_fire_nignitions"
    character(len=param_string_length),parameter,public :: ED_name_understorey_death = "fates_mort_understorey_death"
-   character(len=param_string_length),parameter,public :: ED_name_cwd_fcel= "fates_cwd_fcel"   
-   character(len=param_string_length),parameter,public :: ED_name_cwd_flig= "fates_cwd_flig"   
-   character(len=param_string_length),parameter,public :: ED_name_base_mr_20= "fates_base_mr_20"   
-   character(len=param_string_length),parameter,public :: ED_name_phen_drought_threshold= "fates_phen_drought_threshold"   
-   character(len=param_string_length),parameter,public :: ED_name_phen_doff_time= "fates_phen_doff_time"   
-   character(len=param_string_length),parameter,public :: ED_name_phen_a= "fates_phen_a"   
-   character(len=param_string_length),parameter,public :: ED_name_phen_b= "fates_phen_b"   
-   character(len=param_string_length),parameter,public :: ED_name_phen_c= "fates_phen_c"   
-   character(len=param_string_length),parameter,public :: ED_name_phen_chiltemp= "fates_phen_chiltemp"   
-   character(len=param_string_length),parameter,public :: ED_name_phen_mindayson= "fates_phen_mindayson"   
-   character(len=param_string_length),parameter,public :: ED_name_phen_ncolddayslim= "fates_phen_ncolddayslim"   
-   character(len=param_string_length),parameter,public :: ED_name_phen_coldtemp= "fates_phen_coldtemp"   
+   character(len=param_string_length),parameter,public :: ED_name_cwd_fcel= "fates_cwd_fcel"
+   character(len=param_string_length),parameter,public :: ED_name_cwd_flig= "fates_cwd_flig"
+   character(len=param_string_length),parameter,public :: ED_name_base_mr_20= "fates_base_mr_20"
+   character(len=param_string_length),parameter,public :: ED_name_phen_drought_threshold= "fates_phen_drought_threshold"
+   character(len=param_string_length),parameter,public :: ED_name_phen_doff_time= "fates_phen_doff_time"
+   character(len=param_string_length),parameter,public :: ED_name_phen_a= "fates_phen_a"
+   character(len=param_string_length),parameter,public :: ED_name_phen_b= "fates_phen_b"
+   character(len=param_string_length),parameter,public :: ED_name_phen_c= "fates_phen_c"
+   character(len=param_string_length),parameter,public :: ED_name_phen_chiltemp= "fates_phen_chiltemp"
+   character(len=param_string_length),parameter,public :: ED_name_phen_mindayson= "fates_phen_mindayson"
+   character(len=param_string_length),parameter,public :: ED_name_phen_ncolddayslim= "fates_phen_ncolddayslim"
+   character(len=param_string_length),parameter,public :: ED_name_phen_coldtemp= "fates_phen_coldtemp"
    character(len=param_string_length),parameter,public :: ED_name_cohort_size_fusion_tol= "fates_cohort_size_fusion_tol"
    character(len=param_string_length),parameter,public :: ED_name_cohort_age_fusion_tol = "fates_cohort_age_fusion_tol"
    character(len=param_string_length),parameter,public :: ED_name_patch_fusion_tol= "fates_patch_fusion_tol"
-   character(len=param_string_length),parameter,public :: ED_name_canopy_closure_thresh= "fates_canopy_closure_thresh"      
+   character(len=param_string_length),parameter,public :: ED_name_canopy_closure_thresh= "fates_canopy_closure_thresh"
    character(len=param_string_length),parameter,public :: ED_name_stomatal_model= "fates_leaf_stomatal_model"
 
    character(len=param_string_length),parameter,public :: name_theta_cj_c3 = "fates_theta_cj_c3"
    character(len=param_string_length),parameter,public :: name_theta_cj_c4 = "fates_theta_cj_c4"
-   
+
    character(len=param_string_length),parameter :: fates_name_q10_mr="fates_q10_mr"
    character(len=param_string_length),parameter :: fates_name_q10_froz="fates_q10_froz"
 
    ! non-scalar parameter names
-   character(len=param_string_length),parameter,public :: ED_name_history_sizeclass_bin_edges= "fates_history_sizeclass_bin_edges"      
-   character(len=param_string_length),parameter,public :: ED_name_history_ageclass_bin_edges= "fates_history_ageclass_bin_edges"      
+   character(len=param_string_length),parameter,public :: ED_name_history_sizeclass_bin_edges= "fates_history_sizeclass_bin_edges"
+   character(len=param_string_length),parameter,public :: ED_name_history_ageclass_bin_edges= "fates_history_ageclass_bin_edges"
    character(len=param_string_length),parameter,public :: ED_name_history_height_bin_edges= "fates_history_height_bin_edges"
    character(len=param_string_length),parameter,public :: ED_name_history_coageclass_bin_edges = "fates_history_coageclass_bin_edges"
 
    ! Hydraulics Control Parameters (ONLY RELEVANT WHEN USE_FATES_HYDR = TRUE)
    ! ----------------------------------------------------------------------------------------------
-   real(r8),protected,public :: hydr_kmax_rsurf1         !  maximum conducitivity for unit root surface 
+   real(r8),protected,public :: hydr_kmax_rsurf1         !  maximum conducitivity for unit root surface
                                                   !  soil to root direction (kg water/m2 root area/Mpa/s)
-   character(len=param_string_length),parameter,public :: hydr_name_kmax_rsurf1 = "fates_hydr_kmax_rsurf1"  
-   
-   real(r8),protected,public :: hydr_kmax_rsurf2         !  maximum conducitivity for unit root surface 
+   character(len=param_string_length),parameter,public :: hydr_name_kmax_rsurf1 = "fates_hydr_kmax_rsurf1"
+
+   real(r8),protected,public :: hydr_kmax_rsurf2         !  maximum conducitivity for unit root surface
                                                   !  root to soil direciton (kg water/m2 root area/Mpa/s)
-   character(len=param_string_length),parameter,public :: hydr_name_kmax_rsurf2 = "fates_hydr_kmax_rsurf2" 
+   character(len=param_string_length),parameter,public :: hydr_name_kmax_rsurf2 = "fates_hydr_kmax_rsurf2"
 
    real(r8),protected,public :: hydr_psi0          !  sapwood water potential at saturation (MPa)
    character(len=param_string_length),parameter,public :: hydr_name_psi0 = "fates_hydr_psi0"
@@ -151,8 +151,8 @@ module EDParamsMod
    !Soil BGC parameters, mostly used for testing FATES when not coupled to the dynamics bgc hlm
    ! ----------------------------------------------------------------------------------------------
    real(r8),protected,public :: bgc_soil_salinity ! site-level soil salinity for FATES when not coupled to dynamic soil BGC of salinity
-   character(len=param_string_length),parameter,public :: bgc_name_soil_salinity= "fates_soil_salinity"      
-   
+   character(len=param_string_length),parameter,public :: bgc_name_soil_salinity= "fates_soil_salinity"
+
    ! Logging Control Parameters (ONLY RELEVANT WHEN USE_FATES_LOGGING = TRUE)
    ! ----------------------------------------------------------------------------------------------
 
@@ -171,40 +171,42 @@ module EDParamsMod
    real(r8),protected,public :: logging_coll_under_frac ! Fraction of understory plants that die when logging disturbance
                                                  ! is generated
    character(len=param_string_length),parameter,public :: logging_name_coll_under_frac = "fates_logging_coll_under_frac"
-   
+
    real(r8),protected,public :: logging_direct_frac         ! Fraction of stems logged per event
    character(len=param_string_length),parameter,public :: logging_name_direct_frac = "fates_logging_direct_frac"
 
    real(r8),protected,public :: logging_mechanical_frac         ! Fraction of stems logged per event
    character(len=param_string_length),parameter,public :: logging_name_mechanical_frac = "fates_logging_mechanical_frac"
 
-   real(r8),protected,public :: logging_event_code          ! Code that options how logging events are structured 
+   real(r8),protected,public :: logging_event_code          ! Code that options how logging events are structured
    character(len=param_string_length),parameter,public :: logging_name_event_code = "fates_logging_event_code"
-   
+
    real(r8),protected,public :: logging_dbhmax_infra        ! "Tree diameter, above which infrastructure from logging does not impact damage or mortality.
    character(len=param_string_length),parameter,public :: logging_name_dbhmax_infra = "fates_logging_dbhmax_infra"
-   
-   real(r8),protected,public :: logging_export_frac        ! "fraction of trunk product being shipped offsite, the 
-                                                    ! leftovers will be left onsite as large CWD
-   character(len=param_string_length),parameter,public :: logging_name_export_frac ="fates_logging_export_frac"   
 
-   real(r8),protected,public :: eca_plant_escalar  ! scaling factor for plant fine root biomass to 
+   real(r8),protected,public :: logging_export_frac        ! "fraction of trunk product being shipped offsite, the
+                                                    ! leftovers will be left onsite as large CWD
+   character(len=param_string_length),parameter,public :: logging_name_export_frac ="fates_logging_export_frac"
+
+   real(r8),protected,public :: eca_plant_escalar  ! scaling factor for plant fine root biomass to
                                                ! calculate nutrient carrier enzyme abundance (ECA)
 
    character(len=param_string_length),parameter,public :: eca_name_plant_escalar = "fates_eca_plant_escalar"
+
+   real(r8), protected, public :: temp_delay     !delay (in days) before temperature mortality begins to occur (heat, freeze)
 
    public :: FatesParamsInit
    public :: FatesRegisterParams
    public :: FatesReceiveParams
    public :: FatesReportParams
-  
+
 contains
 
   !-----------------------------------------------------------------------
   subroutine FatesParamsInit()
     ! Initialize all parameters to nan to ensure that we get valid
     ! values back from the host.
-    
+
     use shr_infnan_mod , only : nan => shr_infnan_nan, assignment(=)
 
     implicit none
@@ -255,6 +257,7 @@ contains
     theta_cj_c3                           = nan
     theta_cj_c4                           = nan
     dev_arbitrary                         = nan
+    temp_delay                         = nan
   end subroutine FatesParamsInit
 
   !-----------------------------------------------------------------------
@@ -280,7 +283,7 @@ contains
     character(len=param_string_length), parameter :: dim_names_height(1) = (/dimension_name_history_height_bins/)
     character(len=param_string_length), parameter :: dim_names_coageclass(1) = (/dimension_name_history_coage_bins/)
     character(len=param_string_length), parameter :: dim_names_hydro_organs(1) = (/dimension_name_hydr_organs/)
-       
+
     call FatesParamsInit()
 
     call fates_params%RegisterParameter(name=ED_name_vai_top_bin_width, dimension_shape=dimension_shape_scalar, &
@@ -288,7 +291,7 @@ contains
 
     call fates_params%RegisterParameter(name=ED_name_vai_width_increase_factor, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
-    
+
     call fates_params%RegisterParameter(name=ED_name_photo_temp_acclim_timescale, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
@@ -297,13 +300,13 @@ contains
 
     call fates_params%RegisterParameter(name=name_maintresp_model,dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
-    
+
     call fates_params%RegisterParameter(name=name_theta_cj_c3, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
-    
+
     call fates_params%RegisterParameter(name=name_theta_cj_c4, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
-    
+
     call fates_params%RegisterParameter(name=ED_name_mort_disturb_frac, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
@@ -369,13 +372,13 @@ contains
 
     call fates_params%RegisterParameter(name=ED_name_stomatal_model, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
-	 
+
     call fates_params%RegisterParameter(name=hydr_name_kmax_rsurf1, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
     call fates_params%RegisterParameter(name=hydr_name_kmax_rsurf2, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
-    
+
     call fates_params%RegisterParameter(name=hydr_name_psi0, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
@@ -383,7 +386,7 @@ contains
          dimension_names=dim_names_scalar)
 
     call fates_params%RegisterParameter(name=bgc_name_soil_salinity, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar) 
+         dimension_names=dim_names_scalar)
 
     call fates_params%RegisterParameter(name=logging_name_dbhmin, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
@@ -412,7 +415,7 @@ contains
     call fates_params%RegisterParameter(name=logging_name_export_frac, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
-    call fates_params%RegisterParameter(name=eca_name_plant_escalar, dimension_shape=dimension_shape_scalar, & 
+    call fates_params%RegisterParameter(name=eca_name_plant_escalar, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
     call fates_params%RegisterParameter(name=fates_name_q10_mr, dimension_shape=dimension_shape_scalar, &
@@ -423,12 +426,12 @@ contains
 
     call fates_params%RegisterParameter(name=name_dev_arbitrary, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
-    
+
     ! non-scalar parameters
 
     call fates_params%RegisterParameter(name=ED_name_hydr_htftype_node, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names_hydro_organs)
-    
+
     call fates_params%RegisterParameter(name=ED_name_history_sizeclass_bin_edges, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names_sizeclass)
 
@@ -440,20 +443,20 @@ contains
 
     call fates_params%RegisterParameter(name=fates_name_active_crown_fire, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
-    
+
     call fates_params%RegisterParameter(name=fates_name_cg_strikes, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
-    
+
     call fates_params%RegisterParameter(name=ED_name_history_coageclass_bin_edges, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names_coageclass)
 
 
   end subroutine FatesRegisterParams
 
-  
+
   !-----------------------------------------------------------------------
   subroutine FatesReceiveParams(fates_params)
-    
+
     use FatesParametersInterface, only : fates_parameters_type, dimension_name_scalar
 
     implicit none
@@ -462,7 +465,7 @@ contains
 
     real(r8) :: tmpreal ! local real variable for changing type on read
     real(r8), allocatable :: hydr_htftype_real(:)
-    
+
     call fates_params%RetreiveParameter(name=ED_name_vai_top_bin_width, &
          data=vai_top_bin_width)
 
@@ -479,7 +482,7 @@ contains
     call fates_params%RetreiveParameter(name=name_maintresp_model, &
          data=tmpreal)
     maintresp_model = nint(tmpreal)
-    
+
     call fates_params%RetreiveParameter(name=ED_name_mort_disturb_frac, &
           data=fates_mortality_disturbance_fraction)
 
@@ -539,7 +542,7 @@ contains
 
     call fates_params%RetreiveParameter(name=ED_name_patch_fusion_tol, &
          data=ED_val_patch_fusion_tol)
-    
+
     call fates_params%RetreiveParameter(name=ED_name_canopy_closure_thresh, &
          data=ED_val_canopy_closure_thresh)
 
@@ -551,16 +554,16 @@ contains
           data=hydr_kmax_rsurf1)
 
     call fates_params%RetreiveParameter(name=hydr_name_kmax_rsurf2, &
-          data=hydr_kmax_rsurf2)	 
-    
+          data=hydr_kmax_rsurf2)
+
     call fates_params%RetreiveParameter(name=hydr_name_psi0, &
           data=hydr_psi0)
 
     call fates_params%RetreiveParameter(name=hydr_name_psicap, &
           data=hydr_psicap)
-	  
+
     call fates_params%RetreiveParameter(name=bgc_name_soil_salinity, &
-          data=bgc_soil_salinity)	  
+          data=bgc_soil_salinity)
 
     call fates_params%RetreiveParameter(name=logging_name_dbhmin, &
           data=logging_dbhmin)
@@ -570,7 +573,7 @@ contains
 
     call fates_params%RetreiveParameter(name=logging_name_collateral_frac, &
           data=logging_collateral_frac)
-    
+
     call fates_params%RetreiveParameter(name=logging_name_coll_under_frac, &
           data=logging_coll_under_frac)
 
@@ -579,7 +582,7 @@ contains
 
     call fates_params%RetreiveParameter(name=logging_name_mechanical_frac, &
           data=logging_mechanical_frac)
-    
+
     call fates_params%RetreiveParameter(name=logging_name_event_code, &
           data=logging_event_code)
 
@@ -597,17 +600,17 @@ contains
 
      call fates_params%RetreiveParameter(name=name_theta_cj_c4, &
           data=theta_cj_c4)
-     
+
     call fates_params%RetreiveParameter(name=fates_name_q10_mr, &
           data=q10_mr)
-    
+
     call fates_params%RetreiveParameter(name=fates_name_q10_froz, &
          data=q10_froz)
-    
+
     call fates_params%RetreiveParameter(name=name_dev_arbitrary, &
          data=dev_arbitrary)
 
-    call fates_params%RetreiveParameter(name=fates_name_active_crown_fire, & 
+    call fates_params%RetreiveParameter(name=fates_name_active_crown_fire, &
           data=tmpreal)
     active_crown_fire = (abs(tmpreal-1.0_r8)<nearzero)
 
@@ -634,7 +637,7 @@ contains
     deallocate(hydr_htftype_real)
 
   end subroutine FatesReceiveParams
-  
+
   ! =====================================================================================
 
   subroutine FatesReportParams(is_master)
@@ -644,9 +647,9 @@ contains
      character(len=32),parameter :: fmt0 = '(a,(F12.4))'
      character(len=32),parameter :: fmti = '(a,(I4))'
      logical, parameter :: debug_report = .false.
-     
+
      if(debug_report .and. is_master) then
-        
+
         write(fates_log(),*) '-----------  FATES Scalar Parameters -----------------'
         write(fates_log(),fmt0) 'vai_top_bin_width = ',vai_top_bin_width
         write(fates_log(),fmt0) 'vai_width_increase_factor = ',vai_width_increase_factor
@@ -673,9 +676,9 @@ contains
         write(fates_log(),fmt0) 'ED_val_cohort_age_fusion_tol = ',ED_val_cohort_age_fusion_tol
         write(fates_log(),fmt0) 'ED_val_patch_fusion_tol = ',ED_val_patch_fusion_tol
         write(fates_log(),fmt0) 'ED_val_canopy_closure_thresh = ',ED_val_canopy_closure_thresh
-        write(fates_log(),fmt0) 'stomatal_model = ',stomatal_model      
+        write(fates_log(),fmt0) 'stomatal_model = ',stomatal_model
         write(fates_log(),fmt0) 'hydr_kmax_rsurf1 = ',hydr_kmax_rsurf1
-        write(fates_log(),fmt0) 'hydr_kmax_rsurf2 = ',hydr_kmax_rsurf2  
+        write(fates_log(),fmt0) 'hydr_kmax_rsurf2 = ',hydr_kmax_rsurf2
         write(fates_log(),fmt0) 'hydr_psi0 = ',hydr_psi0
         write(fates_log(),fmt0) 'hydr_psicap = ',hydr_psicap
         write(fates_log(),fmt0) 'bgc_soil_salinity = ', bgc_soil_salinity
@@ -691,6 +694,7 @@ contains
         write(fates_log(),fmt0) 'q10_mr = ',q10_mr
         write(fates_log(),fmt0) 'q10_froz = ',q10_froz
         write(fates_log(),fmt0) 'cg_strikes = ',cg_strikes
+        write(fates_log(),fmt0) 'temp_delay = ',temp_delay
         write(fates_log(),'(a,L2)') 'active_crown_fire = ',active_crown_fire
         write(fates_log(),*) '------------------------------------------------------'
 
@@ -698,5 +702,5 @@ contains
 
   end subroutine FatesReportParams
 
-  
+
 end module EDParamsMod
