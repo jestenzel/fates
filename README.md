@@ -1,16 +1,17 @@
 # Branch Notes
 ------------------------------
-This branch adds mortality tolerance parameters and a new source of mortality (heat). 
-Temperature based mortality tolerance is set based on whether a tree has "hardened" yet, which is set by dbh. 
-At dry sites, early-run (months) soil water was causing undesired mortality. Hydraulic failure mort was therefore hardcoded to not occur until after DOY 182 (July 1) of the first simulation year.
+This branch adds mortality tolerance parameters and a new source of mortality (heat). Temperature based mortality tolerance is set based on   
+whether a tree has "hardened"  yet, which is set by dbh.  At dry sites, early-run (months) soil water was causing undesired mortality.   
+Hydraulic failure mort was therefore hardcoded to not occur until   after DOY 182 (July 1) of the  first simulation year.      
 
-Added parameters /definition changes: 
--fates_mort_heat_tol (pft) :maximum temperature tolerance, post-seedling; degress C.
--fates_mort_heat_tol_seedling (pft): maximum temperature tolerance, seedling; degrees C
--fates_freezetol_seedling (pft): minimum temperature tolerance, seedling
--(definition change) fates_mort_freezetol (pft): minimum temperature tolerance, post-seedling; degrees C
--(definition change) fates_mort_scalar_hydrfailure (pft): maximum mortality rate from hydraulic failure. **This value will be 0 before model day 182.**
--fates_mort_hard_dbh (pft): minimum dbh for non-seedling temperature mortality (i.e. hardened plant)
+Added parameters /definition changes:   
+
+-**fates_mort_heat_tol** (pft) :maximum temperature tolerance, post-seedling; degress C.  
+-**fates_mort_heat_tol_seedling** (pft): maximum temperature tolerance, seedling; degrees C  
+-**fates_freezetol_seedling** (pft): minimum temperature tolerance, seedling  
+-(definition change) **fates_mort_freezetol** (pft): minimum temperature tolerance, post-seedling; degrees C  
+-(definition change) **fates_mort_scalar_hydrfailure** (pft): max mortality rate from hydraulic failure. **This value will be 0 before model day 182.**    
+-**fates_mort_hard_dbh** (pft): minimum dbh for non-seedling temperature mortality (i.e. hardened plant)  
 
 
 # FATES
