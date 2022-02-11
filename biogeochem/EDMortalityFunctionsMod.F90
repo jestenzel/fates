@@ -185,7 +185,7 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     !           doi: 10.1111/j.1365-2486.2006.01254.x
     !
     ! [Jstenzel 2.8.2022 ]
-    ! Freezing mortality prevented before timestep = (@ 30 min ts = X days) to prevent initial cohort mortality
+    ! Freezing mortality prevented until after day = temp_delay to prevent initial cohort mortality
     ! Freeze tolerances now set for seedlings vs hardened plants via individual parameters + a dbh cutoff for "seedling" class.
 
     temp_in_C = cohort_in%patchptr%tveg24%GetMean() - tfrz
@@ -209,7 +209,7 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
 
     !--------------------------------------------------------------------------------
     ! [JStenzel 2.8.2022] Mortality due to heat stress (heatmort).
-    ! Heat stress mortality prevented before timestep = (@ 30 min ts = X days) to prevent initial cohort mortality
+    ! Heat stress mortality prevented until after day = temp_delay to prevent initial cohort mortality
     ! Heat tolerances now set for seedlings vs hardened plants via individual parameters + a dbh cutoff for "seedling" class.
 
     if ( hlm_model_day > temp_delay ) then    ! temperature mortality only after temp_delay days are exceeded
