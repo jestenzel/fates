@@ -13,6 +13,7 @@ Added parameters /definition changes:
 -(definition change) **fates_mort_freezetol** (pft): minimum temperature tolerance, post-seedling; degrees C  
 -(definition change) **fates_mort_scalar_hydrfailure** (pft): max mortality rate from hydraulic failure. **This value will be 0 before model day 182.**        
 -**fates_mort_hard_dbh** (pft): minimum dbh for non-seedling temperature mortality (i.e. hardened plant)  
+-**fates_mort_cstarvetol** (pft): threshold storage c : leaf c fraction for start of cstarvation mortality; 1/leafC. 
 
 
 # FATES
