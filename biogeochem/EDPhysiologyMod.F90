@@ -2129,8 +2129,8 @@ contains
     ! and turnover in dying trees.
     !
     ! !USES:
-    use SFParamsMod , only : SF_val_CWD_frac
-
+    use SFParamsMod , only : SF_val_CWD_frac                 ! mortality fractions
+    use SFParamsMod , only : SF_val_CWD_turnover_frac        ! non-mortality turnover fractions
     !
     ! !ARGUMENTS
     type(ed_site_type), intent(inout), target :: currentSite
@@ -2251,15 +2251,15 @@ contains
        do c = 1,ncwd
           litt%ag_cwd_in(c) = litt%ag_cwd_in(c) + &
                (sapw_m_turnover + struct_m_turnover) * &
-               SF_val_CWD_frac(c) * plant_dens * &
+               SF_val_CWD_turnover_frac(c) * plant_dens * &
                prt_params%allom_agb_frac(pft)
 
           flux_diags%cwd_ag_input(c)  = flux_diags%cwd_ag_input(c) + &
-               (struct_m_turnover + sapw_m_turnover) * SF_val_CWD_frac(c) * &
+               (struct_m_turnover + sapw_m_turnover) * SF_val_CWD_turnover_frac(c) * &
                prt_params%allom_agb_frac(pft) * currentCohort%n
 
           bg_cwd_tot = (sapw_m_turnover + struct_m_turnover) * &
-               SF_val_CWD_frac(c) * plant_dens * &
+               SF_val_CWD_turnover_frac(c) * plant_dens * &
                (1.0_r8-prt_params%allom_agb_frac(pft))
 
           do ilyr = 1, numlevsoil
