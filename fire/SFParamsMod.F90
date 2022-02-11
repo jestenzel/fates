@@ -54,6 +54,7 @@ module SFParamsMod
    character(len=param_string_length),parameter :: SF_name_drying_ratio = "fates_fire_drying_ratio"
    character(len=param_string_length),parameter :: SF_name_fire_threshold = "fates_fire_threshold"
    character(len=param_string_length),parameter :: SF_name_CWD_frac = "fates_CWD_frac"
+   character(len=param_string_length),parameter :: SF_name_CWD_turnover_frac = "fates_CWD_turnover_frac"
    character(len=param_string_length),parameter :: SF_name_max_decomp = "fates_max_decomp"
    character(len=param_string_length),parameter :: SF_name_SAV = "fates_fire_SAV"
    character(len=param_string_length),parameter :: SF_name_FBD = "fates_fire_FBD"
