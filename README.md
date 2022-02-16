@@ -8,7 +8,6 @@ class partitioning from branch turnover- related CWD class partitioning.
 
 Added parameters /definition changes:   
 
--[**placeholder**]  
 -**fates_mort_heat_tol** (pft) :maximum temperature tolerance, post-seedling; degress C.  
 -**fates_mort_heat_tol_seedling** (pft): maximum temperature tolerance, seedling; degrees C  
 -**fates_freezetol_seedling** (pft): minimum temperature tolerance, seedling  
