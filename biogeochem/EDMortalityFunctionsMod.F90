@@ -75,6 +75,8 @@ contains
     real(r8) :: temp_dep_fraction  ! Temp. function (freezing mortality)
     real(r8) :: temp_heat_fraction  ! Temp. function (heat mortality)
     real(r8) :: temp_in_C          ! Daily averaged temperature in Celcius
+    real(r8) :: temp_in_min_C      ! Daily minimum temperature in Celcius [JStenzel]
+    real(r8) :: temp_in_max_C      ! Daily maximum temperature in Celcius [JStenzel]
     real(r8) :: min_fmc_ag         ! minimum fraction of maximum conductivity for aboveground
     real(r8) :: min_fmc_tr         ! minimum fraction of maximum conductivity for transporting root
     real(r8) :: min_fmc_ar         ! minimum fraction of maximum conductivity for absorbing root
@@ -189,14 +191,16 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     ! Freeze tolerances now set for seedlings vs hardened plants via individual parameters + a dbh cutoff for "seedling" class.
 
     temp_in_C = cohort_in%patchptr%tveg24%GetMean() - tfrz
+    temp_in_min_C = cohort_in%patchptr%tveg24_min%GetMean() - tfrz ! 24 hr tmin [Jstenzel]
+    temp_in_max_C = cohort_in%patchptr%tveg24_max%GetMean() - tfrz ! 24 hr tmax [Jstenzel]
 
     if ( hlm_model_day > temp_delay ) then         ! temperature mortality only after temp_delay days are exceeded
 
       if ( cohort_in%dbh < EDPftvarcon_inst%hard_dbh(cohort_in%pft)  ) then
-        temp_dep_fraction  = max(0.0_r8, min(1.0_r8, 1.0_r8 - (temp_in_C - &
+        temp_dep_fraction  = max(0.0_r8, min(1.0_r8, 1.0_r8 - (temp_in_min_C - &
                              EDPftvarcon_inst%freezetol_seedling(cohort_in%pft))/frost_mort_buffer) )
       else
-        temp_dep_fraction  = max(0.0_r8, min(1.0_r8, 1.0_r8 - (temp_in_C - &
+        temp_dep_fraction  = max(0.0_r8, min(1.0_r8, 1.0_r8 - (temp_in_min_C - &
                              EDPftvarcon_inst%freezetol(cohort_in%pft))/frost_mort_buffer) )
       end if
 
@@ -215,11 +219,11 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     if ( hlm_model_day > temp_delay ) then    ! temperature mortality only after temp_delay days are exceeded
 
       if ( cohort_in%dbh < EDPftvarcon_inst%hard_dbh(cohort_in%pft) ) then
-        temp_heat_fraction  = max(0.0_r8, min(1.0_r8, (temp_in_C - &
+        temp_heat_fraction  = max(0.0_r8, min(1.0_r8, (temp_in_max_C - &
                              EDPftvarcon_inst%heat_tol_seedling(cohort_in%pft)) ) )
         heatmort    = EDPftvarcon_inst%mort_scalar_heatstress(cohort_in%pft) * temp_heat_fraction
       else
-        temp_heat_fraction  = max(0.0_r8, min(1.0_r8, (temp_in_C - &
+        temp_heat_fraction  = max(0.0_r8, min(1.0_r8, (temp_in_max_C - &
                              EDPftvarcon_inst%heat_tol(cohort_in%pft)) ) )
          heatmort    = EDPftvarcon_inst%mort_scalar_heatstress(cohort_in%pft) * temp_heat_fraction
       endif
