@@ -74,7 +74,7 @@ module FatesInterfaceMod
    use PRTAllometricCarbonMod    , only : InitPRTGlobalAllometricCarbon
    use PRTAllometricCNPMod       , only : InitPRTGlobalAllometricCNP
    use FatesRunningMeanMod       , only : ema_24hr
-   use FatesRunningMeanMod       , only : fixed_24hr
+   use FatesRunningMeanMod       , only : fixed_24hr, fixed_24hr_min, fixed_24hr_max
    use FatesRunningMeanMod       , only : ema_lpa
    use FatesRunningMeanMod       , only : moving_ema_window
    ! [JStenzel min/max add]
