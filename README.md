@@ -1,5 +1,7 @@
 # Branch Notes
 ------------------------------
+
+## **Mortality 2**
 This branch adds mortality tolerance parameters and a new source of mortality (heat). Temperature based mortality   
 tolerance is set based on whether a tree has "hardened"  yet, which is set by dbh.  At dry sites, early-run (months)  
 soil water was causing undesired mortality. Hydraulic failure mort was therefore hardcoded to not occur until after  
