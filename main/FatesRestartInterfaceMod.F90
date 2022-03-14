@@ -149,10 +149,12 @@ module FatesRestartInterfaceMod
   ! Running Means
   integer :: ir_tveg24_pa
   integer :: ir_tveglpa_pa
+  integer :: ir_tveg24_min_pa    ![JStenzel]
+  integer :: ir_tveg24_max_pa
 
   !  (Keeping as an example)
   !!integer :: ir_tveglpa_co
-  
+
   integer :: ir_ddbhdt_co
   integer :: ir_resp_tstep_co
   integer :: ir_pft_co
@@ -1276,6 +1278,16 @@ contains
         long_name='24-hour patch veg temp', &
         units='K', initialize=initialize_variables,ivar=ivar, index = ir_tveg24_pa)
 
+! [Jstenzel]
+   call this%DefineRMeanRestartVar(vname='fates_tveg24_min_patch',vtype=cohort_r8, &
+        long_name='24-hour min patch veg temp', &
+        units='K', initialize=initialize_variables,ivar=ivar, index = ir_tveg24_min_pa)
+
+! [Jstenzel]
+   call this%DefineRMeanRestartVar(vname='fates_tveg24_max_patch',vtype=cohort_r8, &
+        long_name='24-hour max patch veg temp', &
+        units='K', initialize=initialize_variables,ivar=ivar, index = ir_tveg24_max_pa)
+
    call this%DefineRMeanRestartVar(vname='fates_tveglpapatch',vtype=cohort_r8, &
         long_name='running average (EMA) of patch veg temp for photo acclim', &
         units='K', initialize=initialize_variables,ivar=ivar, index = ir_tveglpa_pa)
@@ -1284,7 +1296,7 @@ contains
    !call this%DefineRMeanRestartVar(vname='fates_tveglpacohort',vtype=cohort_r8, &
    !     long_name='running average (EMA) of cohort veg temp for photo acclim', &
    !     units='K', initialize=initialize_variables,ivar=ivar, index = ir_tveglpa_co)
-   
+
 
     ! Register all of the PRT states and fluxes
 
@@ -1299,7 +1311,7 @@ contains
  end subroutine define_restart_vars
 
  ! =====================================================================================
- 
+
  subroutine DefineRMeanRestartVar(this,vname,vtype,long_name,units,initialize,ivar,index)
 
    class(fates_restart_interface_type) :: this
@@ -1312,7 +1324,7 @@ contains
    integer,intent(inout)        :: index
 
    integer :: dummy_index
-   
+
    call this%set_restart_var(vname= trim(vname)//'_cmean', vtype=vtype, &
         long_name=long_name//' current mean', &
         units=units, flushval = flushzero, &
@@ -1322,59 +1334,59 @@ contains
         long_name=long_name//' latest mean', &
         units=units, flushval = flushzero, &
         hlms='CLM:ALM', initialize=initialize, ivar=ivar, index = dummy_index )
-   
+
    call this%set_restart_var(vname= trim(vname)//'_cindex', vtype=vtype, &
         long_name=long_name//' index', &
         units='index', flushval = flushzero, &
         hlms='CLM:ALM', initialize=initialize, ivar=ivar, index = dummy_index )
 
-   
+
    return
  end subroutine DefineRMeanRestartVar
 
 
  ! =====================================================================================
-  
+
   subroutine GetRMeanRestartVar(this, rmean_var, ir_var_index, position_index)
-    
+
     class(fates_restart_interface_type) , intent(inout) :: this
     class(rmean_type), intent(inout) :: rmean_var
 
     integer,intent(in)     :: ir_var_index
     integer,intent(in)     :: position_index
-    
+
     integer :: i_pos              ! vector position loop index
     integer :: ir_pos_var         ! global variable index
 
 
     rmean_var%c_mean  = this%rvars(ir_var_index)%r81d(position_index)
-     
+
     rmean_var%l_mean  = this%rvars(ir_var_index+1)%r81d(position_index)
-    
+
     rmean_var%c_index = nint(this%rvars(ir_var_index+2)%r81d(position_index))
-    
+
     return
   end subroutine GetRMeanRestartVar
 
   ! =======================================================================================
-  
+
   subroutine SetRMeanRestartVar(this, rmean_var, ir_var_index, position_index)
-    
+
     class(fates_restart_interface_type) , intent(inout) :: this
     class(rmean_type), intent(inout) :: rmean_var
 
     integer,intent(in)     :: ir_var_index
     integer,intent(in)     :: position_index
-    
+
     integer :: i_pos              ! vector position loop index
     integer :: ir_pos_var         ! global variable index
 
     this%rvars(ir_var_index)%r81d(position_index) = rmean_var%c_mean
-     
+
     this%rvars(ir_var_index+1)%r81d(position_index) = rmean_var%l_mean
-    
+
     this%rvars(ir_var_index+2)%r81d(position_index) = real(rmean_var%c_index,r8)
-    
+
     return
   end subroutine SetRMeanRestartVar
 
@@ -1568,7 +1580,7 @@ contains
     end do
 
   end subroutine RegisterCohortVector
-  
+
   ! =====================================================================================
 
   subroutine GetCohortRealVector(this, state_vector, len_state_vector, &
@@ -2089,7 +2101,10 @@ contains
              ! Patch level running means
              call this%SetRMeanRestartVar(cpatch%tveg24, ir_tveg24_pa, io_idx_co_1st)
              call this%SetRMeanRestartVar(cpatch%tveg_lpa, ir_tveglpa_pa, io_idx_co_1st)
-             
+             ! [Jstenzel]
+             call this%SetRMeanRestartVar(cpatch%tveg24_min, ir_tveg24_min_pa, io_idx_co_1st)
+             call this%SetRMeanRestartVar(cpatch%tveg24_max, ir_tveg24_max_pa, io_idx_co_1st)
+
              ! set cohorts per patch for IO
              rio_ncohort_pa( io_idx_co_1st )   = cohortsperpatch
 
@@ -2456,7 +2471,7 @@ contains
                 !allocate(new_cohort%tveg_lpa)
                 !call new_cohort%tveg_lpa%InitRMean(ema_lpa)
 
-                
+
                 ! Update the previous
                 prev_cohort => new_cohort
 
@@ -2877,7 +2892,7 @@ contains
 
                 !  (Keeping as an example)
                 !call this%GetRMeanRestartVar(ccohort%tveg_lpa, ir_tveglpa_co, io_idx_co)
-                
+
                 if (hlm_use_sp .eq. itrue) then
                     ccohort%c_area = this%rvars(ir_c_area_co)%r81d(io_idx_co)
                     ccohort%treelai = this%rvars(ir_treelai_co)%r81d(io_idx_co)
@@ -2915,7 +2930,12 @@ contains
 
              call this%GetRMeanRestartVar(cpatch%tveg24, ir_tveg24_pa, io_idx_co_1st)
              call this%GetRMeanRestartVar(cpatch%tveg_lpa, ir_tveglpa_pa, io_idx_co_1st)
-             
+
+             ! [Jstenzel]
+             call this%GetRMeanRestartVar(cpatch%tveg24_min, ir_tveg24_min_pa, io_idx_co_1st)
+             call this%GetRMeanRestartVar(cpatch%tveg24_max, ir_tveg24_max_pa, io_idx_co_1st)
+
+
              ! set cohorts per patch for IO
 
              if ( debug ) then

@@ -299,6 +299,9 @@ module FatesHistoryInterfaceMod
 
   ! Indices to (site) variables
   integer :: ih_tveg24_si
+  ! [JStenzel]
+  integer :: ih_tveg24_min_si
+  integer :: ih_tveg24_max_si
   integer :: ih_tveg_si
   integer :: ih_nep_si
   integer :: ih_hr_si
@@ -2068,6 +2071,9 @@ end subroutine flush_hvars
                hio_dleafoff_si                      => this%hvars(ih_dleafoff_si)%r81d, &
                hio_dleafon_si                       => this%hvars(ih_dleafoff_si)%r81d, &
                hio_tveg24                           => this%hvars(ih_tveg24_si)%r81d, &
+               ![JStenzel]
+               hio_tveg24_min                       => this%hvars(ih_tveg24_min_si)%r81d, &
+               hio_tveg24_max                       => this%hvars(ih_tveg24_max_si)%r81d, &
                hio_meanliqvol_si                    => this%hvars(ih_meanliqvol_si)%r81d, &
                hio_cbal_err_fates_si                => this%hvars(ih_cbal_err_fates_si)%r81d, &
                hio_err_fates_si                     => this%hvars(ih_err_fates_si)%r82d )
@@ -2203,7 +2209,14 @@ end subroutine flush_hvars
          ! 24hr veg temperature
          hio_tveg24(io_si) = hio_tveg24(io_si) + &
               (cpatch%tveg24%GetMean()- t_water_freeze_k_1atm)*cpatch%area*AREA_INV
-         
+
+         hio_tveg24_min(io_si) = hio_tveg24_min(io_si) + &
+              (cpatch%tveg24_min%GetMean()- t_water_freeze_k_1atm)*cpatch%area*AREA_INV
+
+         hio_tveg24_max(io_si) = hio_tveg24_max(io_si) + &
+              (cpatch%tveg24_max%GetMean()- t_water_freeze_k_1atm)*cpatch%area*AREA_INV
+
+
          ! Increment some patch-age-resolved diagnostics
 
          hio_lai_si_age(io_si,cpatch%age_class) = hio_lai_si_age(io_si,cpatch%age_class) &
@@ -3608,7 +3621,7 @@ end subroutine flush_hvars
                hio_parsun_top_si_can     => this%hvars(ih_parsun_top_si_can)%r82d, &
                hio_parsha_top_si_can     => this%hvars(ih_parsha_top_si_can)%r82d, &
                hio_tveg   => this%hvars(ih_tveg_si)%r81d)
-      
+
       ! Flush the relevant history variables
       call this%flush_hvars(nc,upfreq_in=2)
 
@@ -3654,10 +3667,10 @@ end subroutine flush_hvars
 
             hio_rad_error_si(io_si) = hio_rad_error_si(io_si) + &
                  cpatch%radiation_error * cpatch%area * AREA_INV
-            
+
             hio_tveg(io_si) = hio_tveg(io_si) + &
                  (bc_in(s)%t_veg_pa(cpatch%patchno) - t_water_freeze_k_1atm)*cpatch%area*area_inv
-          
+
             ccohort => cpatch%shortest
             do while(associated(ccohort))
 
@@ -5121,19 +5134,31 @@ end subroutine update_history_hifrq
          ivar=ivar, initialize=initialize_variables, index = ih_c_lblayer_si)
 
     ! Temperature
-    
+
     call this%set_history_var(vname='FATES_TVEG24', units='degree_Celsius', &
          long='fates 24-hr running mean vegetation temperature by site', &
          use_default='active', &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_tveg24_si )
-    
+
+    call this%set_history_var(vname='FATES_TVEG24_MIN', units='degree_Celsius', &
+         long='fates 24-hr min vegetation temperature by site', &
+         use_default='active', &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_tveg24_min_si )
+
+    call this%set_history_var(vname='FATES_TVEG24_MAX', units='degree_Celsius', &
+         long='fates 24-hr max vegetation temperature by site', &
+         use_default='active', &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_tveg24_max_si )
+
     call this%set_history_var(vname='FATES_TVEG', units='degree_Celsius', &
          long='fates instantaneous mean vegetation temperature by site', &
          use_default='active', &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=2, &
          ivar=ivar, initialize=initialize_variables, index = ih_tveg_si )
-    
+
    ! radiation error
 
    call this%set_history_var(vname='FATES_RAD_ERROR', units='W m-2 ',          &
