@@ -1447,9 +1447,9 @@ contains
     real(r8) :: litter_stock0,litter_stock1
     real(r8) :: burn_flux0,burn_flux1
     real(r8) :: error
-    real(r8) :: new_decay           ! New: running donor patch-based seed_decay & seed_germ_decay total (mass/m2) [JStenzel add]
-    real(r8) :: new_seed_input      ! New: running donor patch-based seed_in_planted total (mass/m2) [JStenzel add]
-    real(r8) :: seed_in_planted     ! New: current donor patch:pft-based planted seed total (mass/m2) [JStenzel add]
+    !real(r8) :: new_decay           ! New: running donor patch-based seed_decay & seed_germ_decay total (mass/m2) [JStenzel add]
+    !real(r8) :: new_seed_input      ! New: running donor patch-based seed_in_planted total (mass/m2) [JStenzel add]
+    !real(r8) :: seed_in_planted     ! New: current donor patch:pft-based planted seed total (mass/m2) [JStenzel add]
 
     do el = 1,num_elements
 
@@ -1457,9 +1457,9 @@ contains
        curr_litt  => currentPatch%litter(el)
        new_litt  => newPatch%litter(el)
 
-       new_decay = 0.0_r8       ![JStenzel]
-       new_seed_input = 0.0_r8
-       seed_in_planted = 0.0_r8
+       !new_decay = 0.0_r8       ![JStenzel]
+       !new_seed_input = 0.0_r8
+       !seed_in_planted = 0.0_r8
 
        ! Distribute the fragmentation litter flux rates. This is only used for diagnostics
        ! at this point.  Litter fragmentation has already been passed to the output
@@ -1595,13 +1595,15 @@ contains
              do pft = 1,numpft
 
                 donatable_mass = curr_litt%seed(pft) * patch_site_areadis
-                ! [JStenzel] Add donated seed mass to an all-pft running decay pool
-                new_decay = new_decay + donatable_mass * donate_m2
+                ! [JStenzel] Add donated seed flux value to to patch:pft killed pool for next timestep
+                new_litt%seed(pft) = new_litt%seed(pft) + donatable_mass * donate_m2
+                new_litt%seed_kill(pft) = new_litt%seed_kill(pft) + donatable_mass * donate_m2
                 curr_litt%seed(pft) = curr_litt%seed(pft) + donatable_mass * retain_m2
 
                 donatable_mass = curr_litt%seed_germ(pft) * patch_site_areadis
-                ! [JStenzel] Add donated seed_germ mass to an all-pft running decay pool
-                new_decay = new_decay + donatable_mass * donate_m2
+                ! [JStenzel] Add donated seed_germ mass to patch:pft killed pool for next timestep
+                new_litt%seed_germ(pft) = new_litt%seed_germ(pft) + donatable_mass * donate_m2
+                new_litt%seed_germ_kill(pft) = new_litt%seed_germ_kill(pft) + donatable_mass * donate_m2
                 curr_litt%seed_germ(pft) = curr_litt%seed_germ(pft) + donatable_mass * retain_m2
 
                 ! Add external seed_germ planting influx. Parameter denstity x disturbance area
@@ -1610,18 +1612,19 @@ contains
                 ! area from all donor secondary patch disturbance area. If ifall disturbance type
                 ! is prevented by mort_disturb_frac = 0, this combination of donor patch disturbance
                 ! types can be largely avoided by cutting outside of the typical fire season.
-                seed_in_planted = EDPftvarcon_inst%seed_planted(pft) * patch_site_areadis * donate_m2
-                new_litt%seed_in_extern(pft) = new_litt%seed_in_extern(pft) + seed_in_planted
-                new_litt%seed_germ(pft) = new_litt%seed_germ(pft) + &
-                     seed_in_planted
-                new_seed_input = new_seed_input  + seed_in_planted
+                new_litt%seed_in_planted(pft) = new_litt%seed_in_planted(pft) + &
+                      EDPftvarcon_inst%seed_planted(pft) * patch_site_areadis * donate_m2
+                !new_litt%seed_in_extern(pft) = new_litt%seed_in_extern(pft) + seed_in_planted
+                !new_litt%seed_germ(pft) = new_litt%seed_germ(pft) + &
+                     !seed_in_planted
+                !new_seed_input = new_seed_input  + seed_in_planted
 
              end do !pft
 
              ! Calculate sums of new decay and seed planting inputs from the planting event disturbance
              ! on the current donor patch [JStenzel]
-             site_mass%frag_out = site_mass%frag_out + new_decay * newPatch%area !!!! Check
-             site_mass%seed_in = site_mass%seed_in + new_seed_input * newPatch%area
+             !site_mass%frag_out = site_mass%frag_out + new_decay * newPatch%area !!!! Check
+             !site_mass%seed_in = site_mass%seed_in + new_seed_input * newPatch%area
 
 
        else
@@ -1651,10 +1654,8 @@ contains
        ! --------------------------------------------------------------------------
        if (debug) then
           burn_flux1    = site_mass%burn_flux_to_atm
-          !!!! JStenzel check. This will cause the run to fail if wrong. The intention is to prevent a mass balance error IF the planting time additions are correct!!!!
           litter_stock1 = curr_litt%GetTotalLitterMass()*remainder_area + &
-                          ( new_litt%GetTotalLitterMass() - (new_seed_input - new_decay) ) * &
-                               newPatch%area
+                          new_litt%GetTotalLitterMass()* newPatch%area ![JStenzel] Reverted
           error = (litter_stock1 - litter_stock0) + (burn_flux1-burn_flux0)
           if(abs(error)>1.e-8_r8) then
              write(fates_log(),*) 'non trivial carbon mass balance error in litter transfer'
@@ -2169,6 +2170,9 @@ contains
               init_bg_cwd = fates_unset_r8, &
               init_seed = fates_unset_r8,   &
               init_seed_germ = fates_unset_r8)
+        new_patch%litter(el)%seed_kill(:) = 0.0_r8   ! [JStenzel] 3x new variable zeroing here !!!! keep?
+        new_patch%litter(el)%seed_germ_kill(:) = 0.0_r8 !!!!
+        new_patch%litter(el)%seed_in_planted(:) = 0.0_r8 !!!!
     end do
 
     call zero_patch(new_patch) !The nan value in here is not working??

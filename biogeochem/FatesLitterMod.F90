@@ -109,6 +109,10 @@ module FatesLitterMod
       real(r8), allocatable :: seed_germ_in(:)    ! flux from viable to germinated seed [kg/m2/day]
       !real(r8),allocatable :: seed_harvest_kill(:)  ! the regeneration-harvest killed
                                                      ! seed flux  (pft) [kg/m2] [JStenzel]
+      real(r8), allocatable :: seed_kill(:)   ![JStenzel] harvest kill flux
+      real(r8), allocatable :: seed_germ_kill(:) ![JStenzel] harvest kill flux
+      real(r8), allocatable :: seed_in_planted(:) ![JStenzel] harvest external planted seed flux
+
 
     contains
 
@@ -201,6 +205,16 @@ contains
                                    donor_litt%seed_germ_in(pft) * donor_weight
        !this%seed_harvest_kill(pft) = this%seed_harvest_kill(pft) * self_weight + &
                                    donor_litt%seed_harvest_kill(pft) * donor_weight
+
+       this%seed_kill(pft)       = this%seed_kill(pft) * self_weight + &     ![JStenzel add]
+                                   donor_litt%seed_kill(pft) * donor_weight
+
+       this%seed_germ_kill(pft)  = this%seed_germ_kill(pft) * self_weight + &    ![JStenzel add]
+                                   donor_litt%seed_germ_kill(pft) * donor_weight
+
+       this%seed_in_planted(pft)  = this%seed_in_planted(pft) * self_weight + &   ![JStenzel add]
+                                   donor_litt%seed_in_planted(pft) * donor_weight
+
    end do
 
 
@@ -263,6 +277,10 @@ contains
     this%root_fines_in(:,:)   = donor_litt%root_fines_in(:,:)
     this%root_fines_frag(:,:) = donor_litt%root_fines_frag(:,:)
 
+    this%seed_kill(:)   = donor_litt%seed_kill(:)
+    this%seed_germ_kill(:)   = donor_litt%seed_germ_kill(:)
+    this%seed_in_planted(:)   = donor_litt%seed_in_planted(:)
+
     return
   end subroutine CopyLitter
 
@@ -297,6 +315,10 @@ contains
     !allocate(this%seed_harvest_kill(numpft))
     allocate(this%seed_decay(numpft))
 
+    allocate(this%seed_kill(numpft))                      ![Jstenzel added]
+    allocate(this%seed_germ_kill(numpft))                 ![Jstenzel added]
+    allocate(this%seed_in_planted(numpft))                ![Jstenzel added]
+
     ! Initialize everything to a nonsense flag
     this%ag_cwd(:)            = fates_unset_r8
     this%bg_cwd(:,:)          = fates_unset_r8
@@ -321,6 +343,10 @@ contains
     this%seed_germ_decay(:)   = fates_unset_r8
     !this%seed_harvest_kill(:)   = fates_unset_r8
     this%seed_germ_in(:)      = fates_unset_r8
+
+    this%seed_kill(:)         = fates_unset_r8         ![JStenzel added]
+    this%seed_germ_kill(:)    = fates_unset_r8    ![JStenzel added]
+    this%seed_in_planted(:)   = fates_unset_r8   ![JStenzel added]
 
     return
   end subroutine InitAllocate
@@ -386,6 +412,10 @@ contains
     deallocate(this%seed_germ_decay)
     !deallocate(this%seed_harvest_kill)
     deallocate(this%seed_germ_in)
+
+    deallocate(this%seed_kill)       ![JStenzel added]
+    deallocate(this%seed_germ_kill)  ![JStenzel added]
+    deallocate(this%seed_in_planted) ![JStenzel added]
 
     return
   end subroutine DeallocateLitt

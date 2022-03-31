@@ -257,7 +257,9 @@ contains
        site_mass%frag_out = site_mass%frag_out + currentPatch%area * &
             ( sum(litt%ag_cwd_frag) + sum(litt%bg_cwd_frag) + &
             sum(litt%leaf_fines_frag) + sum(litt%root_fines_frag) + &
-            sum(litt%seed_decay) + sum(litt%seed_germ_decay))
+            sum(litt%seed_decay) + sum(litt%seed_germ_decay) + &
+            sum(litt%seed_kill)  + sum(litt%seed_germ_kill)  )        ![JStenzel] Harvest seed kill
+
 
     end do
 
@@ -313,15 +315,25 @@ contains
                litt%seed_in_local(pft) +   &
                litt%seed_in_extern(pft) -  &
                litt%seed_decay(pft) -      &
-               litt%seed_germ_in(pft)
+               litt%seed_germ_in(pft) !- &
+               ![JStenzel] harvest kill. Commented out because kill is added to seed_decay
+               !litt%seed_kill(pft)
 
           ! Note that the recruitment scheme will use seed_germ
           ! for its construction costs.
           litt%seed_germ(pft) = litt%seed_germ(pft) + &
                litt%seed_germ_in(pft) - &
-               litt%seed_germ_decay(pft)
+               litt%seed_germ_decay(pft) + &
+               ![JStenzel] Harvest seedling planting
+               litt%seed_in_planted(pft) ! -&
+               ![JStenzel] harvest kill. Commented out because kill is added to seed_germ_decay
+               !litt%seed_germ_kill(pft)
 
 
+               ! [JStenzel] Zero harvest seed Fluxes  !!! keep this here?
+               litt%seed_kill(pft) = 0.0_r8
+               litt%seed_germ_kill(pft) = 0.0_r8
+               litt%seed_in_planted(pft) = 0.0_r8
        enddo
 
        ! Update the Coarse Woody Debris pools (above and below)
@@ -1732,11 +1744,13 @@ contains
 
                 ! Seed input from external sources (user param seed rain, or dispersal model)
 
-                seed_in_external =  seed_stoich*EDPftvarcon_inst%seed_suppl(pft)*years_per_day ![JStenzel] For now seed_suppl parameter will apply to entire site. New param to be introduced for planting_time events.
+                seed_in_external =  seed_stoich*EDPftvarcon_inst%seed_suppl(pft)*years_per_day
                 litt%seed_in_extern(pft) = litt%seed_in_extern(pft) + seed_in_external
 
                 ! Seeds entering externally [kg/site/day]
-                site_mass%seed_in = site_mass%seed_in + seed_in_external*currentPatch%area
+                site_mass%seed_in = site_mass%seed_in + &
+                     ![JStenzel] Add seed_in_planted(pft) to site seed_in flux sum
+                     ( seed_in_external + litt%seed_in_planted(pft)) *currentPatch%area
              ! end if !use this pft   [JStenzel commented out]
           enddo
 
@@ -1769,12 +1783,25 @@ contains
     ! seed_decay is kg/day
     ! Assume that decay rates are same for all chemical species
 
-    do pft = 1,numpft
-       litt%seed_decay(pft) = litt%seed(pft) * &
-            EDPftvarcon_inst%seed_decay_rate(pft)*years_per_day
 
-       litt%seed_germ_decay(pft) = litt%seed_germ(pft) * &
-            EDPftvarcon_inst%seed_decay_rate(pft)*years_per_day
+    ! [JStenzel] If seed_kill pools exist for a pft this timestep, set decay to seed_kill fluxes
+    !to prevent double counting w/ decay + kill !!! Need to make sure this doesn't prevent decay
+    ! normally.
+    do pft = 1,numpft
+
+      if ( litt%seed_kill(pft) .eq. 0.0_r8 ) then
+         litt%seed_decay(pft) = litt%seed(pft) * &
+              EDPftvarcon_inst%seed_decay_rate(pft)*years_per_day
+      else
+         litt%seed_decay(pft) = litt%seed_kill(pft)   ![JStenzel]
+      end if
+
+      if ( litt%seed_germ_kill(pft) .eq. 0.0_r8  ) then
+         litt%seed_germ_decay(pft) = litt%seed_germ(pft) * &
+             EDPftvarcon_inst%seed_decay_rate(pft)*years_per_day
+      else
+         litt%seed_germ_decay(pft) = litt%seed_germ_kill(pft)   ![JStenzel]
+      end if
 
     enddo
 
@@ -1815,8 +1842,13 @@ contains
     ! that times the ratio of (hypothetical) seed mass to recruit biomass
 
     do pft = 1,numpft
-       litt%seed_germ_in(pft) =  min(litt%seed(pft) * EDPftvarcon_inst%germination_rate(pft), &
-            max_germination)*years_per_day
+
+       ! [JStenzel] Only calculate a seed germination flux if seed_kill(pft) equals zeros
+       ! To prevent double counting of fluxes.
+       if ( litt%seed_kill(pft) .eq. 0.0_r8 ) then
+          litt%seed_germ_in(pft) =  min(litt%seed(pft) * EDPftvarcon_inst%germination_rate(pft), &
+               max_germination)*years_per_day
+       end if
 
        !set the germination only under the growing season...c.xu
 
