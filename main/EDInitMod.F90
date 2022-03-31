@@ -75,7 +75,7 @@ module EDInitMod
   use PRTGenericMod,          only : phosphorus_element
   use PRTGenericMod,          only : SetState
   use FatesSizeAgeTypeIndicesMod,only : get_age_class_index
-  
+
   ! CIME GLOBALS
   use shr_log_mod               , only : errMsg => shr_log_errMsg
 
@@ -137,13 +137,13 @@ contains
     if (hlm_use_nocomp .eq. itrue) then
        allocate(site_in%area_pft(0:numpft))
     else  ! SP and nocomp require a bare-ground patch.
-       allocate(site_in%area_pft(1:numpft))  
+       allocate(site_in%area_pft(1:numpft))
     endif
 
     allocate(site_in%use_this_pft(1:numpft))
     allocate(site_in%area_by_age(1:nlevage))
 
-    
+
     ! SP mode
     allocate(site_in%sp_tlai(1:numpft))
     allocate(site_in%sp_tsai(1:numpft))
@@ -255,7 +255,7 @@ contains
     site_in%area_pft(:) = 0._r8
     site_in%use_this_pft(:) = fates_unset_int
     site_in%area_by_age(:) = 0._r8
-    
+
   end subroutine zero_site
 
   ! ============================================================================
@@ -361,7 +361,7 @@ contains
              ! the bare ground will no longer be proscribed and should emerge from FATES
              ! this may or may not be the right way to deal with this?
 
-             if(hlm_use_nocomp.eq.ifalse)then ! when not in nocomp (i.e. or SP) mode, 
+             if(hlm_use_nocomp.eq.ifalse)then ! when not in nocomp (i.e. or SP) mode,
                 ! subsume bare ground evenly into the existing patches.
 
                 sumarea = sum(sites(s)%area_pft(1:numpft))
@@ -437,7 +437,7 @@ contains
     integer  :: el
     real(r8) :: age !notional age of this patch
     integer  :: ageclass
-    
+
     ! dummy locals
     real(r8) :: biomass_stock
     real(r8) :: litter_stock

@@ -57,6 +57,8 @@ module EDPftvarcon
      real(r8), allocatable :: initd(:)               ! initial seedling density
 
      real(r8), allocatable :: seed_suppl(:)          ! seeds that come from outside the gridbox.
+     ! [JStenzel added]
+     real(r8), allocatable :: seed_planted(:)        ! planted seeds that come from outside the gridbox
      real(r8), allocatable :: bb_slope(:)            ! ball berry slope parameter
      real(r8), allocatable :: medlyn_slope(:)        ! Medlyn slope parameter KPa^0.5
      real(r8), allocatable :: stomatal_intercept(:)  ! intercept of stomatal conductance model
@@ -370,6 +372,11 @@ contains
     name = 'fates_seed_suppl'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+! [JStenzel added]
+    name = 'fates_seed_planted'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+        dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fates_leaf_stomatal_slope_ballberry'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
@@ -728,6 +735,11 @@ contains
     name = 'fates_seed_suppl'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%seed_suppl)
+
+! [JStenzel added]
+    name = 'fates_seed_planted'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+        data=this%seed_planted)
 
     name = 'fates_leaf_stomatal_slope_ballberry'
     call fates_params%RetreiveParameterAllocate(name=name, &

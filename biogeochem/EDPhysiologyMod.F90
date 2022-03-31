@@ -107,6 +107,7 @@ module EDPhysiologyMod
   use PRTLossFluxesMod, only : PRTDeciduousTurnover
   use PRTLossFluxesMod, only : PRTReproRelease
   use PRTGenericMod, only : StorageNutrientTarget
+  use FatesConstantsMod, only : primaryforest, secondaryforest ! [JStenzel]
 
   implicit none
   private
@@ -229,6 +230,7 @@ contains
     do el = 1, num_elements
 
        litt => currentPatch%litter(el)
+
 
        ! Calculate loss rate of viable seeds to litter
        call SeedDecay(litt)
@@ -1596,7 +1598,12 @@ contains
 
     integer  :: pft
     real(r8) :: store_m_to_repro       ! mass sent from storage to reproduction upon death [kg/plant]
-    real(r8) :: site_seed_rain(maxpft) ! This is the sum of seed-rain for the site [kg/site/day]
+    real(r8) :: site_seed_rain(maxpft) ! This is the sum of seed-rain for the site, unplanted patches [kg/site/day]
+    real(r8) :: site_seed_rain_managed(maxpft) ! This is the sum of seed-rain for the site, planted patches [kg/site/day] [JStenzel]
+
+    real(r8) :: site_area_primary ! Sum of site primary ("unmanaged" area), m2  [JStenzel]
+    real(r8) :: site_area_secondary ! Sum of site secondary ("managed" area), m2 [JStenzel]
+
     real(r8) :: seed_in_external       ! Mass of externally generated seeds [kg/m2/day]
     real(r8) :: seed_stoich            ! Mass ratio of nutrient per C12 in seeds [kg/kg]
     real(r8) :: seed_prod              ! Seed produced in this dynamics step [kg/day]
@@ -1608,6 +1615,9 @@ contains
     do el = 1, num_elements
 
        site_seed_rain(:) = 0._r8
+       site_seed_rain_managed(:) = 0._r8  ![JStenzel]
+       site_area_primary = 0._r8 ![JStenzel]
+       site_area_secondary = 0._r8 ![JStenzel]
 
        element_id = element_list(el)
 
@@ -1616,6 +1626,13 @@ contains
        ! Loop over all patches and sum up the seed input for each PFT
        currentPatch => currentSite%oldest_patch
        do while (associated(currentPatch))
+
+          ! [JStenzel] sum site primary and 'secondary' (managed) area
+          if ( currentPatch%anthro_disturbance_label .eq. primaryforest ) then
+             site_area_primary = site_area_primary + currentPatch%area
+          else
+             site_area_secondary = site_area_secondary + currentPatch%are
+          end if
 
           currentCohort => currentPatch%tallest
           do while (associated(currentCohort))
@@ -1644,8 +1661,13 @@ contains
                 currentcohort%seed_prod = seed_prod
              end if
 
-             site_seed_rain(pft) = site_seed_rain(pft) +  &
-                  (seed_prod * currentCohort%n + store_m_to_repro)
+             if ( currentPatch%anthro_disturbance_label .eq. primaryforest  ) then   !!!!  [JStenzel start]
+                site_seed_rain(pft) = site_seed_rain(pft) +  &
+                     (seed_prod * currentCohort%n + store_m_to_repro)
+             else if ( currentPatch%anthro_disturbance_label .eq. secondaryforest ) then
+                site_seed_rain_managed(pft) = site_seed_rain_managed(pft) +  &
+                     (seed_prod * currentCohort%n + store_m_to_repro)
+             end if   ! [JStenzel end]
 
              currentCohort => currentCohort%shorter
           enddo !cohort loop
@@ -1670,10 +1692,27 @@ contains
 
           litt => currentPatch%litter(el)
           do pft = 1,numpft
+             ! [JStenzel] Allow pfts that weren't on the site from the run start to germinate if
+             ! germination mass is added externally. !!!! Need to check back if there is any reasons
+             ! for an "if" statement here other than to disallow 'seed_in_external' set by Fates
+             ! parameters and reduce computation.
 
-             if(currentSite%use_this_pft(pft).eq.itrue)then
+             !if(currentSite%use_this_pft(pft).eq.itrue &    ! [JStenzel comment out]
+                  !.or. litt%seed_germ(pft) .gt. min_n_safemath &) then  !!! vs 0.0_r8
+
                 ! Seed input from local sources (within site)
-                litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain(pft)/area
+                ! [JStenzel Start]
+                if ( currentPatch%anthro_disturbance_label .eq. primaryforest ) then
+                   !litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain(pft)/area
+                   litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain(pft) &
+                        /site_area_primary  !!!! Need to check for potential mass balance problem here !?
+                else if ( currentPatch%anthro_disturbance_label .eq. secondaryforest ) then
+                   !litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain_managed(pft)/area
+                   litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain_managed(pft) &
+                        /site_area_secondary
+                end if [! JStenzel End]
+
+
 
                 ! If there is forced external seed rain, we calculate the input mass flux
                 ! from the different elements, usung the seed optimal stoichiometry
@@ -1692,12 +1731,13 @@ contains
                 end select
 
                 ! Seed input from external sources (user param seed rain, or dispersal model)
-                seed_in_external =  seed_stoich*EDPftvarcon_inst%seed_suppl(pft)*years_per_day
+
+                seed_in_external =  seed_stoich*EDPftvarcon_inst%seed_suppl(pft)*years_per_day ![JStenzel] For now seed_suppl parameter will apply to entire site. New param to be introduced for planting_time events.
                 litt%seed_in_extern(pft) = litt%seed_in_extern(pft) + seed_in_external
 
                 ! Seeds entering externally [kg/site/day]
                 site_mass%seed_in = site_mass%seed_in + seed_in_external*currentPatch%area
-             end if !use this pft
+             ! end if !use this pft   [JStenzel commented out]
           enddo
 
 
@@ -1860,8 +1900,16 @@ contains
        ! is permitted on a given gridcell or not, it applies to the prescribed biogeography case only.
        ! If nocomp is enabled, then we must determine whether a given PFT is allowed on a given patch or not.
 
-       if(currentSite%use_this_pft(ft).eq.itrue &
-            .and. ((hlm_use_nocomp .eq. ifalse) .or. (ft .eq. currentPatch%nocomp_pft_label)))then
+       !if(currentSite%use_this_pft(ft).eq.itrue &
+            !.and. ((hlm_use_nocomp .eq. ifalse) .or. (ft .eq. currentPatch%nocomp_pft_label)))then
+
+       ! [JStenzel] Allow recruitment on sites with a PFT that was not initially allowed by the
+       ! 'use_this_pft' flag. !! This needs to be checked for functionality !!! However, cohorts
+       ! should only be created if 'seed_germ' > 0; ie mass is available for recruitment.!!! This
+       ! should only be provided during a planting event / supplemental seeding.
+       if( (currentSite%use_this_pft(ft).eq.itrue .or. &
+            currentPatch%litter(1)%seed_germ(ft) .gt. min_n_safemath) &   ! vs 0.0_r8
+            .and. ((hlm_use_nocomp .eq. ifalse) .or. (ft .eq. currentPatch%nocomp_pft_label)) ) then !
 
           temp_cohort%canopy_trim = init_recruit_trim
           temp_cohort%pft         = ft
