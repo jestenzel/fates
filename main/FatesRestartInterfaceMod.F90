@@ -152,7 +152,7 @@ module FatesRestartInterfaceMod
 
   !  (Keeping as an example)
   !!integer :: ir_tveglpa_co
-  
+
   integer :: ir_ddbhdt_co
   integer :: ir_resp_tstep_co
   integer :: ir_pft_co
@@ -168,6 +168,11 @@ module FatesRestartInterfaceMod
   integer :: ir_seedgerm_litt
   integer :: ir_seed_decay_litt
   integer :: ir_seedgerm_decay_litt
+  ! [JStenzel added]
+  integer :: ir_seed_kill_litt !!!!
+  integer :: ir_seedgerm_kill_litt !!!!
+  integer :: ir_seed_in_planted_litt!!!!
+
   integer :: ir_seed_prod_co
   integer :: ir_livegrass_pa
   integer :: ir_age_pa
@@ -997,6 +1002,23 @@ contains
            units='kg/m2', veclength=num_elements, flushval = flushzero, &
            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_seedgerm_decay_litt)
 
+! [ JStenzel added x 3] !!!!
+    call this%RegisterCohortVector(symbol_base='fates_seed_kill_frag', vtype=cohort_r8, &
+           long_name_base='seed bank kill fragmentation flux (non-germinated)',  &
+           units='kg/m2', veclength=num_elements, flushval = flushzero, &
+           hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_seed_kill_litt)
+
+    call this%RegisterCohortVector(symbol_base='fates_seedgerm_kill_frag', vtype=cohort_r8, &
+           long_name_base='seed bank kill fragmentation flux (germinated)',  &
+           units='kg/m2', veclength=num_elements, flushval = flushzero, &
+           hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_seedgerm_kill_litt)
+
+    call this%RegisterCohortVector(symbol_base='fates_seed_in_planted', vtype=cohort_r8, & !!!!!!!!naming convention?
+           long_name_base='seed bank fragmentation flux (germinated)',  &
+           units='kg/m2', veclength=num_elements, flushval = flushzero, &
+           hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_seed_in_planted_litt)
+! [JStenzel end]
+
     call this%RegisterCohortVector(symbol_base='fates_ag_cwd_frag', vtype=cohort_r8, &
             long_name_base='above ground CWD frag flux',  &
             units='kg/m2/day', veclength=num_elements, flushval = flushzero, &
@@ -1284,7 +1306,7 @@ contains
    !call this%DefineRMeanRestartVar(vname='fates_tveglpacohort',vtype=cohort_r8, &
    !     long_name='running average (EMA) of cohort veg temp for photo acclim', &
    !     units='K', initialize=initialize_variables,ivar=ivar, index = ir_tveglpa_co)
-   
+
 
     ! Register all of the PRT states and fluxes
 
@@ -1299,7 +1321,7 @@ contains
  end subroutine define_restart_vars
 
  ! =====================================================================================
- 
+
  subroutine DefineRMeanRestartVar(this,vname,vtype,long_name,units,initialize,ivar,index)
 
    class(fates_restart_interface_type) :: this
@@ -1312,7 +1334,7 @@ contains
    integer,intent(inout)        :: index
 
    integer :: dummy_index
-   
+
    call this%set_restart_var(vname= trim(vname)//'_cmean', vtype=vtype, &
         long_name=long_name//' current mean', &
         units=units, flushval = flushzero, &
@@ -1322,59 +1344,59 @@ contains
         long_name=long_name//' latest mean', &
         units=units, flushval = flushzero, &
         hlms='CLM:ALM', initialize=initialize, ivar=ivar, index = dummy_index )
-   
+
    call this%set_restart_var(vname= trim(vname)//'_cindex', vtype=vtype, &
         long_name=long_name//' index', &
         units='index', flushval = flushzero, &
         hlms='CLM:ALM', initialize=initialize, ivar=ivar, index = dummy_index )
 
-   
+
    return
  end subroutine DefineRMeanRestartVar
 
 
  ! =====================================================================================
-  
+
   subroutine GetRMeanRestartVar(this, rmean_var, ir_var_index, position_index)
-    
+
     class(fates_restart_interface_type) , intent(inout) :: this
     class(rmean_type), intent(inout) :: rmean_var
 
     integer,intent(in)     :: ir_var_index
     integer,intent(in)     :: position_index
-    
+
     integer :: i_pos              ! vector position loop index
     integer :: ir_pos_var         ! global variable index
 
 
     rmean_var%c_mean  = this%rvars(ir_var_index)%r81d(position_index)
-     
+
     rmean_var%l_mean  = this%rvars(ir_var_index+1)%r81d(position_index)
-    
+
     rmean_var%c_index = nint(this%rvars(ir_var_index+2)%r81d(position_index))
-    
+
     return
   end subroutine GetRMeanRestartVar
 
   ! =======================================================================================
-  
+
   subroutine SetRMeanRestartVar(this, rmean_var, ir_var_index, position_index)
-    
+
     class(fates_restart_interface_type) , intent(inout) :: this
     class(rmean_type), intent(inout) :: rmean_var
 
     integer,intent(in)     :: ir_var_index
     integer,intent(in)     :: position_index
-    
+
     integer :: i_pos              ! vector position loop index
     integer :: ir_pos_var         ! global variable index
 
     this%rvars(ir_var_index)%r81d(position_index) = rmean_var%c_mean
-     
+
     this%rvars(ir_var_index+1)%r81d(position_index) = rmean_var%l_mean
-    
+
     this%rvars(ir_var_index+2)%r81d(position_index) = real(rmean_var%c_index,r8)
-    
+
     return
   end subroutine SetRMeanRestartVar
 
@@ -1568,7 +1590,7 @@ contains
     end do
 
   end subroutine RegisterCohortVector
-  
+
   ! =====================================================================================
 
   subroutine GetCohortRealVector(this, state_vector, len_state_vector, &
@@ -2089,7 +2111,7 @@ contains
              ! Patch level running means
              call this%SetRMeanRestartVar(cpatch%tveg24, ir_tveg24_pa, io_idx_co_1st)
              call this%SetRMeanRestartVar(cpatch%tveg_lpa, ir_tveglpa_pa, io_idx_co_1st)
-             
+
              ! set cohorts per patch for IO
              rio_ncohort_pa( io_idx_co_1st )   = cohortsperpatch
 
@@ -2141,6 +2163,11 @@ contains
                     this%rvars(ir_seedgerm_litt+el)%r81d(io_idx_pa_pft) = litt%seed_germ(i)
                     this%rvars(ir_seed_decay_litt+el)%r81d(io_idx_pa_pft) = litt%seed_decay(i)
                     this%rvars(ir_seedgerm_decay_litt+el)%r81d(io_idx_pa_pft) = litt%seed_germ_decay(i)
+                    ! [JStenzel added]
+                    this%rvars(ir_seed_kill_litt+el)%r81d(io_idx_pa_pft) = litt%seed_kill(i) !!!!
+                    this%rvars(ir_seedgerm_kill_litt+el)%r81d(io_idx_pa_pft) = litt%seed_germ_kill(i) !!!!
+                    this%rvars(ir_seed_in_planted_litt+el)%r81d(io_idx_pa_pft) = litt%seed_in_planted(i) !!!!
+
                     io_idx_pa_pft = io_idx_pa_pft + 1
                  end do
 
@@ -2456,7 +2483,7 @@ contains
                 !allocate(new_cohort%tveg_lpa)
                 !call new_cohort%tveg_lpa%InitRMean(ema_lpa)
 
-                
+
                 ! Update the previous
                 prev_cohort => new_cohort
 
@@ -2877,7 +2904,7 @@ contains
 
                 !  (Keeping as an example)
                 !call this%GetRMeanRestartVar(ccohort%tveg_lpa, ir_tveglpa_co, io_idx_co)
-                
+
                 if (hlm_use_sp .eq. itrue) then
                     ccohort%c_area = this%rvars(ir_c_area_co)%r81d(io_idx_co)
                     ccohort%treelai = this%rvars(ir_treelai_co)%r81d(io_idx_co)
@@ -2915,7 +2942,7 @@ contains
 
              call this%GetRMeanRestartVar(cpatch%tveg24, ir_tveg24_pa, io_idx_co_1st)
              call this%GetRMeanRestartVar(cpatch%tveg_lpa, ir_tveglpa_pa, io_idx_co_1st)
-             
+
              ! set cohorts per patch for IO
 
              if ( debug ) then
@@ -2957,6 +2984,11 @@ contains
                      litt%seed_germ(i)  = this%rvars(ir_seedgerm_litt+el)%r81d(io_idx_pa_pft)
                      litt%seed_decay(i)       = this%rvars(ir_seed_decay_litt+el)%r81d(io_idx_pa_pft)
                      litt%seed_germ_decay(i)  = this%rvars(ir_seedgerm_decay_litt+el)%r81d(io_idx_pa_pft)
+                     ! [JStenzel added]
+                     litt%seed_kill(i)  = this%rvars(ir_seed_kill_litt+el)%r81d(io_idx_pa_pft) !!!!
+                     litt%seed_germ_kill(i)  = this%rvars(ir_seedgerm_kill_litt+el)%r81d(io_idx_pa_pft)!!!!
+                     litt%seed_in_planted(i)  = this%rvars(ir_seed_in_planted_litt+el)%r81d(io_idx_pa_pft) !!!!
+
                      io_idx_pa_pft      = io_idx_pa_pft + 1
                   end do
 

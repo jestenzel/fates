@@ -257,8 +257,10 @@ contains
        site_mass%frag_out = site_mass%frag_out + currentPatch%area * &
             ( sum(litt%ag_cwd_frag) + sum(litt%bg_cwd_frag) + &
             sum(litt%leaf_fines_frag) + sum(litt%root_fines_frag) + &
-            sum(litt%seed_decay) + sum(litt%seed_germ_decay) + &
-            sum(litt%seed_kill)  + sum(litt%seed_germ_kill)  )        ![JStenzel] Harvest seed kill
+            sum(litt%seed_decay) + sum(litt%seed_germ_decay) !+ &
+            ![JStenzel] Harvest seed kill; commented out because this is now added to seed_decay
+            ! fluxes at relevant timesteps.
+            !sum(litt%seed_kill)  + sum(litt%seed_germ_kill)  )
 
 
     end do
