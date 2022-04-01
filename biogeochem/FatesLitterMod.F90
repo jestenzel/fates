@@ -204,7 +204,7 @@ contains
        this%seed_germ_in(pft)    = this%seed_germ_in(pft) * self_weight + &
                                    donor_litt%seed_germ_in(pft) * donor_weight
        !this%seed_harvest_kill(pft) = this%seed_harvest_kill(pft) * self_weight + &
-                                   donor_litt%seed_harvest_kill(pft) * donor_weight
+                                   !donor_litt%seed_harvest_kill(pft) * donor_weight
 
        this%seed_kill(pft)       = this%seed_kill(pft) * self_weight + &     ![JStenzel add]
                                    donor_litt%seed_kill(pft) * donor_weight
