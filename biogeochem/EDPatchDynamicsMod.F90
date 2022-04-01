@@ -499,6 +499,7 @@ contains
                                              ! based on hlm input  [JStenzel added]
     integer  :: planting_time                ! binary 0/1 that dictates if a harvest is resulting in
                                              ! seedling planting on site [JStenzel added]
+    integer :: h_index   ! for looping over harvest categories [JStenzel added]
 
     !---------------------------------------------------------------------
 
@@ -524,7 +525,7 @@ contains
 
     do h_index = 1, hlm_num_lu_harvest_cats
       if ( bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_VH2" ) then     !!!!! need to make sure this works
-         planting_rate = planting_rate + hlm_harvest_rates(h_index)
+         planting_rate = planting_rate + bc_in%hlm_harvest_rates(h_index)
       end if
     end do
 

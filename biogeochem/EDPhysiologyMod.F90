@@ -257,7 +257,7 @@ contains
        site_mass%frag_out = site_mass%frag_out + currentPatch%area * &
             ( sum(litt%ag_cwd_frag) + sum(litt%bg_cwd_frag) + &
             sum(litt%leaf_fines_frag) + sum(litt%root_fines_frag) + &
-            sum(litt%seed_decay) + sum(litt%seed_germ_decay) !+ &
+            sum(litt%seed_decay) + sum(litt%seed_germ_decay) )!+ &
             ![JStenzel] Harvest seed kill; commented out because this is now added to seed_decay
             ! fluxes at relevant timesteps.
             !sum(litt%seed_kill)  + sum(litt%seed_germ_kill)  )
@@ -1645,7 +1645,7 @@ contains
           if ( currentPatch%anthro_disturbance_label .eq. primaryforest ) then
              site_area_primary = site_area_primary + currentPatch%area
           else
-             site_area_secondary = site_area_secondary + currentPatch%are
+             site_area_secondary = site_area_secondary + currentPatch%area
           end if
 
           currentCohort => currentPatch%tallest
@@ -1724,7 +1724,7 @@ contains
                    !litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain_managed(pft)/area
                    litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain_managed(pft) &
                         /site_area_secondary
-                end if [! JStenzel End]
+                end if ![ JStenzel End]
 
 
 
