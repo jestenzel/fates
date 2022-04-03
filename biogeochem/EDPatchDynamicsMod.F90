@@ -559,13 +559,13 @@ contains
           ! primary or secondary land receiver patch is primary forest only if both the
           ! donor patch is primary forest and the dominant disturbance type is not logging
 
-          !if ( currentPatch%anthro_disturbance_label .eq. primaryforest .and. &    !!!! [JStenzel]  definition edited
-           !    (currentPatch%disturbance_mode .ne. dtype_ilog) ) then
+          if ( currentPatch%anthro_disturbance_label .eq. primaryforest .and. &    !!!! [JStenzel]  definition edited
+               (currentPatch%disturbance_mode .ne. dtype_ilog) ) then
 
           !JStenzel: Major change: Primary lands considered all lands without regeneration harvest
           ! i.e. no forced pft switch, even if harvest occurs.
-          if ( currentPatch%anthro_disturbance_label .eq. primaryforest .and. .not. &    !!!! [JStenzel]  definition edited
-                (currentPatch%disturbance_mode .eq. dtype_ilog .and. planting_time .eq. 1) ) then
+          !if ( currentPatch%anthro_disturbance_label .eq. primaryforest .and. .not. &    !!!! [JStenzel]  definition edited
+            !    (currentPatch%disturbance_mode .eq. dtype_ilog .and. planting_time .eq. 1) ) then
 
 
 
@@ -666,14 +666,14 @@ contains
               ! only if both the donor patch is primary forest and the dominant
               ! disturbance type is not logging
 
-              ! if (currentPatch%anthro_disturbance_label .eq. primaryforest .and. &
-                    ! (currentPatch%disturbance_mode .ne. dtype_ilog)) then
+               if (currentPatch%anthro_disturbance_label .eq. primaryforest .and. &
+                     (currentPatch%disturbance_mode .ne. dtype_ilog)) then
                   ! new_patch => new_patch_primary
 
               !JStenzel: Major change: Primary lands considered all lands without regeneration harvest
               ! i.e. no forced pft switch, even if harvest occurs.
-              if ( currentPatch%anthro_disturbance_label .eq. primaryforest .and. .not. &    !!!! [JStenzel]  definition edit
-                    (currentPatch%disturbance_mode .eq. dtype_ilog .and. planting_time .eq. 1) ) then
+             ! if ( currentPatch%anthro_disturbance_label .eq. primaryforest .and. .not. &    !!!! [JStenzel]  definition edit
+               !     (currentPatch%disturbance_mode .eq. dtype_ilog .and. planting_time .eq. 1) ) then
                   new_patch => new_patch_primary
               else
                   new_patch => new_patch_secondary
