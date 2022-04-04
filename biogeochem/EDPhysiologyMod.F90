@@ -1617,7 +1617,7 @@ contains
 
     real(r8) :: site_area_primary ! Sum of site primary (area), m2  [JStenzel]
     real(r8) :: site_area_secondary ! Sum of site secondary (area), m2 [JStenzel]
-    real(r8) :: site_areadis_tertiary ! Sum of site secondary (area), m2 [JStenzel]
+    real(r8) :: site_area_tertiary ! Sum of site secondary (area), m2 [JStenzel]
 
     real(r8) :: seed_in_external       ! Mass of externally generated seeds [kg/m2/day]
     real(r8) :: seed_stoich            ! Mass ratio of nutrient per C12 in seeds [kg/kg]
@@ -1647,7 +1647,7 @@ contains
           if ( currentPatch%anthro_disturbance_label .eq. primaryforest ) then
              site_area_primary = site_area_primary + currentPatch%area
           elseif ( currentPatch%anthro_disturbance_label .eq. tertiaryforest ) then  ! [JStenzel added]
-             site_areadis_tertiary = site_areadis_tertiary + currentPatch%area
+             site_area_tertiary = site_area_tertiary + currentPatch%area
           else
              site_area_secondary = site_area_secondary + currentPatch%area
           end if
