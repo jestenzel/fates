@@ -69,6 +69,7 @@ module EDPatchDynamicsMod
   use FatesConstantsMod    , only : years_per_day
   use FatesConstantsMod    , only : nearzero
   use FatesConstantsMod    , only : primaryforest, secondaryforest
+  use FatesConstantsMod    , only : tertiaryforest    ![JStenzel added]
   use FatesConstantsMod    , only : n_anthro_disturbance_categories
   use FatesConstantsMod    , only : fates_unset_r8
   use FatesConstantsMod    , only : fates_unset_int
@@ -471,6 +472,7 @@ contains
     type (ed_patch_type) , pointer :: new_patch
     type (ed_patch_type) , pointer :: new_patch_primary
     type (ed_patch_type) , pointer :: new_patch_secondary
+    type (ed_patch_type) , pointer :: new_patch_tertiary ![JStenzel add]
     type (ed_patch_type) , pointer :: currentPatch
     type (ed_cohort_type), pointer :: currentCohort
     type (ed_cohort_type), pointer :: nc
@@ -478,6 +480,7 @@ contains
     type (ed_cohort_type), pointer :: storebigcohort
     real(r8) :: site_areadis_primary         ! total area disturbed (to primary forest) in m2 per site per day
     real(r8) :: site_areadis_secondary       ! total area disturbed (to secondary forest) in m2 per site per day
+    real(r8) :: site_areadis_tertiary       ! [JStenzel add)] total area disturbed (to tertiary forest) in m2 per site per day
     real(r8) :: patch_site_areadis           ! total area disturbed in m2 per patch per day
     real(r8) :: age                          ! notional age of this patch in years
     integer  :: el                           ! element loop index
@@ -494,6 +497,7 @@ contains
                                              ! for both woody and grass species
     real(r8) :: leaf_m                       ! leaf mass during partial burn calculations
     logical  :: found_youngest_primary       ! logical for finding the first primary forest patch
+    logical  :: found_youngest_secondary     ! logical for finding the first primary forest patch ![JStenzel added]
 
     real(r8) :: planting_rate                ! fraction of cell to be be harvested + planted,
                                              ! based on hlm input  [JStenzel added]
@@ -511,11 +515,16 @@ contains
 
     site_areadis_primary = 0.0_r8
     site_areadis_secondary = 0.0_r8
+    site_areadis_tertiary = 0.0_r8
 
     ! zero the diagnostic disturbance rate fields
     currentSite%disturbance_rates_primary_to_primary(1:N_DIST_TYPES) = 0._r8
     currentSite%disturbance_rates_primary_to_secondary(1:N_DIST_TYPES) = 0._r8
     currentSite%disturbance_rates_secondary_to_secondary(1:N_DIST_TYPES) = 0._r8
+
+    !currentSite%disturbance_rates_to_planted(1:N_DIST_TYPES) = 0._r8 ![JStenzel add] !!!!
+    currentSite%disturbance_rates_any_to_tertiary = 0._r8 ![JStenzel add] !!!!
+    currentSite%disturbance_rates_tertiary_to_tertiary = 0._r8 ![JStenzel add] !!!!
 
 
     ! [JStenzel Start]
@@ -575,6 +584,25 @@ contains
              currentSite%disturbance_rates_primary_to_primary(currentPatch%disturbance_mode) = &
                   currentSite%disturbance_rates_primary_to_primary(currentPatch%disturbance_mode) + &
                   currentPatch%area * currentPatch%disturbance_rate * AREA_INV
+
+          elseif ( currentPatch%anthro_disturbance_label .eq. tertiaryforest  .or. &
+             (currentPatch%disturbance_mode .eq. dtype_ilog .and. planting_time .eq. 1) ) then ! [JStenzel added] tertiary (planted) lands
+
+             site_areadis_tertiary = site_areadis_tertiary + currentPatch%area * currentPatch%disturbance_rate
+
+                  if ( currentPatch%anthro_disturbance_label .eq. tertiaryforest) then
+                     ! note: with the below 'else' this implies that tertiary forests are not being planted more than once
+                     currentSite%disturbance_rates_tertiary_to_tertiary(currentPatch%disturbance_mode) = & !!!! new variable
+                          currentSite%disturbance_rates_tertiary_to_tertiary(currentPatch%disturbance_mode) + &
+                          currentPatch%area * currentPatch%disturbance_rate * AREA_INV
+                  else
+                     ! note: with the above 'if', this implies that tertiary forests are not being planted more than once.
+                     currentSite%disturbance_rates_any_to_tertiary(currentPatch%disturbance_mode) = &  !!!! new variable
+                          currentSite%disturbance_rates_any_to_tertiary(currentPatch%disturbance_mode) + &
+                          currentPatch%area * currentPatch%disturbance_rate * AREA_INV
+                  end if
+
+
           else
              site_areadis_secondary = site_areadis_secondary + currentPatch%area * currentPatch%disturbance_rate
 
@@ -597,7 +625,7 @@ contains
     enddo ! end loop over patches. sum area disturbed for all patches.
 
     ! It is possible that no disturbance area was generated
-    if ( (site_areadis_primary + site_areadis_secondary) > nearzero) then
+    if ( (site_areadis_primary + site_areadis_secondary + site_areadis_tertiary) > nearzero) then
 
        age = 0.0_r8
 
@@ -647,6 +675,22 @@ contains
 
        endif
 
+       if ( site_areadis_tertiary .gt. nearzero) then    ![JStenzel add] Terciary forest (ie plantation)
+          allocate(new_patch_tertiary)
+          call create_patch(currentSite, new_patch_tertiary, age, &
+               site_areadis_tertiary, tertiaryforest,fates_unset_int)
+               do el=1,num_elements
+                   call new_patch_tertiary%litter(el)%InitConditions(init_leaf_fines=0._r8, &
+                         init_root_fines=0._r8, &
+                         init_ag_cwd=0._r8, &
+                         init_bg_cwd=0._r8, &
+                         init_seed=0._r8,   &
+                         init_seed_germ=0._r8)
+               end do
+               new_patch_tertiary%tallest  => null()
+               new_patch_tertiary%shortest => null()
+
+       end if
        ! loop round all the patches that contribute surviving indivduals and litter
        ! pools to the new patch.  We only loop the pre-existing patches, so
        ! quit the loop if the current patch is either null, or matches the
@@ -667,14 +711,17 @@ contains
               ! disturbance type is not logging
 
                if (currentPatch%anthro_disturbance_label .eq. primaryforest .and. &
-                     (currentPatch%disturbance_mode .ne. dtype_ilog)) then
+                    (currentPatch%disturbance_mode .ne. dtype_ilog)) then
                   ! new_patch => new_patch_primary
 
-              !JStenzel: Major change: Primary lands considered all lands without regeneration harvest
-              ! i.e. no forced pft switch, even if harvest occurs.
-             ! if ( currentPatch%anthro_disturbance_label .eq. primaryforest .and. .not. &    !!!! [JStenzel]  definition edit
-               !     (currentPatch%disturbance_mode .eq. dtype_ilog .and. planting_time .eq. 1) ) then
+
                   new_patch => new_patch_primary
+
+               elseif ( currentPatch%anthro_disturbance_label .eq. tertiaryforest  .or. &    ! [JStenzel added] tertiary (planted) lands
+                  (currentPatch%disturbance_mode .eq. dtype_ilog .and. planting_time .eq. 1) ) then
+
+                   new_patch => new_patch_tertiary
+
               else
                   new_patch => new_patch_secondary
               endif
@@ -1182,7 +1229,9 @@ contains
           currentPatch               => currentSite%youngest_patch
           ! insert new youngest primary patch after all the secondary patches, if there are any.
           ! this requires first finding the current youngest primary to insert the new one ahead of
-          if (currentPatch%anthro_disturbance_label .eq. secondaryforest ) then
+          !if (currentPatch%anthro_disturbance_label .eq. secondaryforest ) then
+          if (currentPatch%anthro_disturbance_label .eq. secondaryforest .or. &   ![JStenzel added]
+               currentPatch%anthro_disturbance_label .eq. tertiaryforest ) then   !
              found_youngest_primary = .false.
              do while(associated(currentPatch) .and. .not. found_youngest_primary)
                 currentPatch => currentPatch%older
@@ -1208,7 +1257,7 @@ contains
                 currentSite%oldest_patch   => new_patch_primary
              endif
           else
-             ! the case where there are no secondary patches at the start of the linked list (prior logic)
+             ! the case where there are no secondary/terciary patches at the start of the linked list (prior logic)
              new_patch_primary%older    => currentPatch
              new_patch_primary%younger  => null()
              currentPatch%younger       => new_patch_primary
@@ -1216,15 +1265,74 @@ contains
           endif
       endif
 
-      ! insert first secondary at the start of the list
-      if ( site_areadis_secondary .gt. nearzero) then
-          currentPatch               => currentSite%youngest_patch
-          new_patch_secondary%older  => currentPatch
-          new_patch_secondary%younger=> null()
-          currentPatch%younger       => new_patch_secondary
-          currentSite%youngest_patch => new_patch_secondary
-      endif
+      ! insert first secondary at the start of the list !!!!!!!!!!!!! delete
+      !if ( site_areadis_secondary .gt. nearzero) then
+      !    currentPatch               => currentSite%youngest_patch
+      !    new_patch_secondary%older  => currentPatch
+      !    new_patch_secondary%younger=> null()
+      !    currentPatch%younger       => new_patch_secondary
+      !    currentSite%youngest_patch => new_patch_secondary
+      !endif
 
+      ! insert first secondary before all primaries and after all tertiaries  ! [JStenzel secondary land insert start]
+      if ( site_areadis_secondary .gt. nearzero) then
+         currentPatch               => currentSite%youngest_patch
+         if ( currentPatch%anthro_disturbance_label .eq. tertiaryforest ) then
+            found_youngest_secondary = .false.
+            found_youngest_primary = .false. !!!!!
+            do while(associated(currentPatch) .and. .not. &
+               ( found_youngest_secondary .or. found_youngest_primary) )  !!! check
+               currentPatch => currentPatch%older
+               if (associated(currentPatch)) then
+                  if (currentPatch%anthro_disturbance_label .eq. secondaryforest) then
+                     found_youngest_secondary = .true.
+                  end if
+                  ! [JStenzel] If primary forest is found before secondary forest, that means there is no secondary forest
+                  ! and that the loop can be ended
+                  if ( currentPatch%anthro_disturbance_label .eq. primaryforest ) then ! [Added]
+                     found_youngest_primary = .true.
+                  endif
+
+               endif
+            end do
+            if (associated(currentPatch) .and. ( found_youngest_secondary .or. & ![Added]
+                  found_youngest_primary )) then
+               ! the case where we've found a youngest secondary or primary patch for the new secondary to be inserted before !
+               new_patch_secondary%older    => currentPatch
+               new_patch_secondary%younger  => currentPatch%younger
+               currentPatch%younger%older => new_patch_secondary
+               currentPatch%younger       => new_patch_secondary
+
+            else
+               ! the case where we haven't, because there are no current [JStenzel] secondary OR primary patches  (ie this is the "oldest" patch)
+               !if (currentSite%oldest_patch%anthro_disturbance_label .eq. tertiaryforest ) !!! Not sure if there's a reason to NOT do this, and instead reuse "found_youngest_primary in the preceding loop"
+               !if ( .not. found_youngest_primary ) then !!!!!! correct syntax?
+                  new_patch_secondary%older    => null()
+                  new_patch_secondary%younger  => currentSite%oldest_patch
+                  currentSite%oldest_patch%older   => new_patch_secondary
+                  currentSite%oldest_patch   => new_patch_secondary
+               !else ( found_youngest_primary ) then
+
+
+            endif
+         else
+           ! the case where there are no terciary patches at the start of the linked list
+           new_patch_secondary%older    => currentPatch
+           new_patch_secondary%younger  => null()
+           currentPatch%younger       => new_patch_secondary
+           currentSite%youngest_patch => new_patch_secondary
+         endif
+     endif                 ! [JStenzel secondary land insert end]
+
+
+      ! insert first tertiary at the start of the list   ![JStenzel added] This replaces new secondary at the start of the list !!!!
+      if ( site_areadis_tertiary .gt. nearzero) then
+          currentPatch               => currentSite%youngest_patch
+          new_patch_tertiary%older   => currentPatch
+          new_patch_tertiary%younger=> null()
+          currentPatch%younger       => new_patch_tertiary
+          currentSite%youngest_patch => new_patch_tertiary
+      endif
 
        ! sort out the cohorts, since some of them may be so small as to need removing.
        ! the first call to terminate cohorts removes sparse number densities,
@@ -1244,6 +1352,13 @@ contains
           call terminate_cohorts(currentSite, new_patch_secondary, 2,18,bc_in)
           call sort_cohorts(new_patch_secondary)
        endif
+
+       if ( site_areadis_tertiary .gt. nearzero) then                         ! [JStenzel added]
+          call terminate_cohorts(currentSite, new_patch_tertiary, 1,19,bc_in) !
+          call fuse_cohorts(currentSite,new_patch_tertiary, bc_in)            !
+          call terminate_cohorts(currentSite, new_patch_tertiary, 2,19,bc_in) !
+          call sort_cohorts(new_patch_tertiary)                               !
+       endif                                                                  !
 
     endif !end new_patch area
 
@@ -1590,8 +1705,8 @@ contains
        ! [JStenzel Start] Regeneration harvest: donated seed bank removal + new seedling planting
        ! If this is a primary patch experiencing a regeneration harvest
        if ( currentPatch%disturbance_mode .eq. dtype_ilog .and. &
-             currentPatch%anthro_disturbance_label .eq. primaryforest  &
-             .and. planting_time .eq. 1 ) then
+             !currentPatch%anthro_disturbance_label .eq. primaryforest .and.  &
+             planting_time .eq. 1 ) then
 
              do pft = 1,numpft
 
@@ -3135,7 +3250,9 @@ contains
    frac_site_primary = 0._r8
    currentPatch => site_in%oldest_patch
    do while (associated(currentPatch))
-      if (currentPatch%anthro_disturbance_label .eq. primaryforest) then
+      ![JStenzel] redefine 'frac_site_primary' to mean fraction of the site w/ natural pfts
+      if (currentPatch%anthro_disturbance_label .eq. primaryforest .or. &
+           currentPatch%anthro_disturbance_label .eq. secondaryforest ) then
          frac_site_primary = frac_site_primary + currentPatch%area * AREA_INV
       endif
       currentPatch => currentPatch%younger

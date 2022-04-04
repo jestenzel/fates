@@ -107,7 +107,7 @@ module EDPhysiologyMod
   use PRTLossFluxesMod, only : PRTDeciduousTurnover
   use PRTLossFluxesMod, only : PRTReproRelease
   use PRTGenericMod, only : StorageNutrientTarget
-  use FatesConstantsMod, only : primaryforest, secondaryforest ! [JStenzel]
+  use FatesConstantsMod, only : primaryforest, secondaryforest, tertiaryforest ! [JStenzel]
 
   implicit none
   private
@@ -1615,8 +1615,9 @@ contains
     real(r8) :: site_seed_rain(maxpft) ! This is the sum of seed-rain for the site, unplanted patches [kg/site/day]
     real(r8) :: site_seed_rain_managed(maxpft) ! This is the sum of seed-rain for the site, planted patches [kg/site/day] [JStenzel]
 
-    real(r8) :: site_area_primary ! Sum of site primary ("unmanaged" area), m2  [JStenzel]
-    real(r8) :: site_area_secondary ! Sum of site secondary ("managed" area), m2 [JStenzel]
+    real(r8) :: site_area_primary ! Sum of site primary (area), m2  [JStenzel]
+    real(r8) :: site_area_secondary ! Sum of site secondary (area), m2 [JStenzel]
+    real(r8) :: site_areadis_tertiary ! Sum of site secondary (area), m2 [JStenzel]
 
     real(r8) :: seed_in_external       ! Mass of externally generated seeds [kg/m2/day]
     real(r8) :: seed_stoich            ! Mass ratio of nutrient per C12 in seeds [kg/kg]
@@ -1632,6 +1633,7 @@ contains
        site_seed_rain_managed(:) = 0._r8  ![JStenzel]
        site_area_primary = 0._r8 ![JStenzel]
        site_area_secondary = 0._r8 ![JStenzel]
+       site_area_tertiary= 0._r8 ![JStenzel]
 
        element_id = element_list(el)
 
@@ -1641,9 +1643,11 @@ contains
        currentPatch => currentSite%oldest_patch
        do while (associated(currentPatch))
 
-          ! [JStenzel] sum site primary and 'secondary' (managed) area
+          ! [JStenzel] sum site primary and secondary,and tertiary (NEW: managed) area
           if ( currentPatch%anthro_disturbance_label .eq. primaryforest ) then
              site_area_primary = site_area_primary + currentPatch%area
+          elseif ( currentPatch%anthro_disturbance_label .eq. tertiaryforest ) then  ! [JStenzel added]
+             site_areadis_tertiary = site_areadis_tertiary + currentPatch%area
           else
              site_area_secondary = site_area_secondary + currentPatch%area
           end if
@@ -1675,10 +1679,11 @@ contains
                 currentcohort%seed_prod = seed_prod
              end if
 
-             if ( currentPatch%anthro_disturbance_label .eq. primaryforest  ) then   !!!!  [JStenzel start]
+             if ( currentPatch%anthro_disturbance_label .eq. primaryforest .or. &
+                  currentPatch%anthro_disturbance_label .eq. secondaryforest ) then   !!!!  [JStenzel start]
                 site_seed_rain(pft) = site_seed_rain(pft) +  &
                      (seed_prod * currentCohort%n + store_m_to_repro)
-             else if ( currentPatch%anthro_disturbance_label .eq. secondaryforest ) then
+             else if ( currentPatch%anthro_disturbance_label .eq. tertiaryforest ) then
                 site_seed_rain_managed(pft) = site_seed_rain_managed(pft) +  &
                      (seed_prod * currentCohort%n + store_m_to_repro)
              end if   ! [JStenzel end]
@@ -1716,14 +1721,15 @@ contains
 
                 ! Seed input from local sources (within site)
                 ! [JStenzel Start]
-                if ( currentPatch%anthro_disturbance_label .eq. primaryforest ) then
+                if ( currentPatch%anthro_disturbance_label .eq. primaryforest .or. &
+                     currentPatch%anthro_disturbance_label .eq. secondaryforest ) then
                    !litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain(pft)/area
                    litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain(pft) &
-                        /site_area_primary  !!!! Need to check for potential mass balance problem here !?
-                else if ( currentPatch%anthro_disturbance_label .eq. secondaryforest ) then
+                        /(site_area_primary + site_area_secondary)  !!!! [JStenzel edited ]to add 1st/2nd forest areas
+                else if ( currentPatch%anthro_disturbance_label .eq. tertiaryforest ) then
                    !litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain_managed(pft)/area
                    litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain_managed(pft) &
-                        /site_area_secondary
+                        /site_area_tertiary          ! JStenzel edited for new, Tertiary forest type
                 end if ![ JStenzel End]
 
 
@@ -1752,7 +1758,7 @@ contains
                 ! Seeds entering externally [kg/site/day]
                 site_mass%seed_in = site_mass%seed_in + &
                      ![JStenzel] Add seed_in_planted(pft) to site seed_in flux sum
-                     ( seed_in_external + litt%seed_in_planted(pft)) *currentPatch%area
+                     ( seed_in_external + litt%seed_in_planted(pft)) *currentPatch%area !!!! !!!!
              ! end if !use this pft   [JStenzel commented out]
           enddo
 

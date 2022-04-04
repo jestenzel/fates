@@ -334,31 +334,55 @@ contains
       integer :: icode   ! Integer equivalent of the event code (parameter file only allows reals)
 
      !  Loop around harvest categories to determine the annual hlm harvest rate for the current cohort based on patch history info
+     !harvest_rate = 0._r8
+     !do h_index = 1,hlm_num_lu_harvest_cats
+      !  if (patch_anthro_disturbance_label .eq. primaryforest) then
+      !     if(hlm_harvest_catnames(h_index) .eq. "HARVEST_VH1" .or. &
+      !          hlm_harvest_catnames(h_index) .eq. "HARVEST_VH2") then
+      !        harvest_rate = harvest_rate + hlm_harvest_rates(h_index)
+      !     endif
+       ! else if (patch_anthro_disturbance_label .eq. secondaryforest .and. &
+         !    secondary_age >= secondary_age_threshold) then
+          ! if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH1") then
+            !  harvest_rate = harvest_rate + hlm_harvest_rates(h_index)
+         !  endif
+        !else if (patch_anthro_disturbance_label .eq. secondaryforest .and. &
+         !    secondary_age < secondary_age_threshold) then
+          ! if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2" .or. &
+            !    hlm_harvest_catnames(h_index) .eq. "HARVEST_SH3") then
+            !  harvest_rate = harvest_rate + hlm_harvest_rates(h_index)
+          ! endif
+      !  endif
+     !end do
+! [JStenzel edits] Harvest VH1 and VH2 now apply to all "natural pft" primary/secondary forests,
+! while SH1 applies to terciary forest. VH2 will be interpreted downstream to mean harvest +
+! seedling planting.
      harvest_rate = 0._r8
      do h_index = 1,hlm_num_lu_harvest_cats
-        if (patch_anthro_disturbance_label .eq. primaryforest) then
-           if(hlm_harvest_catnames(h_index) .eq. "HARVEST_VH1" .or. &
+       if (patch_anthro_disturbance_label .eq. primaryforest .or. &
+            patch_anthro_disturbance_label .eq. secondaryforest) then
+          if(hlm_harvest_catnames(h_index) .eq. "HARVEST_VH1" .or. &
                 hlm_harvest_catnames(h_index) .eq. "HARVEST_VH2") then
-              harvest_rate = harvest_rate + hlm_harvest_rates(h_index)
-           endif
-        else if (patch_anthro_disturbance_label .eq. secondaryforest .and. &
-             secondary_age >= secondary_age_threshold) then
-           if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH1") then
-              harvest_rate = harvest_rate + hlm_harvest_rates(h_index)
-           endif
-        else if (patch_anthro_disturbance_label .eq. secondaryforest .and. &
-             secondary_age < secondary_age_threshold) then
-           if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2" .or. &
-                hlm_harvest_catnames(h_index) .eq. "HARVEST_SH3") then
-              harvest_rate = harvest_rate + hlm_harvest_rates(h_index)
-           endif
-        endif
+             harvest_rate = harvest_rate + hlm_harvest_rates(h_index)
+          endif
+       else if (patch_anthro_disturbance_label .eq. tertiaryforest ) then
+          if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH1") then
+             harvest_rate = harvest_rate + hlm_harvest_rates(h_index)
+          endif
+       !else if (patch_anthro_disturbance_label .eq. secondaryforest .and. &
+         !    secondary_age < secondary_age_threshold) then
+          !if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2" .or. &
+         !       hlm_harvest_catnames(h_index) .eq. "HARVEST_SH3") then
+         !    harvest_rate = harvest_rate + hlm_harvest_rates(h_index)
+         ! endif
+       endif
      end do
 
      !  Normalize by site-level primary or secondary forest fraction
      !  since harvest_rate is specified as a fraction of the gridcell
      ! also need to put a cap so as not to harvest more primary or secondary area than there is in a gridcell
-     if (patch_anthro_disturbance_label .eq. primaryforest) then
+     if (patch_anthro_disturbance_label .eq. primaryforest .or. &      ! [JStenzel redefine] Sums frac_site_primary redefined to mean "natural pft"
+          patch_anthro_disturbance_label .eq. secondaryforest) then
         if (frac_site_primary .gt. fates_tiny) then
            harvest_rate = min((harvest_rate / frac_site_primary),frac_site_primary)
         else

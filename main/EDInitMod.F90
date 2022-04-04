@@ -209,6 +209,9 @@ contains
     site_in%disturbance_rates_primary_to_secondary(:) = 0.0_r8
     site_in%disturbance_rates_primary_to_primary(:) = 0.0_r8
 
+    site_in%disturbance_rates_any_to_tertiary(:) = 0.0_r8       ! [JStenzel add]
+    site_in%disturbance_rates_tertiary_to_tertiary(:) = 0.0_r8  ! [JStenzel add]
+
     ! FIRE
     site_in%acc_ni           = 0.0_r8     ! daily nesterov index accumulating over time. time unlimited theoretically.
     site_in%NF               = 0.0_r8     ! daily lightning strikes per km2

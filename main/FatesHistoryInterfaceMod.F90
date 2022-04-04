@@ -2172,8 +2172,9 @@ end subroutine flush_hvars
 
       hio_logging_disturbance_rate_si(io_si) = (sites(s)%disturbance_rates_primary_to_primary(dtype_ilog) + &
          sites(s)%disturbance_rates_primary_to_secondary(dtype_ilog) +         &
-         sites(s)%disturbance_rates_secondary_to_secondary(dtype_ilog)) *      &
-         days_per_year
+         sites(s)%disturbance_rates_secondary_to_secondary(dtype_ilog) +       &
+         sites(s)%disturbance_rates_any_to_tertiary(dtype_ilog) +              & ![JStenzel add]
+         sites(s)%disturbance_rates_tertiary_to_tertiary(dtype_ilog) ) * days_per_year       ![JStenzel add]
 
       hio_fall_disturbance_rate_si(io_si) = (sites(s)%disturbance_rates_primary_to_primary(dtype_ifall) + &
          sites(s)%disturbance_rates_primary_to_secondary(dtype_ifall) +     &
