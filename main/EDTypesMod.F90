@@ -27,9 +27,9 @@ module EDTypesMod
   private               ! By default everything is private
   save
 
-  integer, parameter, public :: maxPatchesPerSite  = 17   ! maximum number of patches to live on a site ![Jstenzel edit test]
+  integer, parameter, public :: maxPatchesPerSite  = 14   ! maximum number of patches to live on a site ![Jstenzel edit test]
   integer, parameter, public :: maxPatchesPerSite_by_disttype(n_anthro_disturbance_categories)  = &
-                                                     (/ 10, 4, 3 /)  !!! MUST SUM TO maxPatchesPerSite !!! [JStenzel edit]
+                                                     (/ 8, 3, 3 /)  !!! MUST SUM TO maxPatchesPerSite !!! [JStenzel edit]
   integer,  public :: maxCohortsPerPatch = 100            ! maximum number of cohorts per patch
 
   integer, parameter, public :: nclmax = 2                ! Maximum number of canopy layers
