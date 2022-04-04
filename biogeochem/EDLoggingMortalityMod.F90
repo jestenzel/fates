@@ -61,6 +61,7 @@ module EDLoggingMortalityMod
    use PRTGenericMod     , only : fnrt_organ, store_organ, repro_organ
    use FatesAllometryMod , only : set_root_fraction
    use FatesConstantsMod , only : primaryforest, secondaryforest, secondary_age_threshold
+   use FatesConstantsMod , only : tertiaryforest
    use FatesConstantsMod , only : fates_tiny
    use FatesConstantsMod , only : months_per_year
    use FatesConstantsMod , only : hlm_harvest_area_fraction
