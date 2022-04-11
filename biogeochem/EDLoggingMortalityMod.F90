@@ -83,7 +83,7 @@ module EDLoggingMortalityMod
    ! patch, and is thus "completely local".
 
 
-   real(r8), parameter :: harvest_litter_localization = 0.0_r8
+   real(r8), parameter :: harvest_litter_localization = 1.0_r8   ![JStenzel change]
 
    character(len=*), parameter, private :: sourcefile = &
          __FILE__

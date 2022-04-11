@@ -1,4 +1,4 @@
-module FatesHistoryInterfaceMod
+fuelmodule FatesHistoryInterfaceMod
 
   use FatesConstantsMod        , only : r8 => fates_r8
   use FatesConstantsMod        , only : fates_avg_flag_length
@@ -587,6 +587,12 @@ module FatesHistoryInterfaceMod
   integer :: ih_litter_moisture_si_fuel
   integer :: ih_burnt_frac_litter_si_fuel
   integer :: ih_fuel_amount_si_fuel
+
+  ! [ JStenzel add] indices to (site x snag size class) variables
+  integer :: ih_snag_si_fuel
+  integer :: ih_snag_in_si_fuel
+  integer :: ih_snag_frag_si_fuel
+  integer :: ih_snag_combust_si_fuel
 
   ! indices to (site x cwd size class) variables
   integer :: ih_cwd_ag_si_cwdsc
@@ -1297,6 +1303,7 @@ end function levcapf_index
  end function levcwdsc_index
 
  ! =======================================================================
+
  subroutine set_levcan_index(this, index)
    implicit none
    class(fates_history_interface_type), intent(inout) :: this
@@ -2049,6 +2056,12 @@ end subroutine flush_hvars
                hio_cwd_bg_in_si_cwdsc               => this%hvars(ih_cwd_bg_in_si_cwdsc)%r82d, &
                hio_cwd_ag_out_si_cwdsc              => this%hvars(ih_cwd_ag_out_si_cwdsc)%r82d, &
                hio_cwd_bg_out_si_cwdsc              => this%hvars(ih_cwd_bg_out_si_cwdsc)%r82d, &
+               ![JStenzel added] Snag variables
+               hio_snag_si_fuel                 => this%hvars(ih_snag_si_fuel)%r82d, &
+               hio_snag_in_si_fuel                => this%hvars(ih_snag_in_si_fuel)%r82d, &
+               hio_snag_frag_si_fuel            => this%hvars(ih_snag_frag_si_fuel)%r82d, &
+               hio_snag_combust_si_fuel         => this%hvars(ih_snag_combust_si_fuel)%r82d, &
+               !
                hio_crownarea_si_cnlf                => this%hvars(ih_crownarea_si_cnlf)%r82d, &
                hio_crownarea_si_can                 => this%hvars(ih_crownarea_si_can)%r82d, &
                hio_nplant_si_scag                   => this%hvars(ih_nplant_si_scag)%r82d, &
@@ -2946,6 +2959,25 @@ end subroutine flush_hvars
                days_per_year / sec_per_day
 
          end do
+
+         do i_fuel = 1, nfsc ![JStenzel add start]
+
+            hio_snag_si_fuel(io_si, i_fuel) = hio_snag_si_fuel(io_si, i_fuel) + &
+               litt_c%(i_cwd)*cpatch%area * AREA_INV
+
+            hio_snag_in_si_fuel(io_si, i_fuel) = hio_snag_in_si_fuel(io_si, i_fuel) + &
+               litt_c%snag_in(i_cwd)*cpatch%area * AREA_INV /              &
+               days_per_year / sec_per_day
+
+            hio_snag_frag_si_fuel(io_si, i_fuel) = hio_snag_frag_si_fuel(io_si, i_fuel) + &
+               litt_c%snag_frag(i_cwd)*cpatch%area * AREA_INV /              &
+               days_per_year / sec_per_day
+
+            hio_snag_combust_si_fuel(io_si, i_fuel) = hio_snag_combust_si_fuel(io_si,i_fuel) + &
+               litt_c%snag_combust(i_cwd)*cpatch%area * AREA_INV /              &
+               days_per_year / sec_per_day
+
+         end do  ![JStenzel add finish]
 
          ipa = ipa + 1
          cpatch => cpatch%younger
@@ -4844,6 +4876,31 @@ end subroutine update_history_hifrq
          use_default='active', avgflag='A', vtype=site_elem_r8,                &
          hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
          index = ih_seed_decay_elem)
+
+   ![JStenzel added] Snags
+   call this%set_history_var(vname='FATES_SNAG_FC', units='kg m-2',  &
+        long='snag mass in in kg element per m2 per sec',                &
+        use_default='active', avgflag='A', vtype=site_fuel_r8,                &
+        hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
+        index = ih_snag_si_fuel)
+
+   call this%set_history_var(vname='FATES_SNAG_IN_FC', units='kg m-2 s-1',  &
+        long='snag mass influx (mortality) in kg element per m2 per sec',     &
+        use_default='active', avgflag='A', vtype=site_fuel_r8,                &
+        hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
+        index = ih_snag_in_si_fuel)
+
+   call this%set_history_var(vname='FATES_SNAG_FRAG_FC', units='kg m-2 s-1',  &
+        long='snag mass fall flux (to ground) in in kg element per m2 per sec',  &
+        use_default='active', avgflag='A', vtype=site_fuel_r8,                &
+        hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
+        index = ih_snag_frag_si_fuel)
+
+   call this%set_history_var(vname='FATES_SNAG_COMBUST_FC', units='kg m-2 s-1',  &
+        long='snag mass combustion outflux in in kg element per m2 per sec',     &
+        use_default='active', avgflag='A', vtype=site_fuel_r8,                &
+        hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
+        index = ih_snag_combust_si_fuel)
 
     ! SITE LEVEL CARBON STATE VARIABLES
 

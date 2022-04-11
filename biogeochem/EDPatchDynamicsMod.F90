@@ -34,7 +34,7 @@ module EDPatchDynamicsMod
   use PRTGenericMod        , only : num_elements
   use PRTGenericMod        , only : element_list
   use EDTypesMod           , only : lg_sf
-  use EDTypesMod           , only : dl_sf
+  use EDTypesMod           , only : dl_sf, tr_sf, lb_sf
   use EDTypesMod           , only : dump_patch
   use EDTypesMod           , only : N_DIST_TYPES
   use EDTypesMod           , only : AREA_INV
@@ -134,8 +134,8 @@ module EDPatchDynamicsMod
   ! all litter is sent to the new patch.
 
   real(r8), parameter :: existing_litt_localization = 1.0_r8
-  real(r8), parameter :: treefall_localization = 0.0_r8
-  real(r8), parameter :: burn_localization = 0.0_r8
+  real(r8), parameter :: treefall_localization = 1.0_r8     ![JStenzel change]
+  real(r8), parameter :: burn_localization = 1.0_r8         ![JStenzel change]
 
 
   ! 10/30/09: Created by Rosie Fisher
@@ -644,6 +644,7 @@ contains
               call new_patch_primary%litter(el)%InitConditions(init_leaf_fines=0._r8, &
                     init_root_fines=0._r8, &
                     init_ag_cwd=0._r8, &
+                    init_snag =0._r8, &        ![JStenzel]
                     init_bg_cwd=0._r8, &
                     init_seed=0._r8,   &
                     init_seed_germ=0._r8)
@@ -666,6 +667,7 @@ contains
               call new_patch_secondary%litter(el)%InitConditions(init_leaf_fines=0._r8, &
                     init_root_fines=0._r8, &
                     init_ag_cwd=0._r8, &
+                    init_snag =0._r8, &        ![JStenzel]
                     init_bg_cwd=0._r8, &
                     init_seed=0._r8,   &
                     init_seed_germ=0._r8)
@@ -683,6 +685,7 @@ contains
                    call new_patch_tertiary%litter(el)%InitConditions(init_leaf_fines=0._r8, &
                          init_root_fines=0._r8, &
                          init_ag_cwd=0._r8, &
+                         init_snag =0._r8, &        ![JStenzel]
                          init_bg_cwd=0._r8, &
                          init_seed=0._r8,   &
                          init_seed_germ=0._r8)
@@ -1563,9 +1566,12 @@ contains
     real(r8) :: litter_stock0,litter_stock1
     real(r8) :: burn_flux0,burn_flux1
     real(r8) :: error
-    !real(r8) :: new_decay           ! New: running donor patch-based seed_decay & seed_germ_decay total (mass/m2) [JStenzel add]
-    !real(r8) :: new_seed_input      ! New: running donor patch-based seed_in_planted total (mass/m2) [JStenzel add]
-    !real(r8) :: seed_in_planted     ! New: current donor patch:pft-based planted seed total (mass/m2) [JStenzel add]
+    integer  :: snag_burn_switch           ![JStenzel added] Hardcoded on/off for snag-combusting logic
+    integer  :: scorch_count               ![JStenzel added] Count of patch pfts w/ non-zero scorch hts
+    real(r8) :: scorch_total               ![JStenzel added] Running total of patch pft scorch hts
+    logical  :: snag_burn                  ![JStenzel added] Are all the conditions met for some
+                                           !     snag combustion on this patch?
+
 
     do el = 1,num_elements
 
@@ -1573,9 +1579,6 @@ contains
        curr_litt  => currentPatch%litter(el)
        new_litt  => newPatch%litter(el)
 
-       !new_decay = 0.0_r8       ![JStenzel]
-       !new_seed_input = 0.0_r8
-       !seed_in_planted = 0.0_r8
 
        ! Distribute the fragmentation litter flux rates. This is only used for diagnostics
        ! at this point.  Litter fragmentation has already been passed to the output
@@ -1585,11 +1588,23 @@ contains
           new_litt%ag_cwd_frag(c) = new_litt%ag_cwd_frag(c) + &
                curr_litt%ag_cwd_frag(c) * patch_site_areadis/newPatch%area
 
+          new_litt%snag_frag(c) = new_litt%snag_frag(c) + curr_litt%snag_frag(c) * & ![JStenzel added] for diagnostics
+               patch_site_areadis/newPatch%area
+          new_litt%snag_in(c) = new_litt%snag_in(c) + curr_litt%snag_in(c) * & ![JStenzel added] for diagnostics
+               patch_site_areadis/newPatch%area
+
           do sl=1,currentSite%nlevsoil
              new_litt%bg_cwd_frag(c,sl) = new_litt%bg_cwd_frag(c,sl) + &
                    curr_litt%bg_cwd_frag(c,sl) * patch_site_areadis/newPatch%area
           end do
        enddo
+
+       new_litt%snag_frag(dl_sf) = new_litt%snag_frag(dl_sf) + curr_litt%snag_frag(dl_sf) * &   ![JStenzel added] for diagnostics
+            patch_site_areadis/newPatch%area
+       !This needs to be added because I'll be adding history variable calcs from this input var,
+       ! rather than a site-wide diagnostic variable.
+       new_litt%snag_in(dl_sf) = new_litt%snag_in(dl_sf) + curr_litt%snag_in(dl_sf) * &   ![JStenzel added] for diagnostics
+            patch_site_areadis/newPatch%area
 
        do dcmpy = 1,ndcmpy
 
@@ -1654,6 +1669,44 @@ contains
                           new_litt%GetTotalLitterMass()*newPatch%area
        end if
 
+       ! [JStenzel add start] Patch snag burn logic. This should get refined. Right now there is:
+       ! 1) A hard-coded off switch ; 2) Some snag mass can potentially get burned if 1000hr fuels
+       ! on the ground burn at all; 3) A patch average scorch height is determined by looping through
+       ! pfts and averaging.
+       snag_burn_switch = 0
+       snag_burn = .false.
+       ! need to add multiple local variables for this! !!!!
+
+       if ( snag_burn_switch .eq. 1 ) then
+          if ( currentPatch%fire  ==  itrue ) then
+
+             if ( currentPatch%burnt_frac_litter(tr_sf) .gt. 0.01_r8) then
+
+                scorch_total = 0.0_r8
+                scorch_count= 0
+
+                do pft = 1,numpft
+                   if ( currentPatch%scorch_ht(pft) .gt. 0.0_r8) then
+                      scorch_count = scorch_count + 1
+                      scorch_total = scorch_total + currentPatch%scorch_ht(pft)
+                   end if
+                end do
+
+                if (scorch_count .gt. 0 ) then
+                  scorch_avg = scorch_total / scorch_count
+
+                  if ( scorch_avg > 5.0_r8 ) then
+                     snag_burn = .true.
+                  end if
+
+                end if
+
+             end if           ! 1000 hr fuels are burning
+          end if              ! currentPatch%fire  ==  itrue
+       end if                 !burn switch
+
+       ![ JStenzel end snag burn logic]
+
        do c = 1,ncwd
 
           ! Transfer above ground CWD
@@ -1666,7 +1719,41 @@ contains
           new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + donatable_mass*donate_m2
           curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + donatable_mass*retain_m2
 
-          site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
+          ! [JStenzel edit/add start] Transfer snag pools. combustion losses for twigs and small branches
+          ! If fire "reaches" snag canopies, combustion for these small woody pools is currently
+          ! set to their equivalent pools on the ground. Large branches and boles are considered
+          ! negligably combustable currently. This seems reasonable if the fall rate is around a decade
+          ! and bark would remain present.
+
+          if ( (c == 1 .or. c == 2) .and. snag_burn ) then !!!!
+
+             snag_donatable_mass = curr_litt%snag(c) * patch_site_areadis * &
+                                  (1._r8 - currentPatch%burnt_frac_litter(c) )
+             snag_burned_mass = curr_litt%snag(c) * patch_site_areadis * &
+                                  currentPatch%burnt_frac_litter(c)
+
+             new_litt%snag_combust(c) = new_litt%snag_combust(c) + &
+                  snag_burned_mass / newPatch%area
+             site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass +snag_burned_mass ![JStenzel add] Snag burned mass
+             !?flux_diags%snag_combusted(c) = flux_diags%snag_combusted(c) + snag_burned_mass
+
+          !else if ( snag_burn ) then
+
+            ! snag_donatable_mass = curr_litt%snag(c) * patch_site_areadis * &
+               !                   ( 0.95_r8 )
+             !snag_burned_mass = curr_litt%snag(c) * patch_site_areadis * &
+               !                   ( 0.05_r8)
+          else
+             snag_donatable_mass = curr_litt%snag(c) * patch_site_areadis
+             !snag_burned_mass = 0.0_r8
+          end if
+
+         ! new_litt%snag(c) = new_litt%snag(c) + curr_litt%snag(c) * patch_site_areadis * donate_m2       ![JStenzel] right now this is not burning any snag mass
+          !curr_litt%snag(c) = curr_litt%snag(c) + curr_litt%snag(c) * patch_site_areadis *retain_m2      ![JStenzel] right now this is not burning any snag mass
+          new_litt%snag(c) = new_litt%snag(c) + snag_donatable_mass * donate_m2       ![JStenzel] With snag mass burning
+          curr_litt%snag(c) = curr_litt%snag(c) + snag_donatable_mass * retain_m2      ![JStenzel] With snag mass burning
+
+          ! [JStenzel edit end]
 
           ! Transfer below ground CWD (none burns)
 
@@ -1677,6 +1764,27 @@ contains
           end do
 
        enddo
+
+       ![JStenzel start add] Transfer snag leaves. Combustion losses if snag_burn is .true.
+
+       if ( snag_burn ) then
+          snag_donatable_mass = curr_litt%snag(dl_sf) * patch_site_areadis * &
+               (1._r8 - currentPatch%burnt_frac_litter(dl_sf))
+          snag_burned_mass = curr_litt%snag(dl_sf) * patch_site_areadis * &
+               (currentPatch%burnt_frac_litter(dl_sf))
+          !?flux_diags%snag_combusted(dl_sf) = flux_diags%snag_combusted(dl_sf) + snag_burned_mass
+          new_litt%snag_combust(dl_sf) = new_litt%snag_combust(dl_sf) + &
+               snag_burned_mass / newPatch%area
+          site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + snag_burned_mass
+       else
+          snag_donatable_mass = curr_litt%snag(dl_sf) * patch_site_areadis
+          !snag_burned_mass = 0.0_r8
+       end if
+
+       new_litt%snag(dl_sf) = new_litt%snag(dl_sf) + snag_donatable_mass * donate_m2
+       curr_litt%snag(dl_sf) = curr_litt%snag(dl_sf) + snag_donatable_mass * retain_m2
+
+       ![Jstenzel end temp]
 
        do dcmpy=1,ndcmpy
 
@@ -1928,13 +2036,29 @@ contains
              ! Contribution of dead trees to leaf burn-flux
              burned_mass  = num_dead_trees * (leaf_m+repro_m) * currentCohort%fraction_crown_burned
 
-             do dcmpy=1,ndcmpy
-                 dcmpy_frac = GetDecompyFrac(pft,leaf_organ,dcmpy)
-                 new_litt%leaf_fines(dcmpy) = new_litt%leaf_fines(dcmpy) + &
-                                              donatable_mass*donate_m2*dcmpy_frac
-                 curr_litt%leaf_fines(dcmpy) = curr_litt%leaf_fines(dcmpy) + &
-                                               donatable_mass*retain_m2*dcmpy_frac
-             end do
+             ![JStenzel modify] Unburned leaf mass from killed trees now goes to the snag leaf
+             ! pools.
+             new_litt%snag(dl_sf) = new_litt%snag(dl_sf) + donatable_mass * donate_m2
+             curr_litt%snag(dl_sf) = curr_litt%snag(dl_sf) + donatable_mass * retain_m2
+
+             ![JStenzel add] Fire-mortality derived 'snag_in' distributed here for diagnostics
+             new_litt%snag_in(dl_sf) = new_litt%snag_in(dl_sf) + donatable_mass * donate_m2
+             curr_litt%snag_in(dl_sf) = curr_litt%snag_in(dl_sf) + donatable_mass *  retain_m2
+
+             ![JStenzel add] Snag combustion diagnostic.
+             new_litt%snag_combust(dl_sf) = new_litt%snag_combust(dl_sf) + &
+                   burned_mass / newPatch%area
+
+             ![JStenzel added]
+             !?flux_diags%snag_input(dl_sf) = flux_diags%snag_input(dl_sf) + donatable_mass
+
+             !do dcmpy=1,ndcmpy
+               !  dcmpy_frac = GetDecompyFrac(pft,leaf_organ,dcmpy)
+                ! new_litt%leaf_fines(dcmpy) = new_litt%leaf_fines(dcmpy) + &
+                  !                            donatable_mass*donate_m2*dcmpy_frac
+                 !curr_litt%leaf_fines(dcmpy) = curr_litt%leaf_fines(dcmpy) + &
+               !                                donatable_mass*retain_m2*dcmpy_frac
+             !end do
 
              site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
 
@@ -1995,10 +2119,22 @@ contains
                       burned_mass = num_dead_trees * SF_val_CWD_frac(c) * bstem * &
                       currentCohort%fraction_crown_burned
                       site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
+                      new_litt%snag_combust(c) = new_litt%snag_combust(c) + burned_mass / newPatch%area ![JStenzel add] Snag combustion diagnostic
                 endif
-                new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + donatable_mass * donate_m2
-                curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + donatable_mass * retain_m2
-                flux_diags%cwd_ag_input(c) = flux_diags%cwd_ag_input(c) + donatable_mass
+                new_litt%snag(c) = new_litt%snag(c) + donatable_mass * donate_m2     ![JStenzel] Add killed mass to snag rather than cwd poll
+                !new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + donatable_mass * donate_m2
+                curr_litt%snag(c) = curr_litt%snag(c) + donatable_mass * retain_m2 ![JStenzel] Add killed mass to snag rather than cwd poll
+                !curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + donatable_mass * retain_m2
+                flux_diags%cwd_ag_input(c) = flux_diags%cwd_ag_input(c) + donatable_mass  ![JStenzel note] Only keep this until there is a snag diagnostic
+
+                ! [JStenzel added] Diagnostics
+                new_litt%snag_in(c) = new_litt%snag_in(c) + donatable_mass * donate_m2
+                curr_litt%snag_in(c) = curr_litt%snag_in(c) + donatable_mass * retain_m2
+
+
+                !![JStenzel added] In this location, this equals the cwd_ag input, but wil differ
+                ! in total due to receiving no logging fluxes.
+                !?flux_diags%snag_input(c) = flux_diags%snag_input(c) + donatable_mass
              enddo
 
 
@@ -2136,14 +2272,26 @@ contains
           end if
 
           ! Transfer leaves of dying trees to leaf litter (includes seeds too)
-          do dcmpy=1,ndcmpy
-              dcmpy_frac = GetDecompyFrac(pft,leaf_organ,dcmpy)
-              new_litt%leaf_fines(dcmpy) = new_litt%leaf_fines(dcmpy) + &
-                    num_dead*(leaf_m+repro_m)*donate_m2*dcmpy_frac
 
-              curr_litt%leaf_fines(dcmpy) = curr_litt%leaf_fines(dcmpy) + &
-                    num_dead*(leaf_m+repro_m)*retain_m2*dcmpy_frac
-          end do
+          ![JStenzel edit] Dying leaves go to snag pool instead of litter pools
+
+          new_litt%snag(dl_sf) = new_litt%snag(dl_sf) + num_dead * (leaf_m+repro_m) * donate_m2
+          curr_litt%snag(dl_sf) = curr_litt%snag(dl_sf) + num_dead * (leaf_m+repro_m) * retain_m2
+
+          new_litt%snag_in(dl_sf) = new_litt%snag_in(dl_sf) + num_dead * (leaf_m+repro_m) * & ![JStenzel add] diagnostic
+               donate_m2
+          curr_litt%snag_in(dl_sf) = curr_litt%snag_in(dl_sf) + num_dead * (leaf_m+repro_m) * & ![JStenzel add] diagnostic
+               retain_m2
+          ![JStenzel] Snag input diagnostics
+          !?flux_diags%snag_input(dl_sf) = flux_diags%snag_input(dl_sf) + num_dead * (leaf_m+repro_m)
+          !do dcmpy=1,ndcmpy
+         !     dcmpy_frac = GetDecompyFrac(pft,leaf_organ,dcmpy)
+         !     new_litt%leaf_fines(dcmpy) = new_litt%leaf_fines(dcmpy) + &
+         !           num_dead*(leaf_m+repro_m)*donate_m2*dcmpy_frac
+
+         !     curr_litt%leaf_fines(dcmpy) = curr_litt%leaf_fines(dcmpy) + &
+         !           num_dead*(leaf_m+repro_m)*retain_m2*dcmpy_frac
+          !end do
 
           ! Pre-calculate Structural and sapwood, below and above ground, total mass [kg]
           ag_wood = num_dead * (struct_m + sapw_m) * prt_params%allom_agb_frac(pft)
@@ -2156,11 +2304,27 @@ contains
           do c=1,ncwd
 
              ! Transfer wood of dying trees to AG CWD pools
-             new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + ag_wood * &
+
+             new_litt%snag(c) = new_litt%snag(c) + ag_wood * &         ![JStenzel add]
                     SF_val_CWD_frac(c) * donate_m2
 
-             curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + ag_wood * &
-                   SF_val_CWD_frac(c) * retain_m2
+             new_litt%snag_in(c) = new_litt%snag_in(c) + ag_wood * &         ![JStenzel add] diagnostic
+                    SF_val_CWD_frac(c) * donate_m2
+             !new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + ag_wood * &
+               !     SF_val_CWD_frac(c) * donate_m2
+
+             curr_litt%snag(c) = curr_litt%snag(c) + ag_wood * &     ![JStenzel add]
+                     SF_val_CWD_frac(c) * retain_m2
+
+             curr_litt%snag_in(c) = curr_litt%snag_in(c) + ag_wood * &     ![JStenzel add] diagnostic
+                     SF_val_CWD_frac(c) * retain_m2
+
+             ![JStenzel added]
+             !?flux_diags%snag_input(c) = flux_diags%snag_input(c) + ag_wood * SF_val_CWD_frac(c)
+
+
+             !curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + ag_wood * &
+               !    SF_val_CWD_frac(c) * retain_m2
 
              ! Transfer wood of dying trees to BG CWD pools
              do sl = 1,currentSite%nlevsoil
@@ -2204,7 +2368,7 @@ contains
 
           ! track diagnostic fluxes
           do c=1,ncwd
-             flux_diags%cwd_ag_input(c) = &
+             flux_diags%cwd_ag_input(c) = &                      ![JStenzel note] This currently includes the snag inputs
                   flux_diags%cwd_ag_input(c) + SF_val_CWD_frac(c) * ag_wood
 
              flux_diags%cwd_bg_input(c) = &
@@ -2216,6 +2380,7 @@ contains
 
           flux_diags%root_litter_input(pft) = flux_diags%root_litter_input(pft) + &
                num_dead * (fnrt_m + store_m*(1.0_r8-EDPftvarcon_inst%allom_frbstor_repro(pft)))
+
 
 
 
@@ -2283,6 +2448,7 @@ contains
         call new_patch%litter(el)%InitConditions(init_leaf_fines = fates_unset_r8, &
               init_root_fines = fates_unset_r8, &
               init_ag_cwd = fates_unset_r8, &
+              init_snag = fates_unset_r8, &    ![JStenzel]
               init_bg_cwd = fates_unset_r8, &
               init_seed = fates_unset_r8,   &
               init_seed_germ = fates_unset_r8)

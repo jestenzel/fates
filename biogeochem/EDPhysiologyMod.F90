@@ -240,16 +240,21 @@ contains
        ! (for drought deciduous) or too cold (for cold deciduous)
        call SeedGermination(litt, currentSite%cstatus, currentSite%dstatus)
 
+       !1
        ! Send fluxes from newly created litter into the litter pools
        ! This litter flux is from non-disturbance inducing mortality, as well
        ! as litter fluxes from live trees
        call CWDInput(currentSite, currentPatch, litt,bc_in)
 
+       !2       ![JStenzel change] call CWDOUT before CWDInput
        ! Only calculate fragmentation flux over layers that are active
        ! (RGK-Mar2019) SHOULD WE MAX THIS AT 1? DONT HAVE TO
 
        nlev_eff_decomp = max(bc_in%max_rooting_depth_index_col, 1)
-       call CWDOut(litt,currentPatch%fragmentation_scaler,nlev_eff_decomp)
+       ![JStenzel edit] Now need to adjust flux diags here. I'm not sure of the most efficient
+       !    way to do this
+       call CWDOut(litt,currentPatch%fragmentation_scaler,nlev_eff_decomp) !? [JStenzel reverted] Removed currrentSite argument
+
 
        site_mass => currentSite%mass_balance(el)
 
@@ -257,10 +262,7 @@ contains
        site_mass%frag_out = site_mass%frag_out + currentPatch%area * &
             ( sum(litt%ag_cwd_frag) + sum(litt%bg_cwd_frag) + &
             sum(litt%leaf_fines_frag) + sum(litt%root_fines_frag) + &
-            sum(litt%seed_decay) + sum(litt%seed_germ_decay) )!+ &
-            ![JStenzel] Harvest seed kill; commented out because this is now added to seed_decay
-            ! fluxes at relevant timesteps.
-            !sum(litt%seed_kill)  + sum(litt%seed_germ_kill)  )
+            sum(litt%seed_decay) + sum(litt%seed_germ_decay) )
 
 
     end do
@@ -342,7 +344,10 @@ contains
        ! -----------------------------------------------------------------------------------
        nlevsoil = size(litt%bg_cwd,dim=2)
        do c = 1,ncwd
-          litt%ag_cwd(c) = litt%ag_cwd(c)  + litt%ag_cwd_in(c) - litt%ag_cwd_frag(c)
+
+          litt%snag(c) = litt%snag(c) + litt%snag_in(c) - litt%snag_frag(c)   ![JStenzel]
+          litt%ag_cwd(c) = litt%ag_cwd(c)  + litt%ag_cwd_in(c) + litt%snag_frag(c) - & ![JStenzel]
+                litt%ag_cwd_frag(c)
           do ilyr=1,nlevsoil
              litt%bg_cwd(c,ilyr) = litt%bg_cwd(c,ilyr) &
                   + litt%bg_cwd_in(c,ilyr) &
@@ -353,11 +358,18 @@ contains
        ! Update the fine litter pools from leaves and fine-roots
        ! -----------------------------------------------------------------------------------
 
+       ![JStenzel add] Update snag leaf pool
+       litt%snag(dl_sf) = litt%snag(dl_sf) + litt%snag_in(dl_sf) - litt%snag_frag(dl_sf)
+
        do dcmpy = 1,ndcmpy
+
+          ![JStenzel add] Need this fraction for adding snag leaf fall to 'litt%leaf_fines(dcmpy)'
+          dcmpy_frac = GetDecompyFrac(pft,leaf_organ,dcmpy)
 
           litt%leaf_fines(dcmpy) = litt%leaf_fines(dcmpy) &
                + litt%leaf_fines_in(dcmpy)              &
-               - litt%leaf_fines_frag(dcmpy)
+               - litt%leaf_fines_frag(dcmpy)            &
+               + ( dcmpy_frac * litt%snag_frag(dl_sf) )   ![JStenzel added]
           do ilyr=1,nlevsoil
              litt%root_fines(dcmpy,ilyr) = litt%root_fines(dcmpy,ilyr) &
                   + litt%root_fines_in(dcmpy,ilyr)      &
@@ -2218,7 +2230,7 @@ contains
     !
     ! !USES:
     use SFParamsMod , only : SF_val_CWD_frac                 ! mortality fractions
-    use SFParamsMod , only : SF_val_CWD_turnover_frac        ! non-mortality turnover fractions
+    use SFParamsMod , only : SF_val_CWD_turnover_frac        ! non-mortality turnover fractions (ie branchfall)
     !
     ! !ARGUMENTS
     type(ed_site_type), intent(inout), target :: currentSite
@@ -2263,6 +2275,7 @@ contains
     integer  :: pft
     integer  :: dcmpy             ! decomposability pool index
     integer  :: numlevsoil        ! Actual number of soil layers
+
     !----------------------------------------------------------------------
 
     ! -----------------------------------------------------------------------------------
@@ -2391,11 +2404,11 @@ contains
 
        dead_n_natural = dead_n - dead_n_dlogging - dead_n_ilogging
 
-
+       ![JStenzel reverted] was going to use: "( dead_n_dlogging + dead_n_ilogging )". However,
+       !leaf_litter_input will now include inputs to snag pools because snags are not indexed by pft
        flux_diags%leaf_litter_input(pft) = &
             flux_diags%leaf_litter_input(pft) +  &
-            leaf_m * dead_n*currentPatch%area
-
+            leaf_m * dead_n *currentPatch%area
 
        ! %n has not been updated due to mortality yet, thus
        ! the litter flux has already been counted since it captured
@@ -2404,11 +2417,18 @@ contains
        root_fines_tot =  dead_n * (fnrt_m + &
             store_m*(1._r8-EDPftvarcon_inst%allom_frbstor_repro(pft)) )
 
+       litt%snag_in(dl_sf) = litt%snag_in(dl_sf) + &                  ![JStenzel added] All leaf/repro c from non-logging goes IN to snag leaf pool
+           (leaf_m+repro_m) * ( dead_n_natural )
+       ![JStenzel added]
+       !?flux_diags%snag_input(dl_sf) = flux_diags%snag_input(dl_sf) + (leaf_m+repro_m) * &
+         !?   ( dead_n_natural )
+
        do dcmpy=1,ndcmpy
 
           dcmpy_frac = GetDecompyFrac(pft,leaf_organ,dcmpy)
           litt%leaf_fines_in(dcmpy) = litt%leaf_fines_in(dcmpy) + &
-               (leaf_m+repro_m) * dead_n * dcmpy_frac
+               (leaf_m+repro_m) * ( dead_n_dlogging + dead_n_ilogging ) * dcmpy_frac   ! [JStenzel edit] from "x (dead_n)"" ; only logged tree leaves immediately reach the ground.
+
 
           dcmpy_frac = GetDecompyFrac(pft,fnrt_organ,dcmpy)
           do ilyr = 1, numlevsoil
@@ -2464,23 +2484,56 @@ contains
 
              ! Add AG wood to litter from indirect anthro sources
 
-             litt%ag_cwd_in(c) = litt%ag_cwd_in(c) + (struct_m + sapw_m) * &
-                  SF_val_CWD_frac(c) * (dead_n_natural+dead_n_ilogging)  * &
+             litt%snag_in(c) = litt%snag_in(c) + (struct_m + sapw_m) * &    ![JStenzel] Now, add natural dead boles to litter% snag pools
+                  SF_val_CWD_frac(c) * (dead_n_natural)  * &
                   prt_params%allom_agb_frac(pft)
 
-             flux_diags%cwd_ag_input(c)  = flux_diags%cwd_ag_input(c) + &
-                  SF_val_CWD_frac(c) * (dead_n_natural+dead_n_ilogging) * &
-                  currentPatch%area * prt_params%allom_agb_frac(pft)
+             litt%ag_cwd_in(c) = litt%ag_cwd_in(c) + (struct_m + sapw_m) * &   ![JStenzel] Now, only add logging indirect dead boles to cwd ("knocked over")
+                  SF_val_CWD_frac(c) * (dead_n_ilogging)  * &
+                  prt_params%allom_agb_frac(pft) + &
+                  currentPatch%fragmentation_scaler *
 
-          else
 
-             litt%ag_cwd_in(c) = litt%ag_cwd_in(c) + (struct_m + sapw_m) * &
-                  SF_val_CWD_frac(c) * dead_n  * &
-                  prt_params%allom_agb_frac(pft)
+             !litt%ag_cwd_in(c) = litt%ag_cwd_in(c) + (struct_m + sapw_m) * &
+               !   SF_val_CWD_frac(c) * (dead_n_natural+dead_n_ilogging)  * &
+               !   prt_params%allom_agb_frac(pft)
+
+             !flux_diags%cwd_ag_input(c)  = flux_diags%cwd_ag_input(c) + &
+               !   SF_val_CWD_frac(c) * (dead_n_ilogging) * &  ![JStenzel] Now, only logging indirect inputs
+               !   currentPatch%area * prt_params%allom_agb_frac(pft)
+
+               ![Jstenzel reverted ] cwd diags will now include inputs to snag pools because snags are not indexed by pft
+            flux_diags%cwd_ag_input(c)  = flux_diags%cwd_ag_input(c) + &
+                 SF_val_CWD_frac(c) * (dead_n_natural+dead_n_ilogging) * &
+                 currentPatch%area * prt_params%allom_agb_frac(pft)
+
+         else
+
+             !litt%ag_cwd_in(c) = litt%ag_cwd_in(c) + (struct_m + sapw_m) * &
+               !   SF_val_CWD_frac(c) * dead_n  * &
+               !   prt_params%allom_agb_frac(pft)
 
              flux_diags%cwd_ag_input(c)  = flux_diags%cwd_ag_input(c) + &
                   SF_val_CWD_frac(c) * dead_n * (struct_m + sapw_m) * &
                   currentPatch%area * prt_params%allom_agb_frac(pft)
+
+            ![JStenzel reverted] Note: flux_diags%cwd_input will encompass total inputs to the combined snag/cwd pool, as these are the 2 destinations for dying tree wood. Outputs will only be outputs from thw cwd pool, as no mass is entering the soil directly from snag pools.
+            ! flux_diags%cwd_ag_input(c)  = flux_diags%cwd_ag_input(c) + &
+            !      SF_val_CWD_frac(c) * (dead_n_ilogging + dead_n_dlogging) * (struct_m + sapw_m) * &
+            !      currentPatch%area * prt_params%allom_agb_frac(pft)
+
+            ! [JStenzel replace] Despite comments, dead_n_natural should include overstory trees IF  'fates_mort_disturb_frac' = 0
+             litt%ag_cwd_in(c) = litt%ag_cwd_in(c) + (struct_m + sapw_m) * &
+                  SF_val_CWD_frac(c) * (dead_n_ilogging + dead_n_dlogging)  * &  ![JStenzel] Now, only harvest-killed non-boles got to cwd
+                  prt_params%allom_agb_frac(pft)
+
+             litt%snag_in(c) = litt%snag_in(c) + (struct_m + sapw_m) * &    ![JStenzel] Now, add natural dead non-boles go to snag pools
+                  SF_val_CWD_frac(c) * (dead_n_natural)  * &
+                  prt_params%allom_agb_frac(pft)
+             ![JStenzel added]
+             !?flux_diags%snag_input(c) = flux_diags%snag_input(c) + SF_val_CWD_frac(c) * &
+                  !?(dead_n_natural) * (struct_m + sapw_m) * currentPatch%area * &
+                   !?prt_params%allom_agb_frac(pft)
 
           end if
 
@@ -2527,6 +2580,20 @@ contains
 
        currentCohort => currentCohort%taller
     enddo  ! end loop over cohorts
+
+    ! [Jstenzel reverted] cwd_ag_input that goes to snags is now counted at tree death, not after snag fall.
+    !do c= 1,ncwd
+      !flux_diags%cwd_ag_input(c)  = flux_diags%cwd_ag_input(c) + &
+      !      litt%snag_frag(c) * currentPatch%area
+    !
+    !end do
+
+    !do dcmpy=1,ndcmpy   ![ JStenzel reverted]  snag_frac(dl_sf) is now being added in PreDisturbanceIntergrateLitter to not mix fluxes
+
+      !dcmpy_frac = GetDecompyFrac(pft,leaf_organ,dcmpy)
+      !litt%leaf_fines_in(dcmpy) = litt%leaf_fines_in(dcmpy) + &
+         !  litt%snag_frag(dl_sf) * dcmpy_frac
+   ! end do
 
 
     return
@@ -2610,17 +2677,18 @@ contains
 
   ! ============================================================================
 
-  subroutine CWDOut( litt, fragmentation_scaler, nlev_eff_decomp )
+  subroutine CWDOut( litt, fragmentation_scaler, nlev_eff_decomp) ![JStenzel reverted] removed 'currentSite' argument
     !
     ! !DESCRIPTION:
     ! Simple CWD fragmentation Model
     ! spawn new cohorts of juveniles of each PFT
     !
     ! !USES:
-    use SFParamsMod, only : SF_val_max_decomp
+    use SFParamsMod, only : SF_val_max_decomp , SF_val_ag_dead_fallrate ![JStenzel add]
 
     !
     ! !ARGUMENTS
+    !?type(ed_site_type), intent(in), target     :: currentSite !!!![JStenzel reverted]
     type(litter_type),intent(inout),target     :: litt
     real(r8),intent(in)                        :: fragmentation_scaler(:)
 
@@ -2635,14 +2703,26 @@ contains
     integer :: ilyr                    ! Soil layer index
     integer :: dcmpy                   ! Decomposibility pool indexer
     integer :: soil_layer_index = 1    ! Soil layer index associated with above ground litter
+    ![JStenzel added]
+    !?type(site_fluxdiags_type), pointer :: flux_diags
+    !?integer  :: element_id        ! element id consistent with parteh/PRTGenericMod.F90
     !----------------------------------------------------------------------
 
+    !?element_id = litt%element_id
+    !?flux_diags => currentSite%flux_diags(element_pos(element_id))
 
     ! Above ground litters are associated with the top soil layer temperature and
     ! moisture scalars and fragmentation scalar associated with specified index value
     ! is used for ag_cwd_frag and root_fines_frag calculations.
 
     do c = 1,ncwd
+       ![JStenzel added] Snag fall ("frag") variables
+       litt%snag_frag(c) = litt%snag(c) * SF_val_ag_dead_fallrate(c) * &
+            years_per_day * fragmentation_scaler(soil_layer_index)
+
+      !? flux_diags%snag_fall(c) = flux_diags%snag_fall(c) + litt%snag(c) * &
+      !?      SF_val_ag_dead_fallrate(c) * years_per_day * fragmentation_scaler(soil_layer_index)
+
 
        litt%ag_cwd_frag(c)   = litt%ag_cwd(c) * SF_val_max_decomp(c) * &
              years_per_day * fragmentation_scaler(soil_layer_index)
@@ -2652,6 +2732,13 @@ contains
                 years_per_day * fragmentation_scaler(ilyr)
        enddo
     end do
+
+    ![Jstenzel] Snag leaf-fall to cwd pool
+    litt%snag_frag(dl_sf) = litt%snag(dl_sf) * SF_val_ag_dead_fallrate(dl_sf) * &
+         years_per_day * fragmentation_scaler(soil_layer_index)
+
+    !?flux_diags%snag_fall(dl_sf) = flux_diags%snag_fall(dl_sf) + litt%snag(dl_sf) * &
+      !?  SF_val_ag_dead_fallrate(dl_sf) * years_per_day * fragmentation_scaler(soil_layer_index)
 
     ! this is the rate at which dropped leaves stop being part of the burnable pool
     ! and begin to be part of the decomposing pool. This should probably be highly

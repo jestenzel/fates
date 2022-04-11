@@ -31,7 +31,8 @@ module SFParamsMod
    real(r8),protected, public :: SF_val_drying_ratio
    real(r8),protected, public :: SF_val_fire_threshold    ! threshold for fires that spread or go out. kW/m (Pyne 1996)
    real(r8),protected, public :: SF_val_CWD_frac(ncwd)    !mortality fractions
-   real(r8),protected, public :: SF_val_CWD_turnover_frac(ncwd) !non-mort turnover fractions
+   real(r8),protected, public :: SF_val_CWD_turnover_frac(ncwd) ![JStenzel ] non-mort turnover fractions
+   real(r8),protected, public :: SF_val_ag_dead_fallrate(NFSC)
    real(r8),protected, public :: SF_val_max_decomp(NFSC)
    real(r8),protected, public :: SF_val_SAV(NFSC)
    real(r8),protected, public :: SF_val_FBD(NFSC)
@@ -40,6 +41,7 @@ module SFParamsMod
    real(r8),protected, public :: SF_val_low_moisture_Coeff(NFSC)
    real(r8),protected, public :: SF_val_low_moisture_Slope(NFSC)
    real(r8),protected, public :: SF_val_mid_moisture_Coeff(NFSC)
+   real(r8),protected, public :: SF_val_mid_moisture_Slope(NFSC)
    real(r8),protected, public :: SF_val_mid_moisture_Slope(NFSC)
 
    character(len=param_string_length),parameter :: SF_name_fdi_a = "fates_fire_fdi_a"
@@ -55,6 +57,7 @@ module SFParamsMod
    character(len=param_string_length),parameter :: SF_name_fire_threshold = "fates_fire_threshold"
    character(len=param_string_length),parameter :: SF_name_CWD_frac = "fates_CWD_frac"
    character(len=param_string_length),parameter :: SF_name_CWD_turnover_frac = "fates_CWD_turnover_frac"
+   character(len=param_string_length),parameter :: SF_name_ag_dead_fallrate = "fates_ag_dead_fallrate"
    character(len=param_string_length),parameter :: SF_name_max_decomp = "fates_max_decomp"
    character(len=param_string_length),parameter :: SF_name_SAV = "fates_fire_SAV"
    character(len=param_string_length),parameter :: SF_name_FBD = "fates_fire_FBD"
@@ -174,7 +177,8 @@ contains
     SF_val_drying_ratio = nan
     SF_val_fire_threshold = nan
     SF_val_CWD_frac(:) = nan
-    SF_val_CWD_turnover_frac(:) = nan
+    SF_val_CWD_turnover_frac(:) = nan  ![Jstenzel]
+    SF_ag_dead_fallrate(:) = nan ![JStenzel]
     SF_val_max_decomp(:) = nan
     SF_val_SAV(:) = nan
     SF_val_FBD(:) = nan
@@ -388,6 +392,9 @@ contains
     call fates_params%RegisterParameter(name=SF_name_max_decomp, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
+    call fates_params%RegisterParameter(name=SF_name_ag_dead_fallrate, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
+
   end subroutine SpitFireRegisterNFSC
 
  !-----------------------------------------------------------------------
@@ -426,6 +433,9 @@ contains
 
     call fates_params%RetreiveParameter(name=SF_name_max_decomp, &
          data=SF_val_max_decomp)
+
+    call fates_params%RetreiveParameter(name=SF_name_ag_dead_fallrate, &   ![JStenzel]
+         data=SF_val_ag_dead_fallrate)
 
   end subroutine SpitFireReceiveNFSC
   !-----------------------------------------------------------------------

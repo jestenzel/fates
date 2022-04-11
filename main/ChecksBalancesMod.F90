@@ -100,7 +100,8 @@ contains
             (sum(litt%ag_cwd)                  + &
             sum(litt%bg_cwd) + &
             sum(litt%leaf_fines)              + &
-            sum(litt%root_fines))
+            sum(litt%root_fines) + &   ![JStenzel added]
+            sum(litt%snag) )           ![JStenzel added]
 
         ! Total mass of viable seeds in [kg]
       seed_stock = currentPatch%area * &

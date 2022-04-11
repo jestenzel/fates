@@ -48,6 +48,10 @@ module FatesLitterMod
    integer, public, parameter :: ncwd  = 4    ! number of coarse woody debris pools
                                               ! (twig,s branch,l branch, trunk)
 
+   integer, public, parameter :: nsnag  = 6    ! number of snag pools
+                                              ! (twig,s branch,l branch, trunk, leaf,empty for now)
+
+
    integer, public, parameter :: ndcmpy = 3   ! number of "decomposability" pools in
                                               ! fines (lignin, cellulose, labile)
 
@@ -74,6 +78,7 @@ module FatesLitterMod
 
 
       real(r8)             :: ag_cwd(ncwd)          ! above ground coarse wood debris (cwd)         [kg/m2]
+      real(r8)             :: snag(nsnag)        ! [JStenzel added] ag standing dead pools not subject to combustion (cwd) [kg/m2]
       real(r8),allocatable :: bg_cwd(:,:)           ! below ground coarse wood debris (cwd x soil)  [kg/m2]
       real(r8),allocatable :: leaf_fines(:)         ! above ground leaf litter (dcmpy)              [kg/m2]
       real(r8),allocatable :: root_fines(:,:)       ! below ground fine root litter (dcmpy x soil)  [kg/m2]
@@ -87,6 +92,7 @@ module FatesLitterMod
       ! ---------------------------------------------------------------------------------
 
       real(r8)             ::  ag_cwd_in(ncwd)      ! (cwd)        [kg/m2/day]
+      real(r8)             ::  snag_in(nsnag)        ! [JStenzel added](cwd)        [kg/m2/day]
       real(r8),allocatable ::  bg_cwd_in(:,:)       ! (cwd x soil) [kg/m2/day]
       real(r8),allocatable ::  leaf_fines_in(:)     ! (dcmpy)       [kg/m2/day]
       real(r8),allocatable ::  root_fines_in(:,:)   ! (dcmpy x soil [kg/m2/day]
@@ -100,6 +106,8 @@ module FatesLitterMod
       ! ---------------------------------------------------------------------------------
 
       real(r8)             ::  ag_cwd_frag(ncwd)    ! above ground cwd fragmentation flux   [kg/m2/day]
+      real(r8)             ::  snag_frag(nsnag)      ! [JStenzel added] snag fall rate to ag_cwd   [kg/m2/day]
+      real(r8)             ::  snag_combust(nsnag)  ! [JStenzel added] snag combust rate to ag_cwd   [kg/m2/day]
       real(r8),allocatable ::  bg_cwd_frag(:,:)     ! below ground cwd fragmentation flux   [kg/m2/day]
       real(r8),allocatable ::  leaf_fines_frag(:)   ! above ground fines fragmentation flux [kg/m2/day]
       real(r8),allocatable ::  root_fines_frag(:,:) ! kg/m2/day
@@ -151,6 +159,7 @@ contains
     ! locals
     integer  :: nlevsoil        ! number of soil layers
     integer  :: c               ! cwd index
+    integer  :: s               ! snag index
     integer  :: pft             ! pft index
     integer  :: ilyr            ! soil layer index
     integer  :: dcmpy           ! dcmpyical pool index
@@ -173,6 +182,7 @@ contains
                              donor_litt%ag_cwd_in(c) * donor_weight
        this%ag_cwd_frag(c) = this%ag_cwd_frag(c) *self_weight + &
                              donor_litt%ag_cwd_frag(c) * donor_weight
+
        do ilyr = 1,nlevsoil
           this%bg_cwd(c,ilyr)      = this%bg_cwd(c,ilyr) * self_weight + &
                                      donor_litt%bg_cwd(c,ilyr) * donor_weight
@@ -182,6 +192,19 @@ contains
                                      donor_litt%bg_cwd_frag(c,ilyr) * donor_weight
        end do
 
+    end do
+
+    ![JStenzel add] Add snag pool loop
+    do s=1,nsnag
+
+       this%snag(s)      = this%snag(s) *self_weight +  &
+                           donor_litt%snag(s) * donor_weight
+       this%snag_in(s)   = this%snag_in(s) *self_weight + &
+                           donor_litt%snag_in(s) * donor_weight
+       this%snag_frag(s) = this%snag_frag(s) *self_weight + &
+                           donor_litt%snag_frag(s) * donor_weight
+       this%snag_combust(s) = this%snag_combust(s) *self_weight + &
+                           donor_litt%combust(s) * donor_weight
     end do
 
 
@@ -256,6 +279,12 @@ contains
     this%ag_cwd_in(:)   = donor_litt%ag_cwd_in(:)
     this%ag_cwd_frag(:) = donor_litt%ag_cwd_frag(:)
 
+    ! [JStenzel added]
+    this%snag(:)      = donor_litt%snag(:)
+    this%snag_in(:)   = donor_litt%snag_in(:)
+    this%snag_frag(:) = donor_litt%snag_frag(:)
+    this%snag_combust(:) = donor_litt%combust(:)
+
     this%bg_cwd(:,:)      = donor_litt%bg_cwd(:,:)
     this%bg_cwd_in(:,:)   = donor_litt%bg_cwd_in(:,:)
     this%bg_cwd_frag(:,:) = donor_litt%bg_cwd_frag(:,:)
@@ -321,6 +350,7 @@ contains
 
     ! Initialize everything to a nonsense flag
     this%ag_cwd(:)            = fates_unset_r8
+    this%snag(:)              = fates_unset_r8 ! [JStenzel]
     this%bg_cwd(:,:)          = fates_unset_r8
     this%leaf_fines(:)        = fates_unset_r8
     this%root_fines(:,:)      = fates_unset_r8
@@ -328,6 +358,7 @@ contains
     this%seed_germ(:)         = fates_unset_r8
 
     this%ag_cwd_in(:)         = fates_unset_r8
+    this%snag_in(:)           = fates_unset_r8    ! [JStenzel]
     this%bg_cwd_in(:,:)       = fates_unset_r8
     this%leaf_fines_in(:)     = fates_unset_r8
     this%root_fines_in(:,:)   = fates_unset_r8
@@ -335,6 +366,8 @@ contains
     this%seed_in_extern(:)    = fates_unset_r8
 
     this%ag_cwd_frag(:)       = fates_unset_r8
+    this%snag_frag  (:)       = fates_unset_r8 ! [JStenzel]
+    this%snag_combust  (:)       = fates_unset_r8 ! [JStenzel]
     this%bg_cwd_frag(:,:)     = fates_unset_r8
     this%leaf_fines_frag(:)   = fates_unset_r8
     this%root_fines_frag(:,:) = fates_unset_r8
@@ -357,6 +390,7 @@ contains
                             init_leaf_fines, &
                             init_root_fines, &
                             init_ag_cwd,     &
+                            init_snag,       &         ! [JStenzel]
                             init_bg_cwd,     &
                             init_seed,       &
                             init_seed_germ)
@@ -372,11 +406,13 @@ contains
     real(r8),intent(in) :: init_leaf_fines
     real(r8),intent(in) :: init_root_fines
     real(r8),intent(in) :: init_ag_cwd
+    real(r8),intent(in) :: init_snag  ![JStenzel]
     real(r8),intent(in) :: init_bg_cwd
     real(r8),intent(in) :: init_seed
     real(r8),intent(in) :: init_seed_germ
 
     this%ag_cwd(:)              = init_ag_cwd
+    this%snag(:)                = init_snag   ![JStenzel]
     this%bg_cwd(:,:)            = init_bg_cwd
     this%leaf_fines(:)          = init_leaf_fines
     this%root_fines(:,:)        = init_root_fines
@@ -427,6 +463,7 @@ contains
     class(litter_type) :: this
 
     this%ag_cwd_in(:)         = 0._r8
+    this%snag_in(:)           = 0._r8 ![JStenzel added]
     this%bg_cwd_in(:,:)       = 0._r8
     this%leaf_fines_in(:)     = 0._r8
     this%root_fines_in(:,:)   = 0._r8
@@ -434,6 +471,8 @@ contains
     this%seed_in_extern(:)    = 0._r8
 
     this%ag_cwd_frag(:)       = 0._r8
+    this%snag_frag(:)         = 0._r8 ![JStenzel added]
+    this%snag_combust(:)      = 0._r8 ![JStenzel added]
     this%bg_cwd_frag(:,:)     = 0._r8
     this%leaf_fines_frag(:)   = 0._r8
     this%root_fines_frag(:,:) = 0._r8
@@ -441,7 +480,6 @@ contains
     this%seed_germ_in(:)      = 0._r8
     this%seed_decay(:)        = 0._r8
     this%seed_germ_decay(:)   = 0._r8
-    !!!!this%seed_harvest_kill(:)   = 0._r8 ! [JStenzel] Most likely DON'T want to zero this here
 
 
     return
@@ -455,6 +493,7 @@ contains
     real(r8) :: total_mass
 
     total_mass = sum(this%ag_cwd) + &
+                 sum(this%snag) + &       ![JStenzel]
                  sum(this%bg_cwd) + &
                  sum(this%root_fines) + &
                  sum(this%leaf_fines) + &
