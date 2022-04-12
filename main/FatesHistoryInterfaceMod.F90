@@ -1,4 +1,4 @@
-fuelmodule FatesHistoryInterfaceMod
+module FatesHistoryInterfaceMod
 
   use FatesConstantsMod        , only : r8 => fates_r8
   use FatesConstantsMod        , only : fates_avg_flag_length
@@ -2963,7 +2963,7 @@ end subroutine flush_hvars
          do i_fuel = 1, nfsc ![JStenzel add start]
 
             hio_snag_si_fuel(io_si, i_fuel) = hio_snag_si_fuel(io_si, i_fuel) + &
-               litt_c%(i_cwd)*cpatch%area * AREA_INV
+               litt_c%snag(i_cwd)*cpatch%area * AREA_INV
 
             hio_snag_in_si_fuel(io_si, i_fuel) = hio_snag_in_si_fuel(io_si, i_fuel) + &
                litt_c%snag_in(i_cwd)*cpatch%area * AREA_INV /              &
