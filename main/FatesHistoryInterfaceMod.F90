@@ -2963,18 +2963,18 @@ end subroutine flush_hvars
          do i_fuel = 1, nfsc ![JStenzel add start]
 
             hio_snag_si_fuel(io_si, i_fuel) = hio_snag_si_fuel(io_si, i_fuel) + &
-               litt_c%snag(i_cwd)*cpatch%area * AREA_INV
+               litt_c%snag(i_fuel)*cpatch%area * AREA_INV
 
             hio_snag_in_si_fuel(io_si, i_fuel) = hio_snag_in_si_fuel(io_si, i_fuel) + &
-               litt_c%snag_in(i_cwd)*cpatch%area * AREA_INV /              &
+               litt_c%snag_in(i_fuel)*cpatch%area * AREA_INV /              &
                days_per_year / sec_per_day
 
             hio_snag_frag_si_fuel(io_si, i_fuel) = hio_snag_frag_si_fuel(io_si, i_fuel) + &
-               litt_c%snag_frag(i_cwd)*cpatch%area * AREA_INV /              &
+               litt_c%snag_frag(i_fuel)*cpatch%area * AREA_INV /              &
                days_per_year / sec_per_day
 
             hio_snag_combust_si_fuel(io_si, i_fuel) = hio_snag_combust_si_fuel(io_si,i_fuel) + &
-               litt_c%snag_combust(i_cwd)*cpatch%area * AREA_INV /              &
+               litt_c%snag_combust(i_fuel)*cpatch%area * AREA_INV /              &
                days_per_year / sec_per_day
 
          end do  ![JStenzel add finish]

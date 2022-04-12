@@ -365,7 +365,7 @@ contains
        do dcmpy = 1,ndcmpy
 
           ![JStenzel add] Need this fraction for adding snag leaf fall to 'litt%leaf_fines(dcmpy)'
-          dcmpy_frac_b = GetDecompyFrac(pft,leaf_organ,dcmpy)
+          dcmpy_frac_b = GetDecompyFrac(1,leaf_organ,dcmpy)   !Hardcoded pft #1 for now.
 
           litt%leaf_fines(dcmpy) = litt%leaf_fines(dcmpy) &
                + litt%leaf_fines_in(dcmpy)              &
