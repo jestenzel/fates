@@ -204,7 +204,7 @@ contains
        this%snag_frag(s) = this%snag_frag(s) *self_weight + &
                            donor_litt%snag_frag(s) * donor_weight
        this%snag_combust(s) = this%snag_combust(s) *self_weight + &
-                           donor_litt%combust(s) * donor_weight
+                           donor_litt%snag_combust(s) * donor_weight
     end do
 
 
@@ -283,7 +283,7 @@ contains
     this%snag(:)      = donor_litt%snag(:)
     this%snag_in(:)   = donor_litt%snag_in(:)
     this%snag_frag(:) = donor_litt%snag_frag(:)
-    this%snag_combust(:) = donor_litt%combust(:)
+    this%snag_combust(:) = donor_litt%snag_combust(:)
 
     this%bg_cwd(:,:)      = donor_litt%bg_cwd(:,:)
     this%bg_cwd_in(:,:)   = donor_litt%bg_cwd_in(:,:)
