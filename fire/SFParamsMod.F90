@@ -42,7 +42,6 @@ module SFParamsMod
    real(r8),protected, public :: SF_val_low_moisture_Slope(NFSC)
    real(r8),protected, public :: SF_val_mid_moisture_Coeff(NFSC)
    real(r8),protected, public :: SF_val_mid_moisture_Slope(NFSC)
-   real(r8),protected, public :: SF_val_mid_moisture_Slope(NFSC)
 
    character(len=param_string_length),parameter :: SF_name_fdi_a = "fates_fire_fdi_a"
    character(len=param_string_length),parameter :: SF_name_fdi_b = "fates_fire_fdi_b"
@@ -178,7 +177,7 @@ contains
     SF_val_fire_threshold = nan
     SF_val_CWD_frac(:) = nan
     SF_val_CWD_turnover_frac(:) = nan  ![Jstenzel]
-    SF_ag_dead_fallrate(:) = nan ![JStenzel]
+    SF_val_ag_dead_fallrate(:) = nan ![JStenzel]
     SF_val_max_decomp(:) = nan
     SF_val_SAV(:) = nan
     SF_val_FBD(:) = nan
