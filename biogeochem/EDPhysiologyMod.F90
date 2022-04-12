@@ -370,7 +370,7 @@ contains
           litt%leaf_fines(dcmpy) = litt%leaf_fines(dcmpy) &
                + litt%leaf_fines_in(dcmpy)              &
                - litt%leaf_fines_frag(dcmpy)            &
-               + ( dcmpy_frac * litt%snag_frag(dl_sf) )   ![JStenzel added]
+               + ( dcmpy_frac_b * litt%snag_frag(dl_sf) )   ![JStenzel added]
           do ilyr=1,nlevsoil
              litt%root_fines(dcmpy,ilyr) = litt%root_fines(dcmpy,ilyr) &
                   + litt%root_fines_in(dcmpy,ilyr)      &
