@@ -1569,6 +1569,9 @@ contains
     integer  :: snag_burn_switch           ![JStenzel added] Hardcoded on/off for snag-combusting logic
     integer  :: scorch_count               ![JStenzel added] Count of patch pfts w/ non-zero scorch hts
     real(r8) :: scorch_total               ![JStenzel added] Running total of patch pft scorch hts
+    real(r8) :: scorch_avg                 ![JStenzel added] Average scorch height of patch pfts
+    real(r8) :: snag_donatable_mass        ![JStenzel added]
+    real(r8) :: snag_burned_mass           ![JStenzel added]
     logical  :: snag_burn                  ![JStenzel added] Are all the conditions met for some
                                            !     snag combustion on this patch?
 

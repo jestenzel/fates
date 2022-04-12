@@ -2490,8 +2490,7 @@ contains
 
              litt%ag_cwd_in(c) = litt%ag_cwd_in(c) + (struct_m + sapw_m) * &   ![JStenzel] Now, only add logging indirect dead boles to cwd ("knocked over")
                   SF_val_CWD_frac(c) * (dead_n_ilogging)  * &
-                  prt_params%allom_agb_frac(pft) + &
-                  currentPatch%fragmentation_scaler *
+                  prt_params%allom_agb_frac(pft) 
 
 
              !litt%ag_cwd_in(c) = litt%ag_cwd_in(c) + (struct_m + sapw_m) * &
