@@ -306,6 +306,7 @@ contains
     integer :: nlevsoil    ! number of soil layers
     integer :: ilyr        ! soil layer loop counter
     integer :: dcmpy       ! decomposability index
+    real(r8) :: dcmpy_frac  ![JStenzel added]
 
     do el = 1, num_elements
 
@@ -2490,7 +2491,7 @@ contains
 
              litt%ag_cwd_in(c) = litt%ag_cwd_in(c) + (struct_m + sapw_m) * &   ![JStenzel] Now, only add logging indirect dead boles to cwd ("knocked over")
                   SF_val_CWD_frac(c) * (dead_n_ilogging)  * &
-                  prt_params%allom_agb_frac(pft) 
+                  prt_params%allom_agb_frac(pft)
 
 
              !litt%ag_cwd_in(c) = litt%ag_cwd_in(c) + (struct_m + sapw_m) * &
