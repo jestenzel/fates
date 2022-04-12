@@ -306,7 +306,7 @@ contains
     integer :: nlevsoil    ! number of soil layers
     integer :: ilyr        ! soil layer loop counter
     integer :: dcmpy       ! decomposability index
-    real(r8) :: dcmpy_frac  ![JStenzel added]
+    real(r8) :: dcmpy_frac_b  ![JStenzel added]
 
     do el = 1, num_elements
 
@@ -365,7 +365,7 @@ contains
        do dcmpy = 1,ndcmpy
 
           ![JStenzel add] Need this fraction for adding snag leaf fall to 'litt%leaf_fines(dcmpy)'
-          dcmpy_frac = GetDecompyFrac(pft,leaf_organ,dcmpy)
+          dcmpy_frac_b = GetDecompyFrac(pft,leaf_organ,dcmpy)
 
           litt%leaf_fines(dcmpy) = litt%leaf_fines(dcmpy) &
                + litt%leaf_fines_in(dcmpy)              &
