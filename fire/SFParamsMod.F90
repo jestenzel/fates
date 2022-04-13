@@ -269,7 +269,7 @@ contains
          dimension_names=dim_names_scalar)
 
     call fates_params%RegisterParameter(name=SF_name_snag_burn_switch, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names)
+         dimension_names=dim_names_scalar)
 
   end subroutine SpitFireRegisterScalars
 
