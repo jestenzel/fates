@@ -462,6 +462,9 @@ contains
     use EDParamsMod         , only : ED_val_understorey_death, logging_coll_under_frac
     use EDCohortDynamicsMod , only : zero_cohort, copy_cohort, terminate_cohorts
     use FatesConstantsMod   , only : rsnbl_math_prec
+    use EDtypesMod          , only : NFSC ![JStenzel added]
+    use SFParamsMod         , only : SF_val_dead_slash_burn
+
 
     !
     ! !ARGUMENTS:
@@ -504,6 +507,7 @@ contains
     integer  :: planting_time                ! binary 0/1 that dictates if a harvest is resulting in
                                              ! seedling planting on site [JStenzel added]
     integer :: h_index   ! for looping over harvest categories [JStenzel added]
+    integer :: i_fuel    ![JStenzel added] for looping over fuels categories
 
     !---------------------------------------------------------------------
 
@@ -754,9 +758,23 @@ contains
              ! and burned litter to atmosphere. Thus it is important to zero burnt_frac_litter when
              ! fire is not the dominant disturbance regime.
 
-             if(currentPatch%disturbance_mode .ne. dtype_ifire) then
-                 currentPatch%burnt_frac_litter(:) = 0._r8
-             end if
+             ![JStenzel edits start]
+             ! If dtype = i_fall, zero out burn_frac_litter from fire rates. If dtype = ilog, use
+             ! prescribed logging slash combustion rates. !!!! Currently, burnt_frac is not reduced
+             ! for SF_val_miner_total; The mineral content reduction was only applied to ground fuels
+             ! during  spitfire calculation, and not live tree consumed canopy in
+             !'fire_litter_fluxes()'' below. !!! Not currently adjusted for l_degrad area, meaning
+             ! there is no differentiating between existing-dead mass combustion as slash for
+             ! selective harvest vs clearcuts.
+             if (currentPatch%disturbance_mode .ne. dtype_ifire) then
+                 if ( currentPatch%disturbance_mode .ne. dtype_ilog ) then
+                     currentPatch%burnt_frac_litter(:) = 0._r8
+                 else
+                    do i_fuel=1,nfsc
+                       currentPatch%burnt_frac_litter(i_fuel) = SF_val_dead_slash_burn(i_fuel)
+                    end do
+                 end if
+             end if   ![JStenzel edits end]
 
              !call TransLitterNewPatch( currentSite, currentPatch, new_patch, patch_site_areadis)
              call TransLitterNewPatch( currentSite, currentPatch, new_patch, patch_site_areadis, &
@@ -1681,7 +1699,7 @@ contains
        ! need to add multiple local variables for this! !!!!
 
        if ( SF_val_snag_burn_switch .eq. 1.0_r8 ) then
-          if ( currentPatch%fire  ==  itrue ) then
+          if ( currentPatch%disturbance_mode .eq. dtype_ifire ) then
 
              if ( currentPatch%burnt_frac_litter(tr_sf) .gt. 0.01_r8) then
 
@@ -1728,7 +1746,8 @@ contains
           ! negligably combustable currently. This seems reasonable if the fall rate is around a decade
           ! and bark would remain present.
 
-          if ( (c == 1 .or. c == 2) .and. snag_burn ) then !!!!
+          if ( ( (c == 1 .or. c == 2) .and. snag_burn ) .or. &  !snag_burn should only be true if dtype = fire. If dtype = log, burn frac should have been replaced in "spawn_patches()"
+               currentPatch%disturbance_mode .eq. dtype_ilog ) then
 
              snag_donatable_mass = curr_litt%snag(c) * patch_site_areadis * &
                                   (1._r8 - currentPatch%burnt_frac_litter(c) )
@@ -1737,7 +1756,7 @@ contains
 
              new_litt%snag_combust(c) = new_litt%snag_combust(c) + &
                   snag_burned_mass / newPatch%area
-             site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass +snag_burned_mass ![JStenzel add] Snag burned mass
+
              !?flux_diags%snag_combusted(c) = flux_diags%snag_combusted(c) + snag_burned_mass
 
           !else if ( snag_burn ) then
@@ -1746,10 +1765,13 @@ contains
                !                   ( 0.95_r8 )
              !snag_burned_mass = curr_litt%snag(c) * patch_site_areadis * &
                !                   ( 0.05_r8)
+
           else
              snag_donatable_mass = curr_litt%snag(c) * patch_site_areadis
-             !snag_burned_mass = 0.0_r8
+             snag_burned_mass = 0.0_r8
           end if
+
+          site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass +snag_burned_mass ![JStenzel add] Snag and cwd  burned mass
 
          ! new_litt%snag(c) = new_litt%snag(c) + curr_litt%snag(c) * patch_site_areadis * donate_m2       ![JStenzel] right now this is not burning any snag mass
           !curr_litt%snag(c) = curr_litt%snag(c) + curr_litt%snag(c) * patch_site_areadis *retain_m2      ![JStenzel] right now this is not burning any snag mass
@@ -1770,7 +1792,8 @@ contains
 
        ![JStenzel start add] Transfer snag leaves. Combustion losses if snag_burn is .true.
 
-       if ( snag_burn ) then
+       if ( (snag_burn) .or. ( currentPatch%disturbance_mode .eq. dtype_ilog ) ) then
+
           snag_donatable_mass = curr_litt%snag(dl_sf) * patch_site_areadis * &
                (1._r8 - currentPatch%burnt_frac_litter(dl_sf))
           snag_burned_mass = curr_litt%snag(dl_sf) * patch_site_areadis * &
@@ -1778,7 +1801,9 @@ contains
           !?flux_diags%snag_combusted(dl_sf) = flux_diags%snag_combusted(dl_sf) + snag_burned_mass
           new_litt%snag_combust(dl_sf) = new_litt%snag_combust(dl_sf) + &
                snag_burned_mass / newPatch%area
+
           site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + snag_burned_mass
+
        else
           snag_donatable_mass = curr_litt%snag(dl_sf) * patch_site_areadis
           !snag_burned_mass = 0.0_r8
@@ -1788,15 +1813,30 @@ contains
        curr_litt%snag(dl_sf) = curr_litt%snag(dl_sf) + snag_donatable_mass * retain_m2
 
        ![Jstenzel end temp]
-
+!lg_sf
        do dcmpy=1,ndcmpy
 
            ! Transfer leaf fines
-           donatable_mass           = curr_litt%leaf_fines(dcmpy) * patch_site_areadis * &
-                                      (1._r8 - currentPatch%burnt_frac_litter(dl_sf))
+           ![JStenzel added] Combust ground litter at fire/nonfire OR logging slash area rates
+           ! If i_fall is the dominant disturbance, burnt_frac_litter is already 0
+           if( currentPatch%disturbance_mode .ne. dtype_ilog) then
 
-           burned_mass              = curr_litt%leaf_fines(dcmpy) * patch_site_areadis * &
-                                      currentPatch%burnt_frac_litter(dl_sf)
+              donatable_mass           = curr_litt%leaf_fines(dcmpy) * patch_site_areadis * &
+                                         (1._r8 - currentPatch%burnt_frac_litter(dl_sf))
+
+              burned_mass              = curr_litt%leaf_fines(dcmpy) * patch_site_areadis * &
+                                         currentPatch%burnt_frac_litter(dl_sf)
+           ! If dtype=ilog, litter and grass will combust at the same rate, which should then
+           ! be seen as an "area" of the disturbed area that is combusted as a result of slash pile
+           ! total area.
+           else
+
+             donatable_mass           = curr_litt%leaf_fines(dcmpy) * patch_site_areadis * &
+                                         (1._r8 - currentPatch%burnt_frac_litter(lg_sf))
+
+             burned_mass              = curr_litt%leaf_fines(dcmpy) * patch_site_areadis * &
+                                         currentPatch%burnt_frac_litter(lg_sf)
+           end if
 
            new_litt%leaf_fines(dcmpy) = new_litt%leaf_fines(dcmpy) + donatable_mass*donate_m2
            curr_litt%leaf_fines(dcmpy) = curr_litt%leaf_fines(dcmpy) + donatable_mass*retain_m2
