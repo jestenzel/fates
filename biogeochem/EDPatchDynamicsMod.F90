@@ -1535,7 +1535,7 @@ contains
 
     !
     ! !USES:
-    !
+    use SFParamsMod,            only : SF_val_snag_burn_switch
     ! !ARGUMENTS:
     type(ed_site_type)  , intent(in), target  :: currentSite        ! site
     type(ed_patch_type) , intent(in), target  :: currentPatch       ! Donor patch
@@ -1566,7 +1566,7 @@ contains
     real(r8) :: litter_stock0,litter_stock1
     real(r8) :: burn_flux0,burn_flux1
     real(r8) :: error
-    integer  :: snag_burn_switch           ![JStenzel added] Hardcoded on/off for snag-combusting logic
+    !integer  :: snag_burn_switch           ![JStenzel added] Hardcoded on/off for snag-combusting logic
     integer  :: scorch_count               ![JStenzel added] Count of patch pfts w/ non-zero scorch hts
     real(r8) :: scorch_total               ![JStenzel added] Running total of patch pft scorch hts
     real(r8) :: scorch_avg                 ![JStenzel added] Average scorch height of patch pfts
@@ -1676,11 +1676,11 @@ contains
        ! 1) A hard-coded off switch ; 2) Some snag mass can potentially get burned if 1000hr fuels
        ! on the ground burn at all; 3) A patch average scorch height is determined by looping through
        ! pfts and averaging.
-       snag_burn_switch = 0
+       !snag_burn_switch = 0
        snag_burn = .false.
        ! need to add multiple local variables for this! !!!!
 
-       if ( snag_burn_switch .eq. 1 ) then
+       if ( SF_val_snag_burn_switch .eq. 1 ) then
           if ( currentPatch%fire  ==  itrue ) then
 
              if ( currentPatch%burnt_frac_litter(tr_sf) .gt. 0.01_r8) then
