@@ -32,7 +32,7 @@ module SFParamsMod
    real(r8),protected, public :: SF_val_fire_threshold    ! threshold for fires that spread or go out. kW/m (Pyne 1996)
    real(r8),protected, public :: SF_val_CWD_frac(ncwd)    !mortality fractions
    real(r8),protected, public :: SF_val_CWD_turnover_frac(ncwd) ![JStenzel ] non-mort turnover fractions
-   integer, protected, public :: SF_val_snag_burn_switch ![JStenzel]
+   real(r8),protected, public :: SF_val_snag_burn_switch ![JStenzel]
    real(r8),protected, public :: SF_val_ag_dead_fallrate(NFSC)
    real(r8),protected, public :: SF_val_max_decomp(NFSC)
    real(r8),protected, public :: SF_val_SAV(NFSC)
@@ -180,7 +180,7 @@ contains
     SF_val_CWD_frac(:) = nan
     SF_val_CWD_turnover_frac(:) = nan  ![Jstenzel]
     SF_val_ag_dead_fallrate(:) = nan ![JStenzel]
-    SF_val_snag_burn_switch(:) = nan ![JStenzel]
+    SF_val_snag_burn_switch = nan ![JStenzel]
     SF_val_max_decomp(:) = nan
     SF_val_SAV(:) = nan
     SF_val_FBD(:) = nan

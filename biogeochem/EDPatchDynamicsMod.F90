@@ -1680,7 +1680,7 @@ contains
        snag_burn = .false.
        ! need to add multiple local variables for this! !!!!
 
-       if ( SF_val_snag_burn_switch .eq. 1 ) then
+       if ( SF_val_snag_burn_switch .eq. 1.0_r8 ) then
           if ( currentPatch%fire  ==  itrue ) then
 
              if ( currentPatch%burnt_frac_litter(tr_sf) .gt. 0.01_r8) then
