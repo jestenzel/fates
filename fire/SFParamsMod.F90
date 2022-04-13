@@ -268,6 +268,9 @@ contains
     call fates_params%RegisterParameter(name=SF_name_fire_threshold, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
+    call fates_params%RegisterParameter(name=SF_name_snag_burn_switch, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names)
+
   end subroutine SpitFireRegisterScalars
 
  !-----------------------------------------------------------------------
@@ -314,8 +317,8 @@ contains
     call fates_params%RetreiveParameter(name=SF_name_fire_threshold, &
          data=SF_val_fire_threshold)
 
-
-
+    call fates_params%RetreiveParameter(name=SF_name_snag_burn_switch, &   ![JStenzel]
+         data=SF_val_snag_burn_switch)
 
   end subroutine SpitFireReceiveScalars
 
@@ -397,8 +400,6 @@ contains
     call fates_params%RegisterParameter(name=SF_name_ag_dead_fallrate, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
-    call fates_params%RegisterParameter(name=SF_name_snag_burn_switch, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
 
   end subroutine SpitFireRegisterNFSC
 
@@ -441,9 +442,6 @@ contains
 
     call fates_params%RetreiveParameter(name=SF_name_ag_dead_fallrate, &   ![JStenzel]
          data=SF_val_ag_dead_fallrate)
-
-    call fates_params%RetreiveParameter(name=SF_name_snag_burn_switch, &   ![JStenzel]
-         data=SF_val_snag_burn_switch)
 
   end subroutine SpitFireReceiveNFSC
   !-----------------------------------------------------------------------
