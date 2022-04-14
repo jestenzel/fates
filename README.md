@@ -1,28 +1,12 @@
-# **Mortality 4**
+# **Disturbance_1**
 
-(Incomplete) Need new clearcut patches to not be fused. Here, reverting primary/secondary land definitions to test that this is the change that broke patch creation for logged patches.
-------------------------------
+See readme.txt for branch modifications.
 
-
-## **Mortality 2**
-This branch adds mortality tolerance parameters and a new source of mortality (heat). Temperature based mortality   
-tolerance is set based on whether a tree has "hardened"  yet, which is set by dbh.  At dry sites, early-run (months)  
-soil water was causing undesired mortality. Hydraulic failure mort was therefore hardcoded to not occur until after  
-DOY 182 (July 1) of the  first simulation year. A separate parameter was introduced to differentiate mortality CWD  
-class partitioning from branch turnover- related CWD class partitioning.           
-
-Added parameters /definition changes:   
-
--**fates_mort_heat_tol** (pft) :maximum temperature tolerance, post-seedling; degress C.  
--**fates_mort_heat_tol_seedling** (pft): maximum temperature tolerance, seedling; degrees C  
--**fates_freezetol_seedling** (pft): minimum temperature tolerance, seedling  
--(definition change) **fates_mort_freezetol** (pft): minimum temperature tolerance, post-seedling; degrees C  
--(definition change) **fates_mort_scalar_hydrfailure** (pft): max mortality rate from hydraulic failure. **This value will be 0 before model day 182.**        
--**fates_mort_hard_dbh** (pft): minimum dbh for non-seedling temperature mortality (i.e. hardened plant)  
--**fates_mort_cstarvetol** (pft): threshold storage c : leaf c fraction for start of cstarvation mortality; 1/leafC.   
--**fates_CWD_turnover_frac** (NCWD): fraction of non-mortality turnover woody (bdead+bsw) biomass destined for CWD pool  
--(definition change) **fates_CWD_frac** (NCWD): fraction of mortality woody (bdead+bsw) biomass destined for CWD pool  
-
+Changes:
+- Mortality dynamics
+- Snags ! Biomass turnover. 
+- Harvest slash combustion
+- Harvest seedling planting
 
 # FATES
 ------------------------------
