@@ -7,7 +7,7 @@ module FatesRunningMeanMod
   use shr_log_mod,       only : errMsg => shr_log_errMsg
   use FatesGlobals,      only : endrun => fates_endrun
   use FatesGlobals,      only : fates_log
-  
+
   implicit none
   private
 
@@ -19,16 +19,18 @@ module FatesRunningMeanMod
   ! are zero'd at the beginning of the interval, and get equal average weighting
   ! over their construction period.
 
-  
+
   integer, public, parameter :: moving_ema_window = 0   ! (exponential moving average)
   integer, public, parameter :: fixed_window = 1
-  
+  integer, public, parameter :: fixed_window_max = 3  ![JStenzel 3.10.2022]
+  integer, public, parameter :: fixed_window_min = 2
+
   ! This type defines a type of mean. It does not
   ! define the variable, but it defines how
   ! often it is updated, how long its
   ! memory period is, and if it should be zero'd
   ! These are globally defined on the proc.
-  
+
   type, public :: rmean_def_type
 
      real(r8) :: mem_period   ! The total integration period (s)
@@ -37,17 +39,17 @@ module FatesRunningMeanMod
      integer  :: method       ! Is this a fixed or moving window?
 
    contains
-     
+
      procedure :: define
-     
+
   end type rmean_def_type
 
-  
+
   ! This holds the time varying information for the mean
   ! which is instantiated on sites, patches, and cohorts
-  
+
   type, public :: rmean_type
-     
+
      real(r8) :: c_mean  ! The current mean value, if this
                          ! is a moving window, it is the mean.
                          ! If this is a fixed window, it is only a partial mean
@@ -68,7 +70,7 @@ module FatesRunningMeanMod
      ! This points to the global structure that
      ! defines the nature of this mean/avg
      type(rmean_def_type), pointer :: def_type
-     
+
    contains
 
      procedure :: GetMean
@@ -76,22 +78,25 @@ module FatesRunningMeanMod
      procedure :: UpdateRMean
      procedure :: FuseRMean
      procedure :: CopyFromDonor
-     
+
   end type rmean_type
 
 
   logical, parameter :: debug = .true.
-  
+
   character(len=*), parameter, private :: sourcefile = &
          __FILE__
 
 
   ! Define the time methods that we want to have available to us
-  
+
   class(rmean_def_type), public, pointer :: ema_24hr   ! Exponential moving average - 24hr window
   class(rmean_def_type), public, pointer :: fixed_24hr ! Fixed, 24-hour window
   class(rmean_def_type), public, pointer :: ema_lpa    ! Exponential moving average - leaf photo acclimation
-  
+  ![Jstenzel 3.10.2022] Added 24 hr min/max def_types
+  class(rmean_def_type), public, pointer :: fixed_24hr_min ! Fixed, 24-hour window, Minimum
+  class(rmean_def_type), public, pointer :: fixed_24hr_max ! Fixed, 24-hour window, Maximum
+
 contains
 
 
@@ -115,7 +120,7 @@ contains
           call endrun(msg=errMsg(sourcefile, __LINE__))
        end if
     end if
-       
+
     this%mem_period = mem_period
     this%up_period  = up_period
     this%method     = method
@@ -125,7 +130,7 @@ contains
   end subroutine define
 
   ! =====================================================================================
-  
+
   function GetMean(this)
 
     class(rmean_type) :: this
@@ -141,9 +146,9 @@ contains
     GetMean = this%l_mean
 
   end function GetMean
-  
+
   ! =====================================================================================
-  
+
   subroutine InitRMean(this,rmean_def,init_value,init_offset)
 
     class(rmean_type)             :: this
@@ -157,12 +162,14 @@ contains
     ! was a constant over the offset period.
 
     ! If the first value is offset, such that the we are a portion of the
-    ! way through the window, we need to account for this. 
-    
+    ! way through the window, we need to account for this.
+
     ! Point to the averaging type
     this%def_type => rmean_def
 
-    if(this%def_type%method .eq. fixed_window) then
+    if(this%def_type%method .eq. fixed_window .or. &    ![Jstenzel .or. adds]
+         this%def_type%method .eq. fixed_window_min .or. &
+         this%def_type%method .eq. fixed_window_max) then
 
        if(debug) then
           if(.not.(present(init_offset).and.present(init_value)) )then
@@ -171,13 +178,13 @@ contains
              write(fates_log(), *) 'specified.'
              call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
-          
+
           ! Check to see if the offset is an even increment of the update frequency
           if( abs(real(nint(init_offset/rmean_def%up_period),r8)-(init_offset/rmean_def%up_period)) > nearzero ) then
              write(fates_log(), *) 'when initializing a temporal mean on a fixed window'
              write(fates_log(), *) 'the time offset must be an inrement of the update frequency'
              write(fates_log(), *) 'offset: ',init_offset
-             write(fates_log(), *) 'up freq: ',rmean_def%up_period 
+             write(fates_log(), *) 'up freq: ',rmean_def%up_period
              call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
 
@@ -185,7 +192,7 @@ contains
              write(fates_log(), *) 'offset must be positive: ',init_offset
              call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
-          
+
        end if
 
        this%c_index = modulo(nint(init_offset/rmean_def%up_period),rmean_def%n_mem)
@@ -193,7 +200,7 @@ contains
        this%l_mean = init_value
 
     elseif(this%def_type%method .eq. moving_ema_window) then
-       
+
        if(present(init_value))then
           this%c_mean  = init_value
           this%l_mean  = init_value
@@ -203,16 +210,16 @@ contains
           this%l_mean  = nan
           this%c_index = 0
        end if
-       
+
     end if
-    
+
     return
   end subroutine InitRMean
 
 
   ! =====================================================================================
 
-  
+
   subroutine CopyFromDonor(this, donor)
 
     class(rmean_type) :: this
@@ -225,63 +232,94 @@ contains
        write(fates_log(), *) 'def_type pointer associated'
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
-    
+
     this%c_mean  = donor%c_mean
     this%l_mean  = donor%l_mean
     this%c_index = donor%c_index
 
-    
+
     return
   end subroutine CopyFromDonor
 
 
-  
+
   ! =====================================================================================
-  
+
   subroutine UpdateRMean(this, new_value)
 
     class(rmean_type) :: this
     real(r8)          :: new_value   ! The newest value added to the running mean
     real(r8)          :: wgt
-    
+
     if(this%def_type%method.eq.moving_ema_window) then
 
        this%c_index = min(this%def_type%n_mem,this%c_index + 1)
-       
+
        if(this%c_index==1) then
           this%c_mean = new_value
        else
           wgt = 1._r8/real(this%c_index,r8)
           this%c_mean = this%c_mean*(1._r8-wgt) + wgt*new_value
        end if
-       
+
        this%l_mean = this%c_mean
-       
+
     else
+
+       this%c_index = this%c_index + 1   ! [Jstenzel] Moved this to apply to the 3 flags below
+
+       if ( this%def_type%method.eq.fixed_window ) then    ! [JStenzel] New conditional
 
        ! If the last time we updated we had hit the
        ! end of the averaging memory period, and
        ! we are not using an indefinite running
        ! average, then zero things out
-       
-       this%c_index = this%c_index + 1
-       wgt = this%def_type%up_period/this%def_type%mem_period
-       this%c_mean = this%c_mean + new_value*wgt
 
-       if(this%c_index == this%def_type%n_mem) then
-          this%l_mean  = this%c_mean
-          this%c_mean  = 0._r8
-          this%c_index = 0
-       end if
+          !this%c_index = this%c_index + 1
+          wgt = this%def_type%up_period/this%def_type%mem_period
+          this%c_mean = this%c_mean + new_value*wgt
 
-       
+          if(this%c_index == this%def_type%n_mem) then
+             this%l_mean  = this%c_mean
+             this%c_mean  = 0._r8
+             this%c_index = 0
+          end if
+
+       else
+
+          if ( this%def_type%method.eq.fixed_window_min ) then  ![Jstenzel] New min conditional]
+             if ( this%c_index==1 ) then
+                this%c_mean = new_value
+             else
+                this%c_mean = min(this%c_mean,new_value)
+             end if
+          end if
+
+          if ( this%def_type%method.eq.fixed_window_max ) then  ![Jstenzel] New max conditional]
+             if ( this%c_index==1 ) then
+                this%c_mean = new_value
+             else
+                this%c_mean = max(this%c_mean,new_value)
+             end if
+          end if
+
+          if(this%c_index == this%def_type%n_mem) then
+             this%l_mean  = this%c_mean
+             !this%c_mean  = 0._r8
+             this%c_index = 0
+          end if
+
+
+       end if   ![Jstenzel end]
+
+
     end if
 
     return
   end subroutine UpdateRmean
-  
+
   ! =====================================================================================
-  
+
   subroutine FuseRMean(this,donor,recip_wgt)
 
     ! Rules for fusion:
@@ -292,11 +330,11 @@ contains
     ! if this is a fixed window, check that the index is the same between
     ! both.
 
-    
+
     class(rmean_type)          :: this
     class(rmean_type), pointer :: donor
     real(r8),intent(in)        :: recip_wgt  ! Weighting factor for recipient (0-1)
-    
+
     if(this%def_type%n_mem .ne. donor%def_type%n_mem) then
        write(fates_log(), *) 'memory size is somehow different during fusion'
        write(fates_log(), *) 'of two running mean variables: '!,this%name,donor%name
@@ -311,6 +349,22 @@ contains
        end if
     end if
 
+    if(this%def_type%method .eq. fixed_window_min ) then   ! [Jstenzel]
+       if (this%c_index .ne. donor%c_index) then
+          write(fates_log(), *) 'trying to fuse two fixed-window minumums'
+          write(fates_log(), *) 'that are at different points in the window?'
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
+    end if
+
+    if(this%def_type%method .eq. fixed_window_max ) then   ! [Jstenzel]
+       if (this%c_index .ne. donor%c_index) then
+          write(fates_log(), *) 'trying to fuse two fixed-window maximums'
+          write(fates_log(), *) 'that are at different points in the window?'
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
+    end if
+
     ! This last logic clause just simply prevents us from doing math
     ! on uninitialized values. If both are unintiailized, then
     ! leave the result as uninitialized
@@ -318,7 +372,7 @@ contains
 
        if(this%c_index==0) then
           this%c_mean = donor%c_mean
-          this%l_mean = donor%l_mean 
+          this%l_mean = donor%l_mean
           this%c_index = donor%c_index
        else
           ! Take the weighted mean between the two
@@ -329,9 +383,9 @@ contains
        end if
 
     end if
-       
+
     return
   end subroutine FuseRMean
 
-  
+
 end module FatesRunningMeanMod

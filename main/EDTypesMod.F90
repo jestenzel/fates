@@ -426,6 +426,10 @@ module EDTypesMod
      ! Running means
      !class(rmean_type), pointer :: t2m                          ! Place-holder for 2m air temperature (variable window-size)
      class(rmean_type), pointer :: tveg24                        ! 24-hour mean vegetation temperature (K)
+     ! [JStenzel tveg min/max]
+     class(rmean_type), pointer :: tveg24_min                    ! 24-hour min vegetation temperature (K)
+     class(rmean_type), pointer :: tveg24_max                    ! 24-hour max vegetation temperature (K)
+
      class(rmean_type), pointer :: tveg_lpa                      ! Running mean of vegetation temperature at the
                                                                  ! leaf photosynthesis acclimation timescale [K]
      integer  ::  nocomp_pft_label                                 ! where nocomp is active, use this label for patch ID.

@@ -91,7 +91,9 @@ module EDPatchDynamicsMod
   use SFParamsMod,            only : SF_VAL_CWD_FRAC
   use EDParamsMod,            only : logging_event_code
   use EDParamsMod,            only : logging_export_frac
-  use FatesRunningMeanMod,    only : ema_24hr, fixed_24hr, ema_lpa
+
+  use FatesRunningMeanMod,    only : ema_24hr, fixed_24hr, ema_lpa, fixed_24hr_min, fixed_24hr_max ![JStenzel added]
+
 
   ! CIME globals
   use shr_infnan_mod       , only : nan => shr_infnan_nan, assignment(=)
@@ -571,7 +573,6 @@ contains
           ! figure out whether the receiver patch for disturbance from this patch will be
           ! primary or secondary land receiver patch is primary forest only if both the
           ! donor patch is primary forest and the dominant disturbance type is not logging
-
           if ( currentPatch%anthro_disturbance_label .eq. primaryforest .and. &    !!!! [JStenzel]  definition edited
                (currentPatch%disturbance_mode .ne. dtype_ilog) ) then
 
@@ -698,6 +699,7 @@ contains
                new_patch_tertiary%shortest => null()
 
        end if
+
        ! loop round all the patches that contribute surviving indivduals and litter
        ! pools to the new patch.  We only loop the pre-existing patches, so
        ! quit the loop if the current patch is either null, or matches the
@@ -799,6 +801,10 @@ contains
              ! --------------------------------------------------------------------------
              call new_patch%tveg24%CopyFromDonor(currentPatch%tveg24)
              call new_patch%tveg_lpa%CopyFromDonor(currentPatch%tveg_lpa)
+
+             ! [JStenzel]
+             call new_patch%tveg24_min%CopyFromDonor(currentPatch%tveg24_min)
+             call new_patch%tveg24_max%CopyFromDonor(currentPatch%tveg24_max)
 
 
              ! --------------------------------------------------------------------------
@@ -1286,16 +1292,7 @@ contains
           endif
       endif
 
-      ! insert first secondary at the start of the list !!!!!!!!!!!!! delete
-      !if ( site_areadis_secondary .gt. nearzero) then
-      !    currentPatch               => currentSite%youngest_patch
-      !    new_patch_secondary%older  => currentPatch
-      !    new_patch_secondary%younger=> null()
-      !    currentPatch%younger       => new_patch_secondary
-      !    currentSite%youngest_patch => new_patch_secondary
-      !endif
-
-      ! insert first secondary before all primaries and after all tertiaries  ! [JStenzel secondary land insert start]
+      ! insert first secondary at the start of the list
       if ( site_areadis_secondary .gt. nearzero) then
          currentPatch               => currentSite%youngest_patch
          if ( currentPatch%anthro_disturbance_label .eq. tertiaryforest ) then
@@ -1354,6 +1351,7 @@ contains
           currentPatch%younger       => new_patch_tertiary
           currentSite%youngest_patch => new_patch_tertiary
       endif
+
 
        ! sort out the cohorts, since some of them may be so small as to need removing.
        ! the first call to terminate cohorts removes sparse number densities,
@@ -1562,6 +1560,7 @@ contains
                                                                     ! by current patch
     ! Flag for hlm regeneration harvest event [JStenzel add]
     integer         , intent(in)          :: planting_time
+
 
 
     ! locals
@@ -1846,12 +1845,11 @@ contains
            ! Transfer root fines (none burns)
            do sl = 1,currentSite%nlevsoil
                donatable_mass = curr_litt%root_fines(dcmpy,sl) * patch_site_areadis
-               new_litt%root_fines(dcmpy,sl) = new_litt%root_fines(dcmpy,sl) + donatable_mass*donate_m2
+               new_litt%root_fines(dcmpy,sl) = new_litt%root_fines(dcmpy,sl) + donatable_mass*donate_
                curr_litt%root_fines(dcmpy,sl) = curr_litt%root_fines(dcmpy,sl) + donatable_mass*retain_m2
           end do
 
        end do
-
 
        ! [JStenzel Start] Regeneration harvest: donated seed bank removal + new seedling planting
        ! If this is a primary patch experiencing a regeneration harvest
@@ -1922,7 +1920,7 @@ contains
        if (debug) then
           burn_flux1    = site_mass%burn_flux_to_atm
           litter_stock1 = curr_litt%GetTotalLitterMass()*remainder_area + &
-                          new_litt%GetTotalLitterMass()* newPatch%area ![JStenzel] Reverted
+                          new_litt%GetTotalLitterMass()* newPatch%area 
           error = (litter_stock1 - litter_stock0) + (burn_flux1-burn_flux0)
           if(abs(error)>1.e-8_r8) then
              write(fates_log(),*) 'non trivial carbon mass balance error in litter transfer'
@@ -2164,6 +2162,7 @@ contains
                       site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
                       new_litt%snag_combust(c) = new_litt%snag_combust(c) + burned_mass / newPatch%area ![JStenzel add] Snag combustion diagnostic
                 endif
+
                 new_litt%snag(c) = new_litt%snag(c) + donatable_mass * donate_m2     ![JStenzel] Add killed mass to snag rather than cwd poll
                 !new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + donatable_mass * donate_m2
                 curr_litt%snag(c) = curr_litt%snag(c) + donatable_mass * retain_m2 ![JStenzel] Add killed mass to snag rather than cwd poll
@@ -2178,6 +2177,7 @@ contains
                 !![JStenzel added] In this location, this equals the cwd_ag input, but wil differ
                 ! in total due to receiving no logging fluxes.
                 !?flux_diags%snag_input(c) = flux_diags%snag_input(c) + donatable_mass
+
              enddo
 
 
@@ -2426,7 +2426,6 @@ contains
 
 
 
-
           currentCohort => currentCohort%taller
        enddo !currentCohort
 
@@ -2478,6 +2477,12 @@ contains
 
     allocate(new_patch%tveg24)
     call new_patch%tveg24%InitRMean(fixed_24hr,init_value=temp_init_veg,init_offset=real(hlm_current_tod,r8) )
+    ![JStenzel new min/max variables]
+    allocate(new_patch%tveg24_min)
+    call new_patch%tveg24_min%InitRMean(fixed_24hr_min,init_value=temp_init_veg,init_offset=real(hlm_current_tod,r8) )
+    allocate(new_patch%tveg24_max)
+    call new_patch%tveg24_max%InitRMean(fixed_24hr_max,init_value=temp_init_veg,init_offset=real(hlm_current_tod,r8) )
+
     allocate(new_patch%tveg_lpa)
     call new_patch%tveg_lpa%InitRmean(ema_lpa,init_value=temp_init_veg)
 
@@ -3005,6 +3010,10 @@ contains
     call rp%tveg24%FuseRMean(dp%tveg24,rp%area*inv_sum_area)
     call rp%tveg_lpa%FuseRMean(dp%tveg_lpa,rp%area*inv_sum_area)
 
+    ! [Jstenzel]
+    call rp%tveg24_min%FuseRMean(dp%tveg24_min,rp%area*inv_sum_area)
+    call rp%tveg24_max%FuseRMean(dp%tveg24_max,rp%area*inv_sum_area)
+
     rp%fuel_eff_moist       = (dp%fuel_eff_moist*dp%area + rp%fuel_eff_moist*rp%area) * inv_sum_area
     rp%livegrass            = (dp%livegrass*dp%area + rp%livegrass*rp%area) * inv_sum_area
     rp%sum_fuel             = (dp%sum_fuel*dp%area + rp%sum_fuel*rp%area) * inv_sum_area
@@ -3348,6 +3357,10 @@ contains
     ! Deallocate any running means
     deallocate(cpatch%tveg24)
     deallocate(cpatch%tveg_lpa)
+
+    ! [ JStenzel]
+    deallocate(cpatch%tveg24_min)
+    deallocate(cpatch%tveg24_max)
 
     return
   end subroutine dealloc_patch

@@ -74,10 +74,11 @@ module FatesInterfaceMod
    use PRTAllometricCarbonMod    , only : InitPRTGlobalAllometricCarbon
    use PRTAllometricCNPMod       , only : InitPRTGlobalAllometricCNP
    use FatesRunningMeanMod       , only : ema_24hr
-   use FatesRunningMeanMod       , only : fixed_24hr
+   use FatesRunningMeanMod       , only : fixed_24hr, fixed_24hr_min, fixed_24hr_max
    use FatesRunningMeanMod       , only : ema_lpa
    use FatesRunningMeanMod       , only : moving_ema_window
-   use FatesRunningMeanMod       , only : fixed_window
+   ! [JStenzel min/max add]
+   use FatesRunningMeanMod       , only : fixed_window, fixed_window_max, fixed_window_min
    use FatesHistoryInterfaceMod  , only : fates_hist
 
 
@@ -909,6 +910,10 @@ contains
       allocate(ema_lpa)
       call ema_lpa%define(photo_temp_acclim_timescale*sec_per_day, &
            hlm_stepsize,moving_ema_window)
+      allocate(fixed_24hr_min)     ! [Jstenzel 3.10.2022]
+      call fixed_24hr_min%define(sec_per_day, hlm_stepsize, fixed_window_min)
+      allocate(fixed_24hr_max)     ! [Jstenzel 3.10.2022]
+      call fixed_24hr_max%define(sec_per_day, hlm_stepsize, fixed_window_max)
 
       return
     end subroutine InitTimeAveragingGlobals
@@ -1889,6 +1894,18 @@ contains
            ifp=ifp+1
            call cpatch%tveg24%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
            call cpatch%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
+
+           ! [JStenzel update statistic for new vars]
+           call cpatch%tveg24_min%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
+           call cpatch%tveg24_max%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
+
+           ! [JStenzel]   Need to define a new patch variable for daily max temperature. Instead
+           ! need to add new binary variable  [threshold crossed: 1,0]; add
+           !  bc_in(s)%t_veg_pa(ifp)
+           !if ( bc_in(s)%t_veg_pa(ifp) > [parameter] ) then
+            !  too_hot = 1
+           !end if
+           !call cpatch%tveg24_hot%UpdateRMean(bc_in(s)%t_veg_pa(ifp))    !tveg24_hot
 
            !  (Keeping as an example)
            !ccohort => cpatch%tallest

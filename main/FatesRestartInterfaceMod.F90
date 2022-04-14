@@ -149,6 +149,8 @@ module FatesRestartInterfaceMod
   ! Running Means
   integer :: ir_tveg24_pa
   integer :: ir_tveglpa_pa
+  integer :: ir_tveg24_min_pa    ![JStenzel]
+  integer :: ir_tveg24_max_pa
 
   !  (Keeping as an example)
   !!integer :: ir_tveglpa_co
@@ -1333,6 +1335,16 @@ contains
         long_name='24-hour patch veg temp', &
         units='K', initialize=initialize_variables,ivar=ivar, index = ir_tveg24_pa)
 
+! [Jstenzel]
+   call this%DefineRMeanRestartVar(vname='fates_tveg24_min_patch',vtype=cohort_r8, &
+        long_name='24-hour min patch veg temp', &
+        units='K', initialize=initialize_variables,ivar=ivar, index = ir_tveg24_min_pa)
+
+! [Jstenzel]
+   call this%DefineRMeanRestartVar(vname='fates_tveg24_max_patch',vtype=cohort_r8, &
+        long_name='24-hour max patch veg temp', &
+        units='K', initialize=initialize_variables,ivar=ivar, index = ir_tveg24_max_pa)
+
    call this%DefineRMeanRestartVar(vname='fates_tveglpapatch',vtype=cohort_r8, &
         long_name='running average (EMA) of patch veg temp for photo acclim', &
         units='K', initialize=initialize_variables,ivar=ivar, index = ir_tveglpa_pa)
@@ -2161,6 +2173,9 @@ contains
              ! Patch level running means
              call this%SetRMeanRestartVar(cpatch%tveg24, ir_tveg24_pa, io_idx_co_1st)
              call this%SetRMeanRestartVar(cpatch%tveg_lpa, ir_tveglpa_pa, io_idx_co_1st)
+             ! [Jstenzel]
+             call this%SetRMeanRestartVar(cpatch%tveg24_min, ir_tveg24_min_pa, io_idx_co_1st)
+             call this%SetRMeanRestartVar(cpatch%tveg24_max, ir_tveg24_max_pa, io_idx_co_1st)
 
              ! set cohorts per patch for IO
              rio_ncohort_pa( io_idx_co_1st )   = cohortsperpatch
@@ -3013,6 +3028,11 @@ contains
 
              call this%GetRMeanRestartVar(cpatch%tveg24, ir_tveg24_pa, io_idx_co_1st)
              call this%GetRMeanRestartVar(cpatch%tveg_lpa, ir_tveglpa_pa, io_idx_co_1st)
+
+             ! [Jstenzel]
+             call this%GetRMeanRestartVar(cpatch%tveg24_min, ir_tveg24_min_pa, io_idx_co_1st)
+             call this%GetRMeanRestartVar(cpatch%tveg24_max, ir_tveg24_max_pa, io_idx_co_1st)
+
 
              ! set cohorts per patch for IO
 

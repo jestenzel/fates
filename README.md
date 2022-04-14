@@ -3,6 +3,7 @@
 (Incomplete) Need new clearcut patches to not be fused. Here, reverting primary/secondary land definitions to test that this is the change that broke patch creation for logged patches.
 ------------------------------
 
+
 ## **Mortality 2**
 This branch adds mortality tolerance parameters and a new source of mortality (heat). Temperature based mortality   
 tolerance is set based on whether a tree has "hardened"  yet, which is set by dbh.  At dry sites, early-run (months)  

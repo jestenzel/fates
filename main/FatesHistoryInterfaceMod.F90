@@ -299,6 +299,9 @@ module FatesHistoryInterfaceMod
 
   ! Indices to (site) variables
   integer :: ih_tveg24_si
+  ! [JStenzel]
+  integer :: ih_tveg24_min_si
+  integer :: ih_tveg24_max_si
   integer :: ih_tveg_si
   integer :: ih_nep_si
   integer :: ih_hr_si
@@ -2081,6 +2084,9 @@ end subroutine flush_hvars
                hio_dleafoff_si                      => this%hvars(ih_dleafoff_si)%r81d, &
                hio_dleafon_si                       => this%hvars(ih_dleafoff_si)%r81d, &
                hio_tveg24                           => this%hvars(ih_tveg24_si)%r81d, &
+               ![JStenzel]
+               hio_tveg24_min                       => this%hvars(ih_tveg24_min_si)%r81d, &
+               hio_tveg24_max                       => this%hvars(ih_tveg24_max_si)%r81d, &
                hio_meanliqvol_si                    => this%hvars(ih_meanliqvol_si)%r81d, &
                hio_cbal_err_fates_si                => this%hvars(ih_cbal_err_fates_si)%r81d, &
                hio_err_fates_si                     => this%hvars(ih_err_fates_si)%r82d )
@@ -2217,6 +2223,13 @@ end subroutine flush_hvars
          ! 24hr veg temperature
          hio_tveg24(io_si) = hio_tveg24(io_si) + &
               (cpatch%tveg24%GetMean()- t_water_freeze_k_1atm)*cpatch%area*AREA_INV
+
+         hio_tveg24_min(io_si) = hio_tveg24_min(io_si) + &
+              (cpatch%tveg24_min%GetMean()- t_water_freeze_k_1atm)*cpatch%area*AREA_INV
+
+         hio_tveg24_max(io_si) = hio_tveg24_max(io_si) + &
+              (cpatch%tveg24_max%GetMean()- t_water_freeze_k_1atm)*cpatch%area*AREA_INV
+
 
          ! Increment some patch-age-resolved diagnostics
 
@@ -5185,6 +5198,18 @@ end subroutine update_history_hifrq
          use_default='active', &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_tveg24_si )
+
+    call this%set_history_var(vname='FATES_TVEG24_MIN', units='degree_Celsius', &
+         long='fates 24-hr min vegetation temperature by site', &
+         use_default='active', &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_tveg24_min_si )
+
+    call this%set_history_var(vname='FATES_TVEG24_MAX', units='degree_Celsius', &
+         long='fates 24-hr max vegetation temperature by site', &
+         use_default='active', &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_tveg24_max_si )
 
     call this%set_history_var(vname='FATES_TVEG', units='degree_Celsius', &
          long='fates instantaneous mean vegetation temperature by site', &
