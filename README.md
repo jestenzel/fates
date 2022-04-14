@@ -1,6 +1,6 @@
 # **Disturbance_1**
 
-See readme.txt for branch modifications.
+See branch_readme.txt for branch modifications.
 
 Changes:
 - Mortality dynamics
