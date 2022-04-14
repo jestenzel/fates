@@ -35,6 +35,7 @@ module SFParamsMod
    real(r8),protected, public :: SF_val_snag_burn_switch ![JStenzel]
    real(r8),protected, public :: SF_val_ag_dead_fallrate(NFSC) ![JStenzel]
    real(r8),protected, public :: SF_val_dead_slash_burn(NFSC) ![JStenzel]
+   real(r8),protected, public :: SF_val_live_slash_burn(NFSC) ![JStenzel]
    real(r8),protected, public :: SF_val_max_decomp(NFSC)
    real(r8),protected, public :: SF_val_SAV(NFSC)
    real(r8),protected, public :: SF_val_FBD(NFSC)
@@ -60,6 +61,7 @@ module SFParamsMod
    character(len=param_string_length),parameter :: SF_name_CWD_turnover_frac = "fates_CWD_turnover_frac"
    character(len=param_string_length),parameter :: SF_name_ag_dead_fallrate = "fates_ag_dead_fallrate" ![JStenzel]
    character(len=param_string_length),parameter :: SF_name_dead_slash_burn = "fates_dead_slash_burn" ![JStenzel]
+   character(len=param_string_length),parameter :: SF_name_live_slash_burn = "fates_live_slash_burn" ![JStenzel]
    character(len=param_string_length),parameter :: SF_name_snag_burn_switch = "fates_snag_burn_switch"  ![JStenzel]
    character(len=param_string_length),parameter :: SF_name_max_decomp = "fates_max_decomp"
    character(len=param_string_length),parameter :: SF_name_SAV = "fates_fire_SAV"
@@ -183,6 +185,7 @@ contains
     SF_val_CWD_turnover_frac(:) = nan  ![Jstenzel]
     SF_val_ag_dead_fallrate(:) = nan ![JStenzel]
     SF_val_dead_slash_burn(:) = nan ![JStenzel]
+    SF_val_live_slash_burn(:) = nan ![JStenzel]
     SF_val_snag_burn_switch = nan ![JStenzel]
     SF_val_max_decomp(:) = nan
     SF_val_SAV(:) = nan
@@ -406,6 +409,9 @@ contains
     call fates_params%RegisterParameter(name=SF_name_dead_slash_burn, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
+    call fates_params%RegisterParameter(name=SF_name_live_slash_burn, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
+
   end subroutine SpitFireRegisterNFSC
 
  !-----------------------------------------------------------------------
@@ -450,6 +456,9 @@ contains
 
     call fates_params%RetreiveParameter(name=SF_name_dead_slash_burn, &   ![JStenzel]
          data=SF_val_dead_slash_burn)
+
+    call fates_params%RetreiveParameter(name=SF_name_live_slash_burn, &   ![JStenzel]
+         data=SF_val_live_slash_burn)
 
   end subroutine SpitFireReceiveNFSC
   !-----------------------------------------------------------------------

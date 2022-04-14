@@ -1813,7 +1813,7 @@ contains
        curr_litt%snag(dl_sf) = curr_litt%snag(dl_sf) + snag_donatable_mass * retain_m2
 
        ![Jstenzel end temp]
-!lg_sf
+
        do dcmpy=1,ndcmpy
 
            ! Transfer leaf fines

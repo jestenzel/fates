@@ -459,6 +459,7 @@ contains
       use EDtypesMod,   only : ed_patch_type
       use EDtypesMod,   only : ed_cohort_type
       use FatesAllometryMod , only : carea_allom
+      use EDTypesMod        , only : dl_sf   ![JStenzel added]
 
 
       ! !ARGUMENTS:
@@ -504,6 +505,8 @@ contains
       integer  :: nlevsoil            ! number of soil layers
       integer  :: ilyr                ! soil layer loop index
       integer  :: el                  ! elemend loop index
+      real(r8) :: donatable_mass      ! [JStenzel added] Mass available for transfer after combustion losses
+      real(r8) :: burned_mass         ! [JStenzel added] Mass lost to recently living-tree slash combustion
 
 
       nlevsoil = currentSite%nlevsoil
@@ -606,10 +609,23 @@ contains
 
             do c = 1,ncwd-1
 
-               new_litt%ag_cwd(c)     = new_litt%ag_cwd(c) + &
-                     ag_wood * SF_val_CWD_frac(c) * donate_frac/newPatch%area
-               cur_litt%ag_cwd(c)     = cur_litt%ag_cwd(c) + &
-                     ag_wood * SF_val_CWD_frac(c) * retain_frac/remainder_area
+               ! [JStenzel added start] Burn some slash from living trees and distribute the rest
+               ! to CWD classes 1-3
+               donatable_mass = ag_wood * SF_val_CWD_frac(c) * (1._r8- SF_val_live_slash_burn(c) ) ![kg]
+               burned_mass = ag_wood * SF_val_CWD_frac(c) * SF_val_live_slash_burn(c)         ![kg]
+
+
+               new_litt%ag_cwd(c)     = new_litt%ag_cwd(c) + donatable_mass * &
+                    donate_frac /  newPatch%area
+               cur_litt%ag_cwd(c)     = cur_litt%ag_cwd(c) + donatable_mass * &
+                    retain_frac / remainder_area
+
+               site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass ! mass combustion flux
+               ![JStenzel added end]
+               !new_litt%ag_cwd(c)     = new_litt%ag_cwd(c) + &
+               !      ag_wood * SF_val_CWD_frac(c) * donate_frac/newPatch%area
+               !cur_litt%ag_cwd(c)     = cur_litt%ag_cwd(c) + &
+               !      ag_wood * SF_val_CWD_frac(c) * retain_frac/remainder_area
 
                do ilyr = 1,nlevsoil
 
@@ -624,8 +640,11 @@ contains
 
 
                ! Diagnostics on fluxes into the AG and BG CWD pools
-               flux_diags%cwd_ag_input(c) = flux_diags%cwd_ag_input(c) + &
-                    SF_val_CWD_frac(c) * ag_wood
+               flux_diags%cwd_ag_input(c) = flux_diags%cwd_ag_input(c) + & ![JStenzel edit]    !ag mass flux minus combustion
+                    SF_val_CWD_frac(c) * donatable_mass
+
+               !flux_diags%cwd_ag_input(c) = flux_diags%cwd_ag_input(c) + &
+               !     SF_val_CWD_frac(c) * ag_wood
 
                flux_diags%cwd_bg_input(c) = flux_diags%cwd_bg_input(c) + &
                     SF_val_CWD_frac(c) * bg_wood
@@ -647,11 +666,24 @@ contains
             bg_wood = indirect_dead * (struct_m + sapw_m ) * &
                   (1._r8 - prt_params%allom_agb_frac(currentCohort%pft))
 
-            new_litt%ag_cwd(ncwd) = new_litt%ag_cwd(ncwd) + ag_wood * &
-                  SF_val_CWD_frac(ncwd) * donate_frac/newPatch%area
 
-            cur_litt%ag_cwd(ncwd) = cur_litt%ag_cwd(ncwd) + ag_wood * &
-                  SF_val_CWD_frac(ncwd) * retain_frac/remainder_area
+            ! [JStenzel added start] Burn some slash from indirect harvest living trees and
+            ! distribute the rest to CWD class 4 (boles)
+            donatable_mass = ag_wood * SF_val_CWD_frac(ncwd) * (1._r8 - SF_val_live_slash_burn(ncwd)) ![kg]
+            burned_mass = ag_wood * SF_val_CWD_frac(ncwd) * SF_val_live_slash_burn(ncwd)        ![kg]
+
+
+            new_litt%ag_cwd(ncwd)     = new_litt%ag_cwd(ncwd) + donatable_mass * &
+                 donate_frac /  newPatch%area
+            cur_litt%ag_cwd(ncwd)     = cur_litt%ag_cwd(ncwd) + donatable_mass * &
+                 retain_frac / remainder_area
+
+            site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass ! mass combustion flux
+            !new_litt%ag_cwd(ncwd) = new_litt%ag_cwd(ncwd) + ag_wood * &
+            !      SF_val_CWD_frac(ncwd) * donate_frac/newPatch%area
+
+            !cur_litt%ag_cwd(ncwd) = cur_litt%ag_cwd(ncwd) + ag_wood * &
+            !      SF_val_CWD_frac(ncwd) * retain_frac/remainder_area
 
             do ilyr = 1,nlevsoil
 
@@ -665,9 +697,11 @@ contains
 
             end do
 
-            flux_diags%cwd_ag_input(ncwd) = flux_diags%cwd_ag_input(ncwd) + &
-                 SF_val_CWD_frac(ncwd) * ag_wood
+            flux_diags%cwd_ag_input(ncwd) = flux_diags%cwd_ag_input(ncwd) + & ![JStenzel edit]    !ag mass flux minus combustion
+                 SF_val_CWD_frac(ncwd) * donatable_mass
 
+            !flux_diags%cwd_ag_input(ncwd) = flux_diags%cwd_ag_input(ncwd) + &
+            !     SF_val_CWD_frac(ncwd) * ag_wood
             flux_diags%cwd_bg_input(ncwd) = flux_diags%cwd_bg_input(ncwd) + &
                  SF_val_CWD_frac(ncwd) * bg_wood
 
@@ -712,15 +746,31 @@ contains
             trunk_product_site = trunk_product_site + &
                   ag_wood * logging_export_frac
 
+            ! [JStenzel added start] Burn some slash from direct harvest living trees and distribute
+            !  the rest to CWD class 4 (boles)
+            donatable_mass = ag_wood * (1._r8 - SF_val_live_slash_burn(ncwd)) * & ![kg]
+                 (1._r8-logging_export_frac)
+            burned_mass = ag_wood * SF_val_live_slash_burn(ncwd) * &       ![kg]
+                 (1._r8-logging_export_frac)
+
+            new_litt%ag_cwd(ncwd)     = new_litt%ag_cwd(ncwd) + donatable_mass * &
+                 donate_frac /  newPatch%area
+            cur_litt%ag_cwd(ncwd)     = cur_litt%ag_cwd(ncwd) + donatable_mass * &
+                 retain_frac / remainder_area
+
+            site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass ! mass combustion flux
+
+            !!!! [JStenzel question] Missing ag cwd flux_diag for non-wood product component of direct logging mortality? !!!!
+
             ! This is for checking the total mass balance [kg/site/day]
             site_mass%wood_product = site_mass%wood_product + &
                   ag_wood * logging_export_frac
 
-            new_litt%ag_cwd(ncwd) = new_litt%ag_cwd(ncwd) + ag_wood * &
-                  (1._r8-logging_export_frac)*donate_frac/newPatch%area
+            !new_litt%ag_cwd(ncwd) = new_litt%ag_cwd(ncwd) + ag_wood * &
+            !      (1._r8-logging_export_frac)*donate_frac/newPatch%area
 
-            cur_litt%ag_cwd(ncwd) = cur_litt%ag_cwd(ncwd) + ag_wood * &
-                  (1._r8-logging_export_frac)*retain_frac/remainder_area
+            !cur_litt%ag_cwd(ncwd) = cur_litt%ag_cwd(ncwd) + ag_wood * &
+            !      (1._r8-logging_export_frac)*retain_frac/remainder_area
 
             ! ---------------------------------------------------------------------------
             ! Handle fluxes of leaf, root and storage carbon into litter pools.
@@ -730,16 +780,23 @@ contains
             leaf_litter = (direct_dead+indirect_dead)*(leaf_m + repro_m)
             root_litter = (direct_dead+indirect_dead)*(fnrt_m + store_m)
 
+            ![JStenzel add]
+            donatable_mass = leaf_litter * (1._r8 - SF_val_live_slash_burn(dl_sf)) * & ![kg]
+            burned_mass = leaf_litter * SF_val_live_slash_burn(dl_sf) * &       ![kg]
 
             do dcmpy=1,ndcmpy
 
                dcmpy_frac = GetDecompyFrac(pft,leaf_organ,dcmpy)
 
-               new_litt%leaf_fines(dcmpy) = new_litt%leaf_fines(dcmpy) + &
-                    leaf_litter * donate_frac/newPatch%area * dcmpy_frac
+               new_litt%leaf_fines(dcmpy) = new_litt%leaf_fines(dcmpy) + & ![JStenzel edit]
+                    donatable_mass * donate_frac/newPatch%area * dcmpy_frac
+               !new_litt%leaf_fines(dcmpy) = new_litt%leaf_fines(dcmpy) + &
+               !     leaf_litter * donate_frac/newPatch%area * dcmpy_fra
 
-               cur_litt%leaf_fines(dcmpy) = cur_litt%leaf_fines(dcmpy) + &
-                    leaf_litter * retain_frac/remainder_area * dcmpy_frac
+               cur_litt%leaf_fines(dcmpy) = cur_litt%leaf_fines(dcmpy) + & ![JStenzel edit]
+                    donatable_mass * retain_frac/remainder_area * dcmpy_frac
+               !cur_litt%leaf_fines(dcmpy) = cur_litt%leaf_fines(dcmpy) + &
+               !     leaf_litter * retain_frac/remainder_area * dcmpy_frac
 
                dcmpy_frac = GetDecompyFrac(pft,fnrt_organ,dcmpy)
                do ilyr = 1,nlevsoil
@@ -754,8 +811,12 @@ contains
             end do
 
             ! track as diagnostic fluxes
-            flux_diags%leaf_litter_input(pft) = flux_diags%leaf_litter_input(pft) + &
-                 leaf_litter
+            ![JStenzel added]
+            site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass ! mass combustion flux
+            flux_diags%leaf_litter_input(pft) = flux_diags%leaf_litter_input(pft) + &  ! mass distribution flux
+                 donatable_mass
+            !flux_diags%leaf_litter_input(pft) = flux_diags%leaf_litter_input(pft) + &
+            !     leaf_litter
 
             flux_diags%root_litter_input(pft) = flux_diags%root_litter_input(pft) + &
                  root_litter
@@ -767,10 +828,12 @@ contains
             if( element_id .eq. carbon12_element) then
                 delta_litter_stock  = delta_litter_stock  + &
                       leaf_litter         + &
+                      !donatable_mass + & ![JStenzel reverted]
                       root_litter
 
                 delta_biomass_stock = delta_biomass_stock + &
                       leaf_litter         + &
+                      !donatable_mass + & ![JStenzel reverted]
                       root_litter         + &
                       (direct_dead+indirect_dead) * (struct_m + sapw_m)
 
