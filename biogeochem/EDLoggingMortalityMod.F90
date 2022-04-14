@@ -453,7 +453,7 @@ contains
 
 
       !USES:
-      use SFParamsMod,  only : SF_val_cwd_frac
+      use SFParamsMod,  only : SF_val_cwd_frac, SF_val_live_slash_burn
       use EDtypesMod,   only : area
       use EDtypesMod,   only : ed_site_type
       use EDtypesMod,   only : ed_patch_type
@@ -781,8 +781,8 @@ contains
             root_litter = (direct_dead+indirect_dead)*(fnrt_m + store_m)
 
             ![JStenzel add]
-            donatable_mass = leaf_litter * (1._r8 - SF_val_live_slash_burn(dl_sf)) * & ![kg]
-            burned_mass = leaf_litter * SF_val_live_slash_burn(dl_sf) * &       ![kg]
+            donatable_mass = leaf_litter * (1._r8 - SF_val_live_slash_burn(dl_sf))   ![kg]
+            burned_mass = leaf_litter * SF_val_live_slash_burn(dl_sf)                ![kg]
 
             do dcmpy=1,ndcmpy
 
