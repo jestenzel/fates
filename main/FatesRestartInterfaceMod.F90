@@ -34,7 +34,7 @@ module FatesRestartInterfaceMod
   use FatesPlantHydraulicsMod, only : InitHydrCohort
   use FatesInterfaceTypesMod,       only : nlevsclass
   use FatesLitterMod,          only : litter_type
-  use FatesLitterMod,          only : ncwd
+  use FatesLitterMod,          only : ncwd, nsnag
   use FatesLitterMod,          only : ndcmpy
   use EDTypesMod,              only : nfsc
   use PRTGenericMod,           only : prt_global
@@ -163,6 +163,7 @@ module FatesRestartInterfaceMod
 
   ! Litter
   integer :: ir_agcwd_litt
+  integer :: ir_snag_litt   ![JStenzel add]
   integer :: ir_bgcwd_litt
   integer :: ir_leaf_litt
   integer :: ir_fnrt_litt
@@ -170,6 +171,11 @@ module FatesRestartInterfaceMod
   integer :: ir_seedgerm_litt
   integer :: ir_seed_decay_litt
   integer :: ir_seedgerm_decay_litt
+  ! [JStenzel added]
+  integer :: ir_seed_kill_litt !!!!
+  integer :: ir_seedgerm_kill_litt !!!!
+  integer :: ir_seed_in_planted_litt!!!!
+
   integer :: ir_seed_prod_co
   integer :: ir_livegrass_pa
   integer :: ir_age_pa
@@ -182,6 +188,7 @@ module FatesRestartInterfaceMod
   ! with nutrient dynamics on, restarting
   ! mid-day
   integer :: ir_agcwd_frag_litt
+  integer :: ir_snag_frag_litt   ![JStenzel add]
   integer :: ir_bgcwd_frag_litt
   integer :: ir_lfines_frag_litt
   integer :: ir_rfines_frag_litt
@@ -216,6 +223,11 @@ module FatesRestartInterfaceMod
   integer :: ir_fmortcflux_usto_si
   integer :: ir_cwdagin_flxdg
   integer :: ir_cwdbgin_flxdg
+  ![JStenzel added]
+  !?integer :: ir_snagin_flxdg
+  !?integer :: ir_snagfall_flxdg
+  !?integer :: ir_snagburn_flxdg
+
   integer :: ir_leaflittin_flxdg
   integer :: ir_rootlittin_flxdg
   integer :: ir_efflux_flxdg
@@ -963,6 +975,11 @@ contains
             units='kg/m2', veclength=num_elements, flushval = flushzero, &
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_agcwd_litt)
 
+    call this%RegisterCohortVector(symbol_base='fates_snag', vtype=cohort_r8, &   ![JStenzel add]
+            long_name_base='snag wood',  &
+            units='kg/m2', veclength=num_elements, flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_snag_litt)
+
     call this%RegisterCohortVector(symbol_base='fates_bg_cwd', vtype=cohort_r8, &
             long_name_base='below ground CWD',  &
             units='kg/m2', veclength=num_elements, flushval = flushzero, &
@@ -999,6 +1016,28 @@ contains
            units='kg/m2', veclength=num_elements, flushval = flushzero, &
            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_seedgerm_decay_litt)
 
+! [ JStenzel added x 3] !!!!
+    call this%RegisterCohortVector(symbol_base='fates_seed_kill_frag', vtype=cohort_r8, &
+           long_name_base='seed bank kill fragmentation flux (non-germinated)',  &
+           units='kg/m2', veclength=num_elements, flushval = flushzero, &
+           hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_seed_kill_litt)
+
+    call this%RegisterCohortVector(symbol_base='fates_seedgerm_kill_frag', vtype=cohort_r8, &
+           long_name_base='seed bank kill fragmentation flux (germinated)',  &
+           units='kg/m2', veclength=num_elements, flushval = flushzero, &
+           hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_seedgerm_kill_litt)
+
+    call this%RegisterCohortVector(symbol_base='fates_seed_in_planted', vtype=cohort_r8, & !!!!!!!!naming convention?
+           long_name_base='seed bank fragmentation flux (germinated)',  &
+           units='kg/m2', veclength=num_elements, flushval = flushzero, &
+           hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_seed_in_planted_litt)
+
+    call this%RegisterCohortVector(symbol_base='fates_snag_frag', vtype=cohort_r8, &
+           long_name_base='above ground snag fall flux',  &
+           units='kg/m2/day', veclength=num_elements, flushval = flushzero, &
+           hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_snag_frag_litt)
+! [JStenzel end]
+
     call this%RegisterCohortVector(symbol_base='fates_ag_cwd_frag', vtype=cohort_r8, &
             long_name_base='above ground CWD frag flux',  &
             units='kg/m2/day', veclength=num_elements, flushval = flushzero, &
@@ -1031,6 +1070,24 @@ contains
             long_name_base='Input flux of BG CWD', &
             units='kg/ha', veclength=num_elements, flushval = flushzero, &
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cwdbgin_flxdg)
+
+    ![JStenzel added]
+    !?call this%RegisterCohortVector(symbol_base='fates_snagin', vtype=cohort_r8, &
+         !?   long_name_base='Input flux of snag', &
+         !?   units='kg/ha', veclength=num_elements, flushval = flushzero, &
+         !?   hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_snagin_flxdg)
+
+    ![JStenzel added]
+    !?call this%RegisterCohortVector(symbol_base='fates_snagfall', vtype=cohort_r8, &
+            !?long_name_base='Fall flux of snag', &
+         !?   units='kg/ha', veclength=num_elements, flushval = flushzero, &
+         !?   hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_snagfall_flxdg)
+
+    ![JStenzel added]
+    !?call this%RegisterCohortVector(symbol_base='fates_snagburn', vtype=cohort_r8, &
+         !?   long_name_base='Combustion flux of snag', &
+         !?   units='kg/ha', veclength=num_elements, flushval = flushzero, &
+         !?   hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_snagburn_flxdg)
 
     call this%RegisterCohortVector(symbol_base='fates_leaflittin', vtype=cohort_r8, &
             long_name_base='Input flux of leaf litter', &
@@ -1736,6 +1793,11 @@ contains
     integer  :: io_idx_si_pft  ! each site-pft index
     integer  :: io_idx_si_vtmem ! indices for veg-temp memory at site
     integer  :: io_idx_pa_ncl   ! each canopy layer within each patch
+    integer  :: io_idx_pa_nsnag  ! each patch-nsnag index  ![JStenzel add]
+
+    ![JStenzel added]
+    !?integer  :: io_idx_si_nsnag  ! each site-nsnag index
+
 
     ! Some counters (for checking mostly)
     integer  :: totalcohorts   ! total cohort count on this thread (diagnostic)
@@ -1755,6 +1817,7 @@ contains
     integer  :: i_cacls          ! loop counter for cohort age class
     integer  :: i_cwd            ! loop counter for cwd
     integer  :: i_pft            ! loop counter for pft
+    !?integer  :: i_nsnag          ! loop counter for snag ![JStenzel added]
 
     type(fates_restart_variable_type) :: rvar
     type(ed_patch_type),pointer  :: cpatch
@@ -1904,12 +1967,21 @@ contains
              io_idx_si_cwd = io_idx_co_1st
              io_idx_si_pft = io_idx_co_1st
              io_idx_si_scpf = io_idx_co_1st
+             !?io_idx_si_nsnag = io_idx_co_1st ![JStenzel added]
 
              do i_cwd=1,ncwd
                 this%rvars(ir_cwdagin_flxdg+el-1)%r81d(io_idx_si_cwd) = sites(s)%flux_diags(el)%cwd_ag_input(i_cwd)
                 this%rvars(ir_cwdbgin_flxdg+el-1)%r81d(io_idx_si_cwd) = sites(s)%flux_diags(el)%cwd_bg_input(i_cwd)
                 io_idx_si_cwd = io_idx_si_cwd + 1
              end do
+
+             ![JStenzel added] !!!! !!!! !!!!
+             !?do i_nsnag=1,nsnag
+               !? this%rvars(ir_snagin_flxdg+el-1)%r81d(io_idx_si_nsnag) = sites(s)%flux_diags(el)%snag_input(i_nsnag)
+                !?this%rvars(ir_snagburn_flxdg+el-1)%r81d(io_idx_si_nsnag) = sites(s)%flux_diags(el)%snag_combusted(i_nsnag)
+               !? this%rvars(ir_snagfall_flxdg+el-1)%r81d(io_idx_si_nsnag) = sites(s)%flux_diags(el)%snag_fall(i_nsnag)
+               !? io_idx_si_nsnag = io_idx_si_nsnag + 1
+             !?end do
 
              do i_pft=1,numpft
                 this%rvars(ir_leaflittin_flxdg+el-1)%r81d(io_idx_si_pft) = sites(s)%flux_diags(el)%leaf_litter_input(i_pft)
@@ -2148,6 +2220,7 @@ contains
                  io_idx_pa_cwsl = io_idx_co_1st
                  io_idx_pa_dcsl = io_idx_co_1st
                  io_idx_pa_dc   = io_idx_co_1st
+                 io_idx_pa_nsnag = io_idx_co_1st ![JStenzel added]
 
                  litt => cpatch%litter(el+1)
 
@@ -2156,6 +2229,11 @@ contains
                     this%rvars(ir_seedgerm_litt+el)%r81d(io_idx_pa_pft) = litt%seed_germ(i)
                     this%rvars(ir_seed_decay_litt+el)%r81d(io_idx_pa_pft) = litt%seed_decay(i)
                     this%rvars(ir_seedgerm_decay_litt+el)%r81d(io_idx_pa_pft) = litt%seed_germ_decay(i)
+                    ! [JStenzel added]
+                    this%rvars(ir_seed_kill_litt+el)%r81d(io_idx_pa_pft) = litt%seed_kill(i) !!!!
+                    this%rvars(ir_seedgerm_kill_litt+el)%r81d(io_idx_pa_pft) = litt%seed_germ_kill(i) !!!!
+                    this%rvars(ir_seed_in_planted_litt+el)%r81d(io_idx_pa_pft) = litt%seed_in_planted(i) !!!!
+
                     io_idx_pa_pft = io_idx_pa_pft + 1
                  end do
 
@@ -2171,9 +2249,15 @@ contains
                      end do
                  end do
 
+                 do i = 1,nsnag
+                    this%rvars(ir_snag_litt+el)%r81d(io_idx_pa_nsnag) = litt%snag(i)        ![JStenzel add]
+                    this%rvars(ir_snag_frag_litt+el)%r81d(io_idx_pa_nsnag) = litt%snag_frag(i)
+                 end do
+
                  do i = 1,ncwd
                      this%rvars(ir_agcwd_litt+el)%r81d(io_idx_pa_cwd) = litt%ag_cwd(i)
                      this%rvars(ir_agcwd_frag_litt+el)%r81d(io_idx_pa_cwd) = litt%ag_cwd_frag(i)
+
                      io_idx_pa_cwd = io_idx_pa_cwd + 1
                      do ilyr=1,sites(s)%nlevsoil
                          this%rvars(ir_bgcwd_litt+el)%r81d(io_idx_pa_cwsl) = litt%bg_cwd(i,ilyr)
@@ -2414,6 +2498,7 @@ contains
                 call newp%litter(el)%InitConditions(init_leaf_fines=fates_unset_r8, &
                      init_root_fines=fates_unset_r8, &
                      init_ag_cwd=fates_unset_r8, &
+                     init_snag=fates_unset_r8, &     ![JStenzel]
                      init_bg_cwd=fates_unset_r8, &
                      init_seed=fates_unset_r8, &
                      init_seed_germ=fates_unset_r8)
@@ -2580,6 +2665,10 @@ contains
      integer  :: io_idx_si_cwd
      integer  :: io_idx_si_pft
      integer  :: io_idx_pa_ncl   ! each canopy layer within each patch
+     integer  :: io_idx_pa_nsnag ! [JStenzel added] nsnag patch index
+
+     ![JStenzel added]
+     !?integer  :: io_idx_si_nsnag
 
      ! Some counters (for checking mostly)
      integer  :: totalcohorts   ! total cohort count on this thread (diagnostic)
@@ -2730,12 +2819,21 @@ contains
              io_idx_si_cwd = io_idx_co_1st
              io_idx_si_pft = io_idx_co_1st
              io_idx_si_scpf = io_idx_co_1st
+             !?io_idx_si_nsnag = io_idx_co_1st
 
              do i_cwd=1,ncwd
                 sites(s)%flux_diags(el)%cwd_ag_input(i_cwd) = this%rvars(ir_cwdagin_flxdg+el-1)%r81d(io_idx_si_cwd)
                 sites(s)%flux_diags(el)%cwd_bg_input(i_cwd) = this%rvars(ir_cwdbgin_flxdg+el-1)%r81d(io_idx_si_cwd)
                 io_idx_si_cwd = io_idx_si_cwd + 1
              end do
+
+             ![JStenzel added]
+             !?do i_nsnag,nsnag
+                !?sites(s)%flux_diags(el)%snag_input(i_nsnag) = this%rvars(ir_snagin_flxdg+el-1)%r81d(io_idx_si_nsnag)
+                !?sites(s)%flux_diags(el)%snag_fall(i_nsnag) = this%rvars(ir_snagfall_flxdg+el-1)%r81d(io_idx_si_nsnag)
+               !? sites(s)%flux_diags(el)%snag_combusted(i_nsnag) = this%rvars(ir_snagburn_flxdg+el-1)%r81d(io_idx_si_nsnag)
+               !? io_idx_si_nsnag = io_idx_si_nsnag + 1
+             !?end do
 
              do i_pft=1,numpft
                 sites(s)%flux_diags(el)%leaf_litter_input(i_pft) = this%rvars(ir_leaflittin_flxdg+el-1)%r81d(io_idx_si_pft)
@@ -2968,6 +3066,7 @@ contains
                  io_idx_pa_cwsl = io_idx_co_1st
                  io_idx_pa_dcsl = io_idx_co_1st
                  io_idx_pa_dc   = io_idx_co_1st
+                 io_idx_pa_nsnag = io_idx_co_1st ![JStenzel added]
 
                  litt => cpatch%litter(el+1)
                  nlevsoil = size(litt%bg_cwd,dim=2)
@@ -2977,7 +3076,17 @@ contains
                      litt%seed_germ(i)  = this%rvars(ir_seedgerm_litt+el)%r81d(io_idx_pa_pft)
                      litt%seed_decay(i)       = this%rvars(ir_seed_decay_litt+el)%r81d(io_idx_pa_pft)
                      litt%seed_germ_decay(i)  = this%rvars(ir_seedgerm_decay_litt+el)%r81d(io_idx_pa_pft)
+                     ! [JStenzel added]
+                     litt%seed_kill(i)  = this%rvars(ir_seed_kill_litt+el)%r81d(io_idx_pa_pft) !!!!
+                     litt%seed_germ_kill(i)  = this%rvars(ir_seedgerm_kill_litt+el)%r81d(io_idx_pa_pft)!!!!
+                     litt%seed_in_planted(i)  = this%rvars(ir_seed_in_planted_litt+el)%r81d(io_idx_pa_pft) !!!!
+
                      io_idx_pa_pft      = io_idx_pa_pft + 1
+                  end do
+
+                  do i = 1,nsnag
+                     litt%snag(i) = this%rvars(ir_snag_litt+el)%r81d(io_idx_pa_nsnag)                 ![JStenzel add]
+                     litt%snag_frag(i) = this%rvars(ir_snag_frag_litt+el)%r81d(io_idx_pa_nsnag)
                   end do
 
                   do i = 1,ndcmpy
@@ -2995,6 +3104,7 @@ contains
 
                      litt%ag_cwd(i) = this%rvars(ir_agcwd_litt+el)%r81d(io_idx_pa_cwd)
                      litt%ag_cwd_frag(i) = this%rvars(ir_agcwd_frag_litt+el)%r81d(io_idx_pa_cwd)
+
                      io_idx_pa_cwd = io_idx_pa_cwd + 1
 
                      do ilyr=1,nlevsoil

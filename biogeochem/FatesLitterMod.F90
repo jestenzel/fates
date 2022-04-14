@@ -8,9 +8,9 @@ module FatesLitterMod
   ! does need to retain litter for fire calculations.  Therefore, we retain
   ! undecomposed litter for a period of time in FATES, until it fragments and is passed
   ! to another model to handle deocomposition.
-  ! 
+  !
   ! This encompasses:  1) "Coarse Woody Debris"
-  !                    2) fine materials leaves, roots etc 
+  !                    2) fine materials leaves, roots etc
   !                       (sometimes exclusively refered to as litter)
   !                    3) Reproductive materials (seeds, nuts, fruits)
   !
@@ -19,10 +19,10 @@ module FatesLitterMod
   ! Another Important Point: We track the fine litter by its "decomposability" pool.
   !                          However, we don't actually apply any differential
   !                          turnover rates based on these pools, we are just
-  !                          differentiating, tracking and preserving them to be 
-  !                          passed in the correct partitions to the BGC model. 
+  !                          differentiating, tracking and preserving them to be
+  !                          passed in the correct partitions to the BGC model.
   !                          Their partitions are a PFT parameter.
-  ! 
+  !
   ! -------------------------------------------------------------------------------------
 
 
@@ -30,7 +30,7 @@ module FatesLitterMod
    ! 8) In CWD_IN, add the flux diagnostics, then remove the
    !    patch level rate in the history code
 
-   
+
    use FatesConstantsMod, only : r8 => fates_r8
    use FatesConstantsMod, only : i4 => fates_int
    use FatesConstantsMod, only : nearzero
@@ -38,15 +38,19 @@ module FatesLitterMod
    use FatesConstantsMod, only : fates_unset_r8
 
    use FatesGlobals     , only : endrun => fates_endrun
-   use FatesGlobals     , only : fates_log 
+   use FatesGlobals     , only : fates_log
    use shr_log_mod      , only : errMsg => shr_log_errMsg
 
    implicit none
    private
 
 
-   integer, public, parameter :: ncwd  = 4    ! number of coarse woody debris pools 
+   integer, public, parameter :: ncwd  = 4    ! number of coarse woody debris pools
                                               ! (twig,s branch,l branch, trunk)
+
+   integer, public, parameter :: nsnag  = 6    ! number of snag pools
+                                              ! (twig,s branch,l branch, trunk, leaf,empty for now)
+
 
    integer, public, parameter :: ndcmpy = 3   ! number of "decomposability" pools in
                                               ! fines (lignin, cellulose, labile)
@@ -58,7 +62,7 @@ module FatesLitterMod
 
    type, public ::  litter_type
 
-      
+
       ! This object is allocated for each element (C, N, P, etc) that we wish to track.
 
       integer              :: element_id            ! This element ID should
@@ -67,17 +71,18 @@ module FatesLitterMod
 
       ! ---------------------------------------------------------------------------------
       ! Prognostic variables (litter and coarse woody debris)
-      ! Note that we do not track the fines (leaf/fine-root debris) by PFT. We track them 
+      ! Note that we do not track the fines (leaf/fine-root debris) by PFT. We track them
       ! by their decomposing pools (i.e. chemical fraction).  This is the same dimensioning
       ! that gets passed back to the external BGC model, and saves a lot of space.
       ! ---------------------------------------------------------------------------------
 
 
       real(r8)             :: ag_cwd(ncwd)          ! above ground coarse wood debris (cwd)         [kg/m2]
+      real(r8)             :: snag(nsnag)        ! [JStenzel added] ag standing dead pools not subject to combustion (cwd) [kg/m2]
       real(r8),allocatable :: bg_cwd(:,:)           ! below ground coarse wood debris (cwd x soil)  [kg/m2]
       real(r8),allocatable :: leaf_fines(:)         ! above ground leaf litter (dcmpy)              [kg/m2]
       real(r8),allocatable :: root_fines(:,:)       ! below ground fine root litter (dcmpy x soil)  [kg/m2]
-      
+
       real(r8),allocatable :: seed(:)               ! the seed pool (viable)    (pft) [kg/m2]
       real(r8),allocatable :: seed_germ(:)          ! the germinated seed pool  (pft) [kg/m2]
 
@@ -87,6 +92,7 @@ module FatesLitterMod
       ! ---------------------------------------------------------------------------------
 
       real(r8)             ::  ag_cwd_in(ncwd)      ! (cwd)        [kg/m2/day]
+      real(r8)             ::  snag_in(nsnag)        ! [JStenzel added](cwd)        [kg/m2/day]
       real(r8),allocatable ::  bg_cwd_in(:,:)       ! (cwd x soil) [kg/m2/day]
       real(r8),allocatable ::  leaf_fines_in(:)     ! (dcmpy)       [kg/m2/day]
       real(r8),allocatable ::  root_fines_in(:,:)   ! (dcmpy x soil [kg/m2/day]
@@ -94,12 +100,14 @@ module FatesLitterMod
       real(r8),allocatable ::  seed_in_local(:)     ! (pft)        [kg/m2/day] (from local sources)
       real(r8),allocatable ::  seed_in_extern(:)    ! (pft)        [kg/m2/day] (from outside cell)
 
-                                                    
+
       ! ---------------------------------------------------------------------------------
       ! Fluxes out - fragmentation, seed decay (does not include disturbance)
       ! ---------------------------------------------------------------------------------
 
       real(r8)             ::  ag_cwd_frag(ncwd)    ! above ground cwd fragmentation flux   [kg/m2/day]
+      real(r8)             ::  snag_frag(nsnag)      ! [JStenzel added] snag fall rate to ag_cwd   [kg/m2/day]
+      real(r8)             ::  snag_combust(nsnag)  ! [JStenzel added] snag combust rate to ag_cwd   [kg/m2/day]
       real(r8),allocatable ::  bg_cwd_frag(:,:)     ! below ground cwd fragmentation flux   [kg/m2/day]
       real(r8),allocatable ::  leaf_fines_frag(:)   ! above ground fines fragmentation flux [kg/m2/day]
       real(r8),allocatable ::  root_fines_frag(:,:) ! kg/m2/day
@@ -107,9 +115,15 @@ module FatesLitterMod
       real(r8), allocatable :: seed_decay(:)      ! decay of viable seeds to litter     [kg/m2/day]
       real(r8), allocatable :: seed_germ_decay(:) ! decay of germinated seeds to litter [kg/m2/day]
       real(r8), allocatable :: seed_germ_in(:)    ! flux from viable to germinated seed [kg/m2/day]
+      !real(r8),allocatable :: seed_harvest_kill(:)  ! the regeneration-harvest killed
+                                                     ! seed flux  (pft) [kg/m2] [JStenzel]
+      real(r8), allocatable :: seed_kill(:)   ![JStenzel] harvest kill flux
+      real(r8), allocatable :: seed_germ_kill(:) ![JStenzel] harvest kill flux
+      real(r8), allocatable :: seed_in_planted(:) ![JStenzel] harvest external planted seed flux
+
 
     contains
-      
+
       procedure,non_overridable :: InitAllocate
       procedure,non_overridable :: DeallocateLitt
       procedure,non_overridable :: InitConditions
@@ -117,7 +131,7 @@ module FatesLitterMod
       procedure,non_overridable :: CopyLitter
       procedure,non_overridable :: ZeroFlux
       procedure,non_overridable :: GetTotalLitterMass
-      
+
    end type litter_type
 
    ! Part 3: Public extended types
@@ -145,13 +159,14 @@ contains
     ! locals
     integer  :: nlevsoil        ! number of soil layers
     integer  :: c               ! cwd index
+    integer  :: s               ! snag index
     integer  :: pft             ! pft index
     integer  :: ilyr            ! soil layer index
     integer  :: dcmpy           ! dcmpyical pool index
     integer  :: npft            ! number of PFTs
     real(r8) :: self_weight     ! weighting of the recieving litter pool
     real(r8) :: donor_weight    ! weighting of the donating litter pool
-    
+
 
     nlevsoil = size(this%bg_cwd,dim=2)
     npft     = size(this%seed,dim=1)
@@ -159,7 +174,7 @@ contains
     self_weight  = self_area /(donor_area+self_area)
     donor_weight = 1._r8 - self_weight
 
-    
+
     do c=1,ncwd
        this%ag_cwd(c)      = this%ag_cwd(c) *self_weight +  &
                              donor_litt%ag_cwd(c) * donor_weight
@@ -167,6 +182,7 @@ contains
                              donor_litt%ag_cwd_in(c) * donor_weight
        this%ag_cwd_frag(c) = this%ag_cwd_frag(c) *self_weight + &
                              donor_litt%ag_cwd_frag(c) * donor_weight
+
        do ilyr = 1,nlevsoil
           this%bg_cwd(c,ilyr)      = this%bg_cwd(c,ilyr) * self_weight + &
                                      donor_litt%bg_cwd(c,ilyr) * donor_weight
@@ -178,25 +194,50 @@ contains
 
     end do
 
-    
+    ![JStenzel add] Add snag pool loop
+    do s=1,nsnag
+
+       this%snag(s)      = this%snag(s) *self_weight +  &
+                           donor_litt%snag(s) * donor_weight
+       this%snag_in(s)   = this%snag_in(s) *self_weight + &
+                           donor_litt%snag_in(s) * donor_weight
+       this%snag_frag(s) = this%snag_frag(s) *self_weight + &
+                           donor_litt%snag_frag(s) * donor_weight
+       this%snag_combust(s) = this%snag_combust(s) *self_weight + &
+                           donor_litt%snag_combust(s) * donor_weight
+    end do
+
+
     do pft=1,npft
-       
+
        this%seed(pft)            = this%seed(pft) * self_weight + &
                                    donor_litt%seed(pft) * donor_weight
        this%seed_germ(pft)       = this%seed_germ(pft) * self_weight + &
                                    donor_litt%seed_germ(pft) * donor_weight
-       
+
        this%seed_in_local(pft)   = this%seed_in_local(pft) * self_weight + &
                                    donor_litt%seed_in_local(pft) * donor_weight
        this%seed_in_extern(pft)  = this%seed_in_extern(pft) * self_weight + &
                                    donor_litt%seed_in_extern(pft) * donor_weight
-       
+
        this%seed_decay(pft)      = this%seed_decay(pft) * self_weight + &
                                    donor_litt%seed_decay(pft) * donor_weight
        this%seed_germ_decay(pft) = this%seed_germ_decay(pft) * self_weight + &
                                    donor_litt%seed_germ_decay(pft) * donor_weight
        this%seed_germ_in(pft)    = this%seed_germ_in(pft) * self_weight + &
                                    donor_litt%seed_germ_in(pft) * donor_weight
+       !this%seed_harvest_kill(pft) = this%seed_harvest_kill(pft) * self_weight + &
+                                   !donor_litt%seed_harvest_kill(pft) * donor_weight
+
+       this%seed_kill(pft)       = this%seed_kill(pft) * self_weight + &     ![JStenzel add]
+                                   donor_litt%seed_kill(pft) * donor_weight
+
+       this%seed_germ_kill(pft)  = this%seed_germ_kill(pft) * self_weight + &    ![JStenzel add]
+                                   donor_litt%seed_germ_kill(pft) * donor_weight
+
+       this%seed_in_planted(pft)  = this%seed_in_planted(pft) * self_weight + &   ![JStenzel add]
+                                   donor_litt%seed_in_planted(pft) * donor_weight
+
    end do
 
 
@@ -237,7 +278,13 @@ contains
     this%ag_cwd(:)      = donor_litt%ag_cwd(:)
     this%ag_cwd_in(:)   = donor_litt%ag_cwd_in(:)
     this%ag_cwd_frag(:) = donor_litt%ag_cwd_frag(:)
-    
+
+    ! [JStenzel added]
+    this%snag(:)      = donor_litt%snag(:)
+    this%snag_in(:)   = donor_litt%snag_in(:)
+    this%snag_frag(:) = donor_litt%snag_frag(:)
+    this%snag_combust(:) = donor_litt%snag_combust(:)
+
     this%bg_cwd(:,:)      = donor_litt%bg_cwd(:,:)
     this%bg_cwd_in(:,:)   = donor_litt%bg_cwd_in(:,:)
     this%bg_cwd_frag(:,:) = donor_litt%bg_cwd_frag(:,:)
@@ -247,16 +294,21 @@ contains
     this%seed_germ(:)     = donor_litt%seed_germ(:)
     this%leaf_fines_in(:) = donor_litt%leaf_fines_in(:)
     this%seed_in_local(:) = donor_litt%seed_in_local(:)
-    
+
     this%seed_in_extern(:)    = donor_litt%seed_in_extern(:)
     this%leaf_fines_frag(:)   = donor_litt%leaf_fines_frag(:)
-    
+
     this%seed_decay(:)        = donor_litt%seed_decay(:)
     this%seed_germ_decay(:)   = donor_litt%seed_germ_decay(:)
+    !this%seed_harvest_kill(:)   = donor_litt%seed_harvest_kill(:)
     this%seed_germ_in(:)      = donor_litt%seed_germ_in(:)
     this%root_fines(:,:)      = donor_litt%root_fines(:,:)
     this%root_fines_in(:,:)   = donor_litt%root_fines_in(:,:)
     this%root_fines_frag(:,:) = donor_litt%root_fines_frag(:,:)
+
+    this%seed_kill(:)   = donor_litt%seed_kill(:)
+    this%seed_germ_kill(:)   = donor_litt%seed_germ_kill(:)
+    this%seed_in_planted(:)   = donor_litt%seed_in_planted(:)
 
     return
   end subroutine CopyLitter
@@ -289,10 +341,16 @@ contains
     allocate(this%seed_germ(numpft))
     allocate(this%seed_germ_in(numpft))
     allocate(this%seed_germ_decay(numpft))
+    !allocate(this%seed_harvest_kill(numpft))
     allocate(this%seed_decay(numpft))
+
+    allocate(this%seed_kill(numpft))                      ![Jstenzel added]
+    allocate(this%seed_germ_kill(numpft))                 ![Jstenzel added]
+    allocate(this%seed_in_planted(numpft))                ![Jstenzel added]
 
     ! Initialize everything to a nonsense flag
     this%ag_cwd(:)            = fates_unset_r8
+    this%snag(:)              = fates_unset_r8 ! [JStenzel]
     this%bg_cwd(:,:)          = fates_unset_r8
     this%leaf_fines(:)        = fates_unset_r8
     this%root_fines(:,:)      = fates_unset_r8
@@ -300,6 +358,7 @@ contains
     this%seed_germ(:)         = fates_unset_r8
 
     this%ag_cwd_in(:)         = fates_unset_r8
+    this%snag_in(:)           = fates_unset_r8    ! [JStenzel]
     this%bg_cwd_in(:,:)       = fates_unset_r8
     this%leaf_fines_in(:)     = fates_unset_r8
     this%root_fines_in(:,:)   = fates_unset_r8
@@ -307,13 +366,20 @@ contains
     this%seed_in_extern(:)    = fates_unset_r8
 
     this%ag_cwd_frag(:)       = fates_unset_r8
+    this%snag_frag  (:)       = fates_unset_r8 ! [JStenzel]
+    this%snag_combust  (:)       = fates_unset_r8 ! [JStenzel]
     this%bg_cwd_frag(:,:)     = fates_unset_r8
     this%leaf_fines_frag(:)   = fates_unset_r8
     this%root_fines_frag(:,:) = fates_unset_r8
 
     this%seed_decay(:)        = fates_unset_r8
     this%seed_germ_decay(:)   = fates_unset_r8
+    !this%seed_harvest_kill(:)   = fates_unset_r8
     this%seed_germ_in(:)      = fates_unset_r8
+
+    this%seed_kill(:)         = fates_unset_r8         ![JStenzel added]
+    this%seed_germ_kill(:)    = fates_unset_r8    ![JStenzel added]
+    this%seed_in_planted(:)   = fates_unset_r8   ![JStenzel added]
 
     return
   end subroutine InitAllocate
@@ -324,10 +390,11 @@ contains
                             init_leaf_fines, &
                             init_root_fines, &
                             init_ag_cwd,     &
+                            init_snag,       &         ! [JStenzel]
                             init_bg_cwd,     &
                             init_seed,       &
                             init_seed_germ)
-    
+
     ! This procedure initialized litter pools.  This does not allow initialization
     ! of each soil layer depth, or decomposability pool. This is meant for
     ! uniform initializations. This is used for cold-starts, but is not
@@ -339,11 +406,13 @@ contains
     real(r8),intent(in) :: init_leaf_fines
     real(r8),intent(in) :: init_root_fines
     real(r8),intent(in) :: init_ag_cwd
+    real(r8),intent(in) :: init_snag  ![JStenzel]
     real(r8),intent(in) :: init_bg_cwd
     real(r8),intent(in) :: init_seed
     real(r8),intent(in) :: init_seed_germ
-    
+
     this%ag_cwd(:)              = init_ag_cwd
+    this%snag(:)                = init_snag   ![JStenzel]
     this%bg_cwd(:,:)            = init_bg_cwd
     this%leaf_fines(:)          = init_leaf_fines
     this%root_fines(:,:)        = init_root_fines
@@ -352,11 +421,11 @@ contains
 
     return
   end subroutine InitConditions
-  
+
   ! =====================================================================================
-  
+
   subroutine DeallocateLitt(this)
-    
+
     class(litter_type) :: this
 
     deallocate(this%bg_cwd)
@@ -370,25 +439,31 @@ contains
     deallocate(this%root_fines_in)
     deallocate(this%seed_in_local)
     deallocate(this%seed_in_extern)
-    
+
     deallocate(this%bg_cwd_frag)
     deallocate(this%leaf_fines_frag)
     deallocate(this%root_fines_frag)
-   
+
     deallocate(this%seed_decay)
     deallocate(this%seed_germ_decay)
+    !deallocate(this%seed_harvest_kill)
     deallocate(this%seed_germ_in)
+
+    deallocate(this%seed_kill)       ![JStenzel added]
+    deallocate(this%seed_germ_kill)  ![JStenzel added]
+    deallocate(this%seed_in_planted) ![JStenzel added]
 
     return
   end subroutine DeallocateLitt
-  
+
   ! =====================================================================================
 
   subroutine ZeroFlux(this)
-    
+
     class(litter_type) :: this
-    
+
     this%ag_cwd_in(:)         = 0._r8
+    this%snag_in(:)           = 0._r8 ![JStenzel added]
     this%bg_cwd_in(:,:)       = 0._r8
     this%leaf_fines_in(:)     = 0._r8
     this%root_fines_in(:,:)   = 0._r8
@@ -396,10 +471,12 @@ contains
     this%seed_in_extern(:)    = 0._r8
 
     this%ag_cwd_frag(:)       = 0._r8
+    this%snag_frag(:)         = 0._r8 ![JStenzel added]
+    this%snag_combust(:)      = 0._r8 ![JStenzel added]
     this%bg_cwd_frag(:,:)     = 0._r8
     this%leaf_fines_frag(:)   = 0._r8
     this%root_fines_frag(:,:) = 0._r8
-    
+
     this%seed_germ_in(:)      = 0._r8
     this%seed_decay(:)        = 0._r8
     this%seed_germ_decay(:)   = 0._r8
@@ -411,19 +488,20 @@ contains
   ! ===================================================
 
   function GetTotalLitterMass(this) result(total_mass)
-    
+
     class(litter_type) :: this
     real(r8) :: total_mass
-    
+
     total_mass = sum(this%ag_cwd) + &
+                 sum(this%snag) + &       ![JStenzel]
                  sum(this%bg_cwd) + &
                  sum(this%root_fines) + &
-                 sum(this%leaf_fines) + & 
-                 sum(this%seed) + & 
+                 sum(this%leaf_fines) + &
+                 sum(this%seed) + &
                  sum(this%seed_germ)
-    
+
     return
   end function GetTotalLitterMass
 
-  
+
 end module FatesLitterMod

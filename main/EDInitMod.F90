@@ -75,7 +75,7 @@ module EDInitMod
   use PRTGenericMod,          only : phosphorus_element
   use PRTGenericMod,          only : SetState
   use FatesSizeAgeTypeIndicesMod,only : get_age_class_index
-  
+
   ! CIME GLOBALS
   use shr_log_mod               , only : errMsg => shr_log_errMsg
 
@@ -137,13 +137,13 @@ contains
     if (hlm_use_nocomp .eq. itrue) then
        allocate(site_in%area_pft(0:numpft))
     else  ! SP and nocomp require a bare-ground patch.
-       allocate(site_in%area_pft(1:numpft))  
+       allocate(site_in%area_pft(1:numpft))
     endif
 
     allocate(site_in%use_this_pft(1:numpft))
     allocate(site_in%area_by_age(1:nlevage))
 
-    
+
     ! SP mode
     allocate(site_in%sp_tlai(1:numpft))
     allocate(site_in%sp_tsai(1:numpft))
@@ -209,6 +209,9 @@ contains
     site_in%disturbance_rates_primary_to_secondary(:) = 0.0_r8
     site_in%disturbance_rates_primary_to_primary(:) = 0.0_r8
 
+    site_in%disturbance_rates_any_to_tertiary(:) = 0.0_r8       ! [JStenzel add]
+    site_in%disturbance_rates_tertiary_to_tertiary(:) = 0.0_r8  ! [JStenzel add]
+
     ! FIRE
     site_in%acc_ni           = 0.0_r8     ! daily nesterov index accumulating over time. time unlimited theoretically.
     site_in%NF               = 0.0_r8     ! daily lightning strikes per km2
@@ -255,7 +258,7 @@ contains
     site_in%area_pft(:) = 0._r8
     site_in%use_this_pft(:) = fates_unset_int
     site_in%area_by_age(:) = 0._r8
-    
+
   end subroutine zero_site
 
   ! ============================================================================
@@ -361,7 +364,7 @@ contains
              ! the bare ground will no longer be proscribed and should emerge from FATES
              ! this may or may not be the right way to deal with this?
 
-             if(hlm_use_nocomp.eq.ifalse)then ! when not in nocomp (i.e. or SP) mode, 
+             if(hlm_use_nocomp.eq.ifalse)then ! when not in nocomp (i.e. or SP) mode,
                 ! subsume bare ground evenly into the existing patches.
 
                 sumarea = sum(sites(s)%area_pft(1:numpft))
@@ -437,7 +440,7 @@ contains
     integer  :: el
     real(r8) :: age !notional age of this patch
     integer  :: ageclass
-    
+
     ! dummy locals
     real(r8) :: biomass_stock
     real(r8) :: litter_stock
@@ -564,6 +567,7 @@ contains
                    call newp%litter(el)%InitConditions(init_leaf_fines=0._r8, &
                         init_root_fines=0._r8, &
                         init_ag_cwd=0._r8, &
+                        init_snag=0._r8, &     ![JStenzel]
                         init_bg_cwd=0._r8, &
                         init_seed=0._r8,   &
                         init_seed_germ=0._r8)

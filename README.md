@@ -1,6 +1,7 @@
-# Branch Notes
+# **Mortality 4**
+
+(Incomplete) Need new clearcut patches to not be fused. Here, reverting primary/secondary land definitions to test that this is the change that broke patch creation for logged patches.
 ------------------------------
-## **Mortality 3**
 
 
 ## **Mortality 2**

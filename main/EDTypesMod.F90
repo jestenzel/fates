@@ -27,9 +27,9 @@ module EDTypesMod
   private               ! By default everything is private
   save
 
-  integer, parameter, public :: maxPatchesPerSite  = 14   ! maximum number of patches to live on a site
+  integer, parameter, public :: maxPatchesPerSite  = 16   ! maximum number of patches to live on a site ![Jstenzel edit test]
   integer, parameter, public :: maxPatchesPerSite_by_disttype(n_anthro_disturbance_categories)  = &
-                                                     (/ 10, 4 /)  !!! MUST SUM TO maxPatchesPerSite !!!
+                                                     (/ 8, 4, 4 /)  !!! MUST SUM TO maxPatchesPerSite !!! [JStenzel edit]
   integer,  public :: maxCohortsPerPatch = 100            ! maximum number of cohorts per patch
 
   integer, parameter, public :: nclmax = 2                ! Maximum number of canopy layers
@@ -840,6 +840,10 @@ module EDTypesMod
      real(r8) :: disturbance_rates_primary_to_primary(N_DIST_TYPES)      ! actual disturbance rates from primary patches to primary patches [m2/m2/day]
      real(r8) :: disturbance_rates_primary_to_secondary(N_DIST_TYPES)    ! actual disturbance rates from primary patches to secondary patches [m2/m2/day]
      real(r8) :: disturbance_rates_secondary_to_secondary(N_DIST_TYPES)  ! actual disturbance rates from secondary patches to secondary patches [m2/m2/day]
+
+     real(r8) :: disturbance_rates_any_to_tertiary(N_DIST_TYPES)  ! actual disturbance rates from 1st/2nd patches to tertiary patches [m2/m2/day] ![JStenzel added]
+     real(r8) :: disturbance_rates_tertiary_to_tertiary(N_DIST_TYPES)  ! actual disturbance rates from tertiary patches to tertiary patches [m2/m2/day] ![JStenzel added]
+
      real(r8) :: potential_disturbance_rates(N_DIST_TYPES)               ! "potential" disturb rates (i.e. prior to the "which is most" logic) [m2/m2/day]
      real(r8) :: primary_land_patchfusion_error                          ! error term in total area of primary patches associated with patch fusion [m2/m2/day]
      real(r8) :: harvest_carbon_flux                                     ! diagnostic site level flux of carbon as harvested plants [kg C / m2 / day]

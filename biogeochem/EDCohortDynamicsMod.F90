@@ -315,7 +315,7 @@ contains
     !! allocate(new_cohort%tveg_lpa)
     !! call new_cohort%tveg_lpa%InitRMean(ema_lpa,init_value=patchptr%tveg_lpa%GetMean())
 
-    
+
     ! Recuits do not have mortality rates, nor have they moved any
     ! carbon when they are created.  They will bias our statistics
     ! until they have experienced a full day.  We need a newly recruited flag.
@@ -1177,7 +1177,7 @@ contains
                                    ! Running mean fuses based on number density fraction just
                                    ! like other variables
                                    !!call currentCohort%tveg_lpa%FuseRMean(nextc%tveg_lpa,currentCohort%n/newn)
-                                   
+
                                    ! new cohort age is weighted mean of two cohorts
                                    currentCohort%coage = &
                                         (currentCohort%coage * (currentCohort%n/(currentCohort%n + nextc%n))) + &
@@ -1824,7 +1824,7 @@ contains
     !  (Keeping as an example)
     ! Copy over running means
     ! call n%tveg_lpa%CopyFromDonor(o%tveg_lpa)
-    
+
     ! CARBON FLUXES
     n%gpp_acc_hold    = o%gpp_acc_hold
     n%gpp_acc         = o%gpp_acc

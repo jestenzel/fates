@@ -34,7 +34,7 @@ module EDPatchDynamicsMod
   use PRTGenericMod        , only : num_elements
   use PRTGenericMod        , only : element_list
   use EDTypesMod           , only : lg_sf
-  use EDTypesMod           , only : dl_sf
+  use EDTypesMod           , only : dl_sf, tr_sf, lb_sf
   use EDTypesMod           , only : dump_patch
   use EDTypesMod           , only : N_DIST_TYPES
   use EDTypesMod           , only : AREA_INV
@@ -49,6 +49,7 @@ module EDPatchDynamicsMod
   use FatesInterfaceTypesMod    , only : hlm_use_sp
   use FatesInterfaceTypesMod    , only : hlm_use_nocomp
   use FatesInterfaceTypesMod    , only : hlm_use_fixed_biogeog
+  use FatesInterfaceTypesMod    , only : hlm_num_lu_harvest_cats  ![JStenzel added]
   use FatesGlobals         , only : endrun => fates_endrun
   use FatesConstantsMod    , only : r8 => fates_r8
   use FatesConstantsMod    , only : itrue, ifalse
@@ -68,6 +69,7 @@ module EDPatchDynamicsMod
   use FatesConstantsMod    , only : years_per_day
   use FatesConstantsMod    , only : nearzero
   use FatesConstantsMod    , only : primaryforest, secondaryforest
+  use FatesConstantsMod    , only : tertiaryforest    ![JStenzel added]
   use FatesConstantsMod    , only : n_anthro_disturbance_categories
   use FatesConstantsMod    , only : fates_unset_r8
   use FatesConstantsMod    , only : fates_unset_int
@@ -89,7 +91,9 @@ module EDPatchDynamicsMod
   use SFParamsMod,            only : SF_VAL_CWD_FRAC
   use EDParamsMod,            only : logging_event_code
   use EDParamsMod,            only : logging_export_frac
-  use FatesRunningMeanMod,    only : ema_24hr, fixed_24hr, ema_lpa, fixed_24hr_min, fixed_24hr_max
+
+  use FatesRunningMeanMod,    only : ema_24hr, fixed_24hr, ema_lpa, fixed_24hr_min, fixed_24hr_max ![JStenzel added]
+
 
   ! CIME globals
   use shr_infnan_mod       , only : nan => shr_infnan_nan, assignment(=)
@@ -132,8 +136,8 @@ module EDPatchDynamicsMod
   ! all litter is sent to the new patch.
 
   real(r8), parameter :: existing_litt_localization = 1.0_r8
-  real(r8), parameter :: treefall_localization = 0.0_r8
-  real(r8), parameter :: burn_localization = 0.0_r8
+  real(r8), parameter :: treefall_localization = 1.0_r8     ![JStenzel change]
+  real(r8), parameter :: burn_localization = 1.0_r8         ![JStenzel change]
 
 
   ! 10/30/09: Created by Rosie Fisher
@@ -215,7 +219,7 @@ contains
           currentCohort%bmort = bmort
           currentCohort%hmort = hmort
           currentCohort%frmort = frmort
-	  currentCohort%heatmort = heatmort
+	       currentCohort%heatmort = heatmort
           currentCohort%smort = smort
           currentCohort%asmort = asmort
 
@@ -370,7 +374,7 @@ contains
                 currentCohort%bmort = currentCohort%bmort*(1.0_r8 - fates_mortality_disturbance_fraction)
                 currentCohort%dmort = currentCohort%dmort*(1.0_r8 - fates_mortality_disturbance_fraction)
                 currentCohort%frmort = currentCohort%frmort*(1.0_r8 - fates_mortality_disturbance_fraction)
-		currentCohort%heatmort = currentCohort%heatmort*(1.0_r8 - fates_mortality_disturbance_fraction)
+	           	currentCohort%heatmort = currentCohort%heatmort*(1.0_r8 - fates_mortality_disturbance_fraction)
                 currentCohort%smort = currentCohort%smort*(1.0_r8 - fates_mortality_disturbance_fraction)
                 currentCohort%asmort = currentCohort%asmort*(1.0_r8 - fates_mortality_disturbance_fraction)
              end if
@@ -393,7 +397,7 @@ contains
                 currentCohort%bmort = currentCohort%bmort*(1.0_r8 - fates_mortality_disturbance_fraction)
                 currentCohort%dmort = currentCohort%dmort*(1.0_r8 - fates_mortality_disturbance_fraction)
                 currentCohort%frmort = currentCohort%frmort*(1.0_r8 - fates_mortality_disturbance_fraction)
-		currentCohort%heatmort = currentCohort%heatmort*(1.0_r8 - fates_mortality_disturbance_fraction)
+	         	currentCohort%heatmort = currentCohort%heatmort*(1.0_r8 - fates_mortality_disturbance_fraction)
                 currentCohort%smort = currentCohort%smort*(1.0_r8 - fates_mortality_disturbance_fraction)
                 currentCohort%asmort = currentCohort%asmort*(1.0_r8 - fates_mortality_disturbance_fraction)
                 currentCohort%lmort_direct    = 0.0_r8
@@ -460,6 +464,9 @@ contains
     use EDParamsMod         , only : ED_val_understorey_death, logging_coll_under_frac
     use EDCohortDynamicsMod , only : zero_cohort, copy_cohort, terminate_cohorts
     use FatesConstantsMod   , only : rsnbl_math_prec
+    use EDtypesMod          , only : NFSC ![JStenzel added]
+    use SFParamsMod         , only : SF_val_dead_slash_burn
+
 
     !
     ! !ARGUMENTS:
@@ -470,6 +477,7 @@ contains
     type (ed_patch_type) , pointer :: new_patch
     type (ed_patch_type) , pointer :: new_patch_primary
     type (ed_patch_type) , pointer :: new_patch_secondary
+    type (ed_patch_type) , pointer :: new_patch_tertiary ![JStenzel add]
     type (ed_patch_type) , pointer :: currentPatch
     type (ed_cohort_type), pointer :: currentCohort
     type (ed_cohort_type), pointer :: nc
@@ -477,6 +485,7 @@ contains
     type (ed_cohort_type), pointer :: storebigcohort
     real(r8) :: site_areadis_primary         ! total area disturbed (to primary forest) in m2 per site per day
     real(r8) :: site_areadis_secondary       ! total area disturbed (to secondary forest) in m2 per site per day
+    real(r8) :: site_areadis_tertiary       ! [JStenzel add)] total area disturbed (to tertiary forest) in m2 per site per day
     real(r8) :: patch_site_areadis           ! total area disturbed in m2 per patch per day
     real(r8) :: age                          ! notional age of this patch in years
     integer  :: el                           ! element loop index
@@ -493,6 +502,15 @@ contains
                                              ! for both woody and grass species
     real(r8) :: leaf_m                       ! leaf mass during partial burn calculations
     logical  :: found_youngest_primary       ! logical for finding the first primary forest patch
+    logical  :: found_youngest_secondary     ! logical for finding the first primary forest patch ![JStenzel added]
+
+    real(r8) :: planting_rate                ! fraction of cell to be be harvested + planted,
+                                             ! based on hlm input  [JStenzel added]
+    integer  :: planting_time                ! binary 0/1 that dictates if a harvest is resulting in
+                                             ! seedling planting on site [JStenzel added]
+    integer :: h_index   ! for looping over harvest categories [JStenzel added]
+    integer :: i_fuel    ![JStenzel added] for looping over fuels categories
+
     !---------------------------------------------------------------------
 
     storesmallcohort => null() ! storage of the smallest cohort for insertion routine
@@ -503,11 +521,35 @@ contains
 
     site_areadis_primary = 0.0_r8
     site_areadis_secondary = 0.0_r8
+    site_areadis_tertiary = 0.0_r8
 
     ! zero the diagnostic disturbance rate fields
     currentSite%disturbance_rates_primary_to_primary(1:N_DIST_TYPES) = 0._r8
     currentSite%disturbance_rates_primary_to_secondary(1:N_DIST_TYPES) = 0._r8
     currentSite%disturbance_rates_secondary_to_secondary(1:N_DIST_TYPES) = 0._r8
+
+    !currentSite%disturbance_rates_to_planted(1:N_DIST_TYPES) = 0._r8 ![JStenzel add] !!!!
+    currentSite%disturbance_rates_any_to_tertiary = 0._r8 ![JStenzel add] !!!!
+    currentSite%disturbance_rates_tertiary_to_tertiary = 0._r8 ![JStenzel add] !!!!
+
+
+    ! [JStenzel Start]
+
+    planting_rate = 0.0_r8
+    planting_time = 0
+
+    do h_index = 1, hlm_num_lu_harvest_cats
+      if ( bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_VH2" ) then     !!!!! need to make sure this works
+         planting_rate = planting_rate + bc_in%hlm_harvest_rates(h_index)
+      end if
+    end do
+
+    if ( planting_rate .gt. 0.0_r8) then
+      planting_time = 1
+    end if
+
+
+    ! [JStenzel End]
 
     do while(associated(currentPatch))
 
@@ -531,8 +573,15 @@ contains
           ! figure out whether the receiver patch for disturbance from this patch will be
           ! primary or secondary land receiver patch is primary forest only if both the
           ! donor patch is primary forest and the dominant disturbance type is not logging
-          if ( currentPatch%anthro_disturbance_label .eq. primaryforest .and. &
-                (currentPatch%disturbance_mode .ne. dtype_ilog) ) then
+          if ( currentPatch%anthro_disturbance_label .eq. primaryforest .and. &    !!!! [JStenzel]  definition edited
+               (currentPatch%disturbance_mode .ne. dtype_ilog) ) then
+
+          !JStenzel: Major change: Primary lands considered all lands without regeneration harvest
+          ! i.e. no forced pft switch, even if harvest occurs.
+          !if ( currentPatch%anthro_disturbance_label .eq. primaryforest .and. .not. &    !!!! [JStenzel]  definition edited
+            !    (currentPatch%disturbance_mode .eq. dtype_ilog .and. planting_time .eq. 1) ) then
+
+
 
              site_areadis_primary = site_areadis_primary + currentPatch%area * currentPatch%disturbance_rate
 
@@ -540,6 +589,25 @@ contains
              currentSite%disturbance_rates_primary_to_primary(currentPatch%disturbance_mode) = &
                   currentSite%disturbance_rates_primary_to_primary(currentPatch%disturbance_mode) + &
                   currentPatch%area * currentPatch%disturbance_rate * AREA_INV
+
+          elseif ( currentPatch%anthro_disturbance_label .eq. tertiaryforest  .or. &
+             (currentPatch%disturbance_mode .eq. dtype_ilog .and. planting_time .eq. 1) ) then ! [JStenzel added] tertiary (planted) lands
+
+             site_areadis_tertiary = site_areadis_tertiary + currentPatch%area * currentPatch%disturbance_rate
+
+                  if ( currentPatch%anthro_disturbance_label .eq. tertiaryforest) then
+                     ! note: with the below 'else' this implies that tertiary forests are not being planted more than once
+                     currentSite%disturbance_rates_tertiary_to_tertiary(currentPatch%disturbance_mode) = & !!!! new variable
+                          currentSite%disturbance_rates_tertiary_to_tertiary(currentPatch%disturbance_mode) + &
+                          currentPatch%area * currentPatch%disturbance_rate * AREA_INV
+                  else
+                     ! note: with the above 'if', this implies that tertiary forests are not being planted more than once.
+                     currentSite%disturbance_rates_any_to_tertiary(currentPatch%disturbance_mode) = &  !!!! new variable
+                          currentSite%disturbance_rates_any_to_tertiary(currentPatch%disturbance_mode) + &
+                          currentPatch%area * currentPatch%disturbance_rate * AREA_INV
+                  end if
+
+
           else
              site_areadis_secondary = site_areadis_secondary + currentPatch%area * currentPatch%disturbance_rate
 
@@ -562,7 +630,7 @@ contains
     enddo ! end loop over patches. sum area disturbed for all patches.
 
     ! It is possible that no disturbance area was generated
-    if ( (site_areadis_primary + site_areadis_secondary) > nearzero) then
+    if ( (site_areadis_primary + site_areadis_secondary + site_areadis_tertiary) > nearzero) then
 
        age = 0.0_r8
 
@@ -581,6 +649,7 @@ contains
               call new_patch_primary%litter(el)%InitConditions(init_leaf_fines=0._r8, &
                     init_root_fines=0._r8, &
                     init_ag_cwd=0._r8, &
+                    init_snag =0._r8, &        ![JStenzel]
                     init_bg_cwd=0._r8, &
                     init_seed=0._r8,   &
                     init_seed_germ=0._r8)
@@ -603,6 +672,7 @@ contains
               call new_patch_secondary%litter(el)%InitConditions(init_leaf_fines=0._r8, &
                     init_root_fines=0._r8, &
                     init_ag_cwd=0._r8, &
+                    init_snag =0._r8, &        ![JStenzel]
                     init_bg_cwd=0._r8, &
                     init_seed=0._r8,   &
                     init_seed_germ=0._r8)
@@ -611,6 +681,24 @@ contains
           new_patch_secondary%shortest => null()
 
        endif
+
+       if ( site_areadis_tertiary .gt. nearzero) then    ![JStenzel add] Terciary forest (ie plantation)
+          allocate(new_patch_tertiary)
+          call create_patch(currentSite, new_patch_tertiary, age, &
+               site_areadis_tertiary, tertiaryforest,fates_unset_int)
+               do el=1,num_elements
+                   call new_patch_tertiary%litter(el)%InitConditions(init_leaf_fines=0._r8, &
+                         init_root_fines=0._r8, &
+                         init_ag_cwd=0._r8, &
+                         init_snag =0._r8, &        ![JStenzel]
+                         init_bg_cwd=0._r8, &
+                         init_seed=0._r8,   &
+                         init_seed_germ=0._r8)
+               end do
+               new_patch_tertiary%tallest  => null()
+               new_patch_tertiary%shortest => null()
+
+       end if
 
        ! loop round all the patches that contribute surviving indivduals and litter
        ! pools to the new patch.  We only loop the pre-existing patches, so
@@ -630,12 +718,23 @@ contains
               ! will be primary or secondary land receiver patch is primary forest
               ! only if both the donor patch is primary forest and the dominant
               ! disturbance type is not logging
-              if (currentPatch%anthro_disturbance_label .eq. primaryforest .and. &
+
+               if (currentPatch%anthro_disturbance_label .eq. primaryforest .and. &
                     (currentPatch%disturbance_mode .ne. dtype_ilog)) then
+                  ! new_patch => new_patch_primary
+
+
                   new_patch => new_patch_primary
+
+               elseif ( currentPatch%anthro_disturbance_label .eq. tertiaryforest  .or. &    ! [JStenzel added] tertiary (planted) lands
+                  (currentPatch%disturbance_mode .eq. dtype_ilog .and. planting_time .eq. 1) ) then
+
+                   new_patch => new_patch_tertiary
+
               else
                   new_patch => new_patch_secondary
               endif
+
 
               if(.not.associated(new_patch))then
                   write(fates_log(),*) 'Patch spawning has attempted to point to'
@@ -661,11 +760,27 @@ contains
              ! and burned litter to atmosphere. Thus it is important to zero burnt_frac_litter when
              ! fire is not the dominant disturbance regime.
 
-             if(currentPatch%disturbance_mode .ne. dtype_ifire) then
-                 currentPatch%burnt_frac_litter(:) = 0._r8
-             end if
+             ![JStenzel edits start]
+             ! If dtype = i_fall, zero out burn_frac_litter from fire rates. If dtype = ilog, use
+             ! prescribed logging slash combustion rates. !!!! Currently, burnt_frac is not reduced
+             ! for SF_val_miner_total; The mineral content reduction was only applied to ground fuels
+             ! during  spitfire calculation, and not live tree consumed canopy in
+             !'fire_litter_fluxes()'' below. !!! Not currently adjusted for l_degrad area, meaning
+             ! there is no differentiating between existing-dead mass combustion as slash for
+             ! selective harvest vs clearcuts.
+             if (currentPatch%disturbance_mode .ne. dtype_ifire) then
+                 if ( currentPatch%disturbance_mode .ne. dtype_ilog ) then
+                     currentPatch%burnt_frac_litter(:) = 0._r8
+                 else
+                    do i_fuel=1,nfsc
+                       currentPatch%burnt_frac_litter(i_fuel) = SF_val_dead_slash_burn(i_fuel)
+                    end do
+                 end if
+             end if   ![JStenzel edits end]
 
-             call TransLitterNewPatch( currentSite, currentPatch, new_patch, patch_site_areadis)
+             !call TransLitterNewPatch( currentSite, currentPatch, new_patch, patch_site_areadis)
+             call TransLitterNewPatch( currentSite, currentPatch, new_patch, patch_site_areadis, &
+                  planting_time)
 
              ! Transfer in litter fluxes from plants in various contexts of death and destruction
 
@@ -755,7 +870,7 @@ contains
                       nc%hmort = nan
                       nc%bmort = nan
                       nc%frmort = nan
-		      nc%heatmort = nan
+		                nc%heatmort = nan
                       nc%smort = nan
                       nc%asmort = nan
                       nc%lmort_direct     = nan
@@ -810,7 +925,7 @@ contains
                          nc%hmort            = currentCohort%hmort
                          nc%bmort            = currentCohort%bmort
                          nc%frmort           = currentCohort%frmort
-			 nc%heatmort         = currentCohort%heatmort
+			                nc%heatmort         = currentCohort%heatmort
                          nc%smort            = currentCohort%smort
                          nc%asmort           = currentCohort%asmort
                          nc%dmort            = currentCohort%dmort
@@ -837,7 +952,7 @@ contains
                          nc%hmort            = currentCohort%hmort
                          nc%bmort            = currentCohort%bmort
                          nc%frmort           = currentCohort%frmort
-			 nc%heatmort         = currentCohort%heatmort
+			                nc%heatmort         = currentCohort%heatmort
                          nc%smort            = currentCohort%smort
                          nc%asmort           = currentCohort%asmort
                          nc%dmort            = currentCohort%dmort
@@ -895,7 +1010,7 @@ contains
                    nc%hmort            = currentCohort%hmort
                    nc%bmort            = currentCohort%bmort
                    nc%frmort           = currentCohort%frmort
-		   nc%heatmort         = currentCohort%heatmort
+		             nc%heatmort         = currentCohort%heatmort
                    nc%smort            = currentCohort%smort
                    nc%asmort           = currentCohort%asmort
                    nc%dmort            = currentCohort%dmort
@@ -971,7 +1086,7 @@ contains
                       nc%hmort            = currentCohort%hmort
                       nc%bmort            = currentCohort%bmort
                       nc%frmort           = currentCohort%frmort
-		      nc%heatmort         = currentCohort%heatmort
+		                nc%heatmort         = currentCohort%heatmort
                       nc%smort            = currentCohort%smort
                       nc%asmort           = currentCohort%asmort
                       nc%dmort            = currentCohort%dmort
@@ -1033,7 +1148,7 @@ contains
                          nc%hmort            = currentCohort%hmort
                          nc%bmort            = currentCohort%bmort
                          nc%frmort           = currentCohort%frmort
-			 nc%heatmort         = currentCohort%heatmort
+			                nc%heatmort         = currentCohort%heatmort
                          nc%smort            = currentCohort%smort
                          nc%asmort           = currentCohort%asmort
                          nc%dmort            = currentCohort%dmort
@@ -1056,7 +1171,7 @@ contains
                          nc%hmort            = currentCohort%hmort
                          nc%bmort            = currentCohort%bmort
                          nc%frmort           = currentCohort%frmort
-			 nc%heatmort         = currentCohort%heatmort
+			                nc%heatmort         = currentCohort%heatmort
                          nc%smort            = currentCohort%smort
                          nc%asmort           = currentCohort%asmort
                          nc%dmort            = currentCohort%dmort
@@ -1141,7 +1256,9 @@ contains
           currentPatch               => currentSite%youngest_patch
           ! insert new youngest primary patch after all the secondary patches, if there are any.
           ! this requires first finding the current youngest primary to insert the new one ahead of
-          if (currentPatch%anthro_disturbance_label .eq. secondaryforest ) then
+          !if (currentPatch%anthro_disturbance_label .eq. secondaryforest ) then
+          if (currentPatch%anthro_disturbance_label .eq. secondaryforest .or. &   ![JStenzel added]
+               currentPatch%anthro_disturbance_label .eq. tertiaryforest ) then   !
              found_youngest_primary = .false.
              do while(associated(currentPatch) .and. .not. found_youngest_primary)
                 currentPatch => currentPatch%older
@@ -1167,7 +1284,7 @@ contains
                 currentSite%oldest_patch   => new_patch_primary
              endif
           else
-             ! the case where there are no secondary patches at the start of the linked list (prior logic)
+             ! the case where there are no secondary/terciary patches at the start of the linked list (prior logic)
              new_patch_primary%older    => currentPatch
              new_patch_primary%younger  => null()
              currentPatch%younger       => new_patch_primary
@@ -1177,11 +1294,62 @@ contains
 
       ! insert first secondary at the start of the list
       if ( site_areadis_secondary .gt. nearzero) then
+         currentPatch               => currentSite%youngest_patch
+         if ( currentPatch%anthro_disturbance_label .eq. tertiaryforest ) then
+            found_youngest_secondary = .false.
+            found_youngest_primary = .false. !!!!!
+            do while(associated(currentPatch) .and. .not. &
+               ( found_youngest_secondary .or. found_youngest_primary) )  !!! check
+               currentPatch => currentPatch%older
+               if (associated(currentPatch)) then
+                  if (currentPatch%anthro_disturbance_label .eq. secondaryforest) then
+                     found_youngest_secondary = .true.
+                  end if
+                  ! [JStenzel] If primary forest is found before secondary forest, that means there is no secondary forest
+                  ! and that the loop can be ended
+                  if ( currentPatch%anthro_disturbance_label .eq. primaryforest ) then ! [Added]
+                     found_youngest_primary = .true.
+                  endif
+
+               endif
+            end do
+            if (associated(currentPatch) .and. ( found_youngest_secondary .or. & ![Added]
+                  found_youngest_primary )) then
+               ! the case where we've found a youngest secondary or primary patch for the new secondary to be inserted before !
+               new_patch_secondary%older    => currentPatch
+               new_patch_secondary%younger  => currentPatch%younger
+               currentPatch%younger%older => new_patch_secondary
+               currentPatch%younger       => new_patch_secondary
+
+            else
+               ! the case where we haven't, because there are no current [JStenzel] secondary OR primary patches  (ie this is the "oldest" patch)
+               !if (currentSite%oldest_patch%anthro_disturbance_label .eq. tertiaryforest ) !!! Not sure if there's a reason to NOT do this, and instead reuse "found_youngest_primary in the preceding loop"
+               !if ( .not. found_youngest_primary ) then !!!!!! correct syntax?
+                  new_patch_secondary%older    => null()
+                  new_patch_secondary%younger  => currentSite%oldest_patch
+                  currentSite%oldest_patch%older   => new_patch_secondary
+                  currentSite%oldest_patch   => new_patch_secondary
+               !else ( found_youngest_primary ) then
+
+
+            endif
+         else
+           ! the case where there are no terciary patches at the start of the linked list
+           new_patch_secondary%older    => currentPatch
+           new_patch_secondary%younger  => null()
+           currentPatch%younger       => new_patch_secondary
+           currentSite%youngest_patch => new_patch_secondary
+         endif
+     endif                 ! [JStenzel secondary land insert end]
+
+
+      ! insert first tertiary at the start of the list   ![JStenzel added] This replaces new secondary at the start of the list !!!!
+      if ( site_areadis_tertiary .gt. nearzero) then
           currentPatch               => currentSite%youngest_patch
-          new_patch_secondary%older  => currentPatch
-          new_patch_secondary%younger=> null()
-          currentPatch%younger       => new_patch_secondary
-          currentSite%youngest_patch => new_patch_secondary
+          new_patch_tertiary%older   => currentPatch
+          new_patch_tertiary%younger=> null()
+          currentPatch%younger       => new_patch_tertiary
+          currentSite%youngest_patch => new_patch_tertiary
       endif
 
 
@@ -1203,6 +1371,13 @@ contains
           call terminate_cohorts(currentSite, new_patch_secondary, 2,18,bc_in)
           call sort_cohorts(new_patch_secondary)
        endif
+
+       if ( site_areadis_tertiary .gt. nearzero) then                         ! [JStenzel added]
+          call terminate_cohorts(currentSite, new_patch_tertiary, 1,19,bc_in) !
+          call fuse_cohorts(currentSite,new_patch_tertiary, bc_in)            !
+          call terminate_cohorts(currentSite, new_patch_tertiary, 2,19,bc_in) !
+          call sort_cohorts(new_patch_tertiary)                               !
+       endif                                                                  !
 
     endif !end new_patch area
 
@@ -1333,7 +1508,8 @@ contains
   subroutine TransLitterNewPatch(currentSite,        &
                                  currentPatch,       &
                                  newPatch,           &
-                                 patch_site_areadis)
+                                 patch_site_areadis, &
+                                 planting_time)  ! JStenzel added
 
     ! -----------------------------------------------------------------------------------
     !
@@ -1375,13 +1551,16 @@ contains
 
     !
     ! !USES:
-    !
+    use SFParamsMod,            only : SF_val_snag_burn_switch
     ! !ARGUMENTS:
     type(ed_site_type)  , intent(in), target  :: currentSite        ! site
     type(ed_patch_type) , intent(in), target  :: currentPatch       ! Donor patch
     type(ed_patch_type) , intent(inout)       :: newPatch           ! New patch
     real(r8)            , intent(in)          :: patch_site_areadis ! Area being donated
                                                                     ! by current patch
+    ! Flag for hlm regeneration harvest event [JStenzel add]
+    integer         , intent(in)          :: planting_time
+
 
 
     ! locals
@@ -1404,12 +1583,22 @@ contains
     real(r8) :: litter_stock0,litter_stock1
     real(r8) :: burn_flux0,burn_flux1
     real(r8) :: error
+    !integer  :: snag_burn_switch           ![JStenzel added] Hardcoded on/off for snag-combusting logic
+    integer  :: scorch_count               ![JStenzel added] Count of patch pfts w/ non-zero scorch hts
+    real(r8) :: scorch_total               ![JStenzel added] Running total of patch pft scorch hts
+    real(r8) :: scorch_avg                 ![JStenzel added] Average scorch height of patch pfts
+    real(r8) :: snag_donatable_mass        ![JStenzel added]
+    real(r8) :: snag_burned_mass           ![JStenzel added]
+    logical  :: snag_burn                  ![JStenzel added] Are all the conditions met for some
+                                           !     snag combustion on this patch?
+
 
     do el = 1,num_elements
 
        site_mass => currentSite%mass_balance(el)
        curr_litt  => currentPatch%litter(el)
        new_litt  => newPatch%litter(el)
+
 
        ! Distribute the fragmentation litter flux rates. This is only used for diagnostics
        ! at this point.  Litter fragmentation has already been passed to the output
@@ -1419,11 +1608,23 @@ contains
           new_litt%ag_cwd_frag(c) = new_litt%ag_cwd_frag(c) + &
                curr_litt%ag_cwd_frag(c) * patch_site_areadis/newPatch%area
 
+          new_litt%snag_frag(c) = new_litt%snag_frag(c) + curr_litt%snag_frag(c) * & ![JStenzel added] for diagnostics
+               patch_site_areadis/newPatch%area
+          new_litt%snag_in(c) = new_litt%snag_in(c) + curr_litt%snag_in(c) * & ![JStenzel added] for diagnostics
+               patch_site_areadis/newPatch%area
+
           do sl=1,currentSite%nlevsoil
              new_litt%bg_cwd_frag(c,sl) = new_litt%bg_cwd_frag(c,sl) + &
                    curr_litt%bg_cwd_frag(c,sl) * patch_site_areadis/newPatch%area
           end do
        enddo
+
+       new_litt%snag_frag(dl_sf) = new_litt%snag_frag(dl_sf) + curr_litt%snag_frag(dl_sf) * &   ![JStenzel added] for diagnostics
+            patch_site_areadis/newPatch%area
+       !This needs to be added because I'll be adding history variable calcs from this input var,
+       ! rather than a site-wide diagnostic variable.
+       new_litt%snag_in(dl_sf) = new_litt%snag_in(dl_sf) + curr_litt%snag_in(dl_sf) * &   ![JStenzel added] for diagnostics
+            patch_site_areadis/newPatch%area
 
        do dcmpy = 1,ndcmpy
 
@@ -1488,6 +1689,44 @@ contains
                           new_litt%GetTotalLitterMass()*newPatch%area
        end if
 
+       ! [JStenzel add start] Patch snag burn logic. This should get refined. Right now there is:
+       ! 1) A hard-coded off switch ; 2) Some snag mass can potentially get burned if 1000hr fuels
+       ! on the ground burn at all; 3) A patch average scorch height is determined by looping through
+       ! pfts and averaging.
+       !snag_burn_switch = 0
+       snag_burn = .false.
+       ! need to add multiple local variables for this! !!!!
+
+       if ( SF_val_snag_burn_switch .eq. 1.0_r8 ) then
+          if ( currentPatch%disturbance_mode .eq. dtype_ifire ) then
+
+             if ( currentPatch%burnt_frac_litter(tr_sf) .gt. 0.01_r8) then
+
+                scorch_total = 0.0_r8
+                scorch_count= 0
+
+                do pft = 1,numpft
+                   if ( currentPatch%scorch_ht(pft) .gt. 0.0_r8) then
+                      scorch_count = scorch_count + 1
+                      scorch_total = scorch_total + currentPatch%scorch_ht(pft)
+                   end if
+                end do
+
+                if (scorch_count .gt. 0 ) then
+                  scorch_avg = scorch_total / scorch_count
+
+                  if ( scorch_avg > 5.0_r8 ) then
+                     snag_burn = .true.
+                  end if
+
+                end if
+
+             end if           ! 1000 hr fuels are burning
+          end if              ! currentPatch%fire  ==  itrue
+       end if                 !burn switch
+
+       ![ JStenzel end snag burn logic]
+
        do c = 1,ncwd
 
           ! Transfer above ground CWD
@@ -1500,7 +1739,45 @@ contains
           new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + donatable_mass*donate_m2
           curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + donatable_mass*retain_m2
 
-          site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
+          ! [JStenzel edit/add start] Transfer snag pools. combustion losses for twigs and small branches
+          ! If fire "reaches" snag canopies, combustion for these small woody pools is currently
+          ! set to their equivalent pools on the ground. Large branches and boles are considered
+          ! negligably combustable currently. This seems reasonable if the fall rate is around a decade
+          ! and bark would remain present.
+
+          if ( ( (c == 1 .or. c == 2) .and. snag_burn ) .or. &  !snag_burn should only be true if dtype = fire. If dtype = log, burn frac should have been replaced in "spawn_patches()"
+               currentPatch%disturbance_mode .eq. dtype_ilog ) then
+
+             snag_donatable_mass = curr_litt%snag(c) * patch_site_areadis * &
+                                  (1._r8 - currentPatch%burnt_frac_litter(c) )
+             snag_burned_mass = curr_litt%snag(c) * patch_site_areadis * &
+                                  currentPatch%burnt_frac_litter(c)
+
+             new_litt%snag_combust(c) = new_litt%snag_combust(c) + &
+                  snag_burned_mass / newPatch%area
+
+             !?flux_diags%snag_combusted(c) = flux_diags%snag_combusted(c) + snag_burned_mass
+
+          !else if ( snag_burn ) then
+
+            ! snag_donatable_mass = curr_litt%snag(c) * patch_site_areadis * &
+               !                   ( 0.95_r8 )
+             !snag_burned_mass = curr_litt%snag(c) * patch_site_areadis * &
+               !                   ( 0.05_r8)
+
+          else
+             snag_donatable_mass = curr_litt%snag(c) * patch_site_areadis
+             snag_burned_mass = 0.0_r8
+          end if
+
+          site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass +snag_burned_mass ![JStenzel add] Snag and cwd  burned mass
+
+         ! new_litt%snag(c) = new_litt%snag(c) + curr_litt%snag(c) * patch_site_areadis * donate_m2       ![JStenzel] right now this is not burning any snag mass
+          !curr_litt%snag(c) = curr_litt%snag(c) + curr_litt%snag(c) * patch_site_areadis *retain_m2      ![JStenzel] right now this is not burning any snag mass
+          new_litt%snag(c) = new_litt%snag(c) + snag_donatable_mass * donate_m2       ![JStenzel] With snag mass burning
+          curr_litt%snag(c) = curr_litt%snag(c) + snag_donatable_mass * retain_m2      ![JStenzel] With snag mass burning
+
+          ! [JStenzel edit end]
 
           ! Transfer below ground CWD (none burns)
 
@@ -1512,14 +1789,53 @@ contains
 
        enddo
 
+       ![JStenzel start add] Transfer snag leaves. Combustion losses if snag_burn is .true.
+
+       if ( (snag_burn) .or. ( currentPatch%disturbance_mode .eq. dtype_ilog ) ) then
+
+          snag_donatable_mass = curr_litt%snag(dl_sf) * patch_site_areadis * &
+               (1._r8 - currentPatch%burnt_frac_litter(dl_sf))
+          snag_burned_mass = curr_litt%snag(dl_sf) * patch_site_areadis * &
+               (currentPatch%burnt_frac_litter(dl_sf))
+          !?flux_diags%snag_combusted(dl_sf) = flux_diags%snag_combusted(dl_sf) + snag_burned_mass
+          new_litt%snag_combust(dl_sf) = new_litt%snag_combust(dl_sf) + &
+               snag_burned_mass / newPatch%area
+
+          site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + snag_burned_mass
+
+       else
+          snag_donatable_mass = curr_litt%snag(dl_sf) * patch_site_areadis
+          !snag_burned_mass = 0.0_r8
+       end if
+
+       new_litt%snag(dl_sf) = new_litt%snag(dl_sf) + snag_donatable_mass * donate_m2
+       curr_litt%snag(dl_sf) = curr_litt%snag(dl_sf) + snag_donatable_mass * retain_m2
+
+       ![Jstenzel end temp]
+
        do dcmpy=1,ndcmpy
 
            ! Transfer leaf fines
-           donatable_mass           = curr_litt%leaf_fines(dcmpy) * patch_site_areadis * &
-                                      (1._r8 - currentPatch%burnt_frac_litter(dl_sf))
+           ![JStenzel added] Combust ground litter at fire/nonfire OR logging slash area rates
+           ! If i_fall is the dominant disturbance, burnt_frac_litter is already 0
+           if( currentPatch%disturbance_mode .ne. dtype_ilog) then
 
-           burned_mass              = curr_litt%leaf_fines(dcmpy) * patch_site_areadis * &
-                                      currentPatch%burnt_frac_litter(dl_sf)
+              donatable_mass           = curr_litt%leaf_fines(dcmpy) * patch_site_areadis * &
+                                         (1._r8 - currentPatch%burnt_frac_litter(dl_sf))
+
+              burned_mass              = curr_litt%leaf_fines(dcmpy) * patch_site_areadis * &
+                                         currentPatch%burnt_frac_litter(dl_sf)
+           ! If dtype=ilog, litter and grass will combust at the same rate, which should then
+           ! be seen as an "area" of the disturbed area that is combusted as a result of slash pile
+           ! total area.
+           else
+
+             donatable_mass           = curr_litt%leaf_fines(dcmpy) * patch_site_areadis * &
+                                         (1._r8 - currentPatch%burnt_frac_litter(lg_sf))
+
+             burned_mass              = curr_litt%leaf_fines(dcmpy) * patch_site_areadis * &
+                                         currentPatch%burnt_frac_litter(lg_sf)
+           end if
 
            new_litt%leaf_fines(dcmpy) = new_litt%leaf_fines(dcmpy) + donatable_mass*donate_m2
            curr_litt%leaf_fines(dcmpy) = curr_litt%leaf_fines(dcmpy) + donatable_mass*retain_m2
@@ -1529,26 +1845,73 @@ contains
            ! Transfer root fines (none burns)
            do sl = 1,currentSite%nlevsoil
                donatable_mass = curr_litt%root_fines(dcmpy,sl) * patch_site_areadis
-               new_litt%root_fines(dcmpy,sl) = new_litt%root_fines(dcmpy,sl) + donatable_mass*donate_m2
+               new_litt%root_fines(dcmpy,sl) = new_litt%root_fines(dcmpy,sl) + donatable_mass*donate_
                curr_litt%root_fines(dcmpy,sl) = curr_litt%root_fines(dcmpy,sl) + donatable_mass*retain_m2
           end do
 
        end do
 
-       do pft = 1,numpft
+       ! [JStenzel Start] Regeneration harvest: donated seed bank removal + new seedling planting
+       ! If this is a primary patch experiencing a regeneration harvest
+       if ( currentPatch%disturbance_mode .eq. dtype_ilog .and. &
+             !currentPatch%anthro_disturbance_label .eq. primaryforest .and.  &
+             planting_time .eq. 1 ) then
 
-          ! Transfer seeds (currently we don't burn seeds)
-          donatable_mass = curr_litt%seed(pft) * patch_site_areadis
+             do pft = 1,numpft
 
-          new_litt%seed(pft) = new_litt%seed(pft) + donatable_mass * donate_m2
-          curr_litt%seed(pft) = curr_litt%seed(pft) + donatable_mass * retain_m2
+                donatable_mass = curr_litt%seed(pft) * patch_site_areadis
+                ! [JStenzel] Add donated seed flux value to to patch:pft killed pool for next timestep
+                new_litt%seed(pft) = new_litt%seed(pft) + donatable_mass * donate_m2
+                new_litt%seed_kill(pft) = new_litt%seed_kill(pft) + donatable_mass * donate_m2
+                curr_litt%seed(pft) = curr_litt%seed(pft) + donatable_mass * retain_m2
 
-          donatable_mass = curr_litt%seed_germ(pft) * patch_site_areadis
+                donatable_mass = curr_litt%seed_germ(pft) * patch_site_areadis
+                ! [JStenzel] Add donated seed_germ mass to patch:pft killed pool for next timestep
+                new_litt%seed_germ(pft) = new_litt%seed_germ(pft) + donatable_mass * donate_m2
+                new_litt%seed_germ_kill(pft) = new_litt%seed_germ_kill(pft) + donatable_mass * donate_m2
+                curr_litt%seed_germ(pft) = curr_litt%seed_germ(pft) + donatable_mass * retain_m2
 
-          new_litt%seed_germ(pft) = new_litt%seed_germ(pft) + donatable_mass * donate_m2
-          curr_litt%seed_germ(pft) = curr_litt%seed_germ(pft) + donatable_mass * retain_m2
+                ! Add external seed_germ planting influx. Parameter denstity x disturbance area
+                ! divided by new patch area. It's likely that logging will be the primary disturbance
+                ! on primary lands. However, these clearcut + plantings will be combined with disturbance
+                ! area from all donor secondary patch disturbance area. If ifall disturbance type
+                ! is prevented by mort_disturb_frac = 0, this combination of donor patch disturbance
+                ! types can be largely avoided by cutting outside of the typical fire season.
+                new_litt%seed_in_planted(pft) = new_litt%seed_in_planted(pft) + &
+                      EDPftvarcon_inst%seed_planted(pft) * patch_site_areadis * donate_m2
+                !new_litt%seed_in_extern(pft) = new_litt%seed_in_extern(pft) + seed_in_planted
+                !new_litt%seed_germ(pft) = new_litt%seed_germ(pft) + &
+                     !seed_in_planted
+                !new_seed_input = new_seed_input  + seed_in_planted
 
-       enddo
+             end do !pft
+
+             ! Calculate sums of new decay and seed planting inputs from the planting event disturbance
+             ! on the current donor patch [JStenzel]
+             !site_mass%frag_out = site_mass%frag_out + new_decay * newPatch%area !!!! Check
+             !site_mass%seed_in = site_mass%seed_in + new_seed_input * newPatch%area
+
+
+       else
+
+          do pft = 1,numpft
+
+             ! Transfer seeds (currently we don't burn seeds)
+             donatable_mass = curr_litt%seed(pft) * patch_site_areadis
+
+             new_litt%seed(pft) = new_litt%seed(pft) + donatable_mass * donate_m2
+             curr_litt%seed(pft) = curr_litt%seed(pft) + donatable_mass * retain_m2
+
+             donatable_mass = curr_litt%seed_germ(pft) * patch_site_areadis
+
+             new_litt%seed_germ(pft) = new_litt%seed_germ(pft) + donatable_mass * donate_m2
+             curr_litt%seed_germ(pft) = curr_litt%seed_germ(pft) + donatable_mass * retain_m2
+
+          enddo
+
+       end if
+       ![JStenzel End]
+
 
        ! --------------------------------------------------------------------------
        ! Mass conservation check, set debug=.true. if mass imbalances in
@@ -1557,7 +1920,7 @@ contains
        if (debug) then
           burn_flux1    = site_mass%burn_flux_to_atm
           litter_stock1 = curr_litt%GetTotalLitterMass()*remainder_area + &
-                          new_litt%GetTotalLitterMass()*newPatch%area
+                          new_litt%GetTotalLitterMass()* newPatch%area 
           error = (litter_stock1 - litter_stock0) + (burn_flux1-burn_flux0)
           if(abs(error)>1.e-8_r8) then
              write(fates_log(),*) 'non trivial carbon mass balance error in litter transfer'
@@ -1714,13 +2077,29 @@ contains
              ! Contribution of dead trees to leaf burn-flux
              burned_mass  = num_dead_trees * (leaf_m+repro_m) * currentCohort%fraction_crown_burned
 
-             do dcmpy=1,ndcmpy
-                 dcmpy_frac = GetDecompyFrac(pft,leaf_organ,dcmpy)
-                 new_litt%leaf_fines(dcmpy) = new_litt%leaf_fines(dcmpy) + &
-                                              donatable_mass*donate_m2*dcmpy_frac
-                 curr_litt%leaf_fines(dcmpy) = curr_litt%leaf_fines(dcmpy) + &
-                                               donatable_mass*retain_m2*dcmpy_frac
-             end do
+             ![JStenzel modify] Unburned leaf mass from killed trees now goes to the snag leaf
+             ! pools.
+             new_litt%snag(dl_sf) = new_litt%snag(dl_sf) + donatable_mass * donate_m2
+             curr_litt%snag(dl_sf) = curr_litt%snag(dl_sf) + donatable_mass * retain_m2
+
+             ![JStenzel add] Fire-mortality derived 'snag_in' distributed here for diagnostics
+             new_litt%snag_in(dl_sf) = new_litt%snag_in(dl_sf) + donatable_mass * donate_m2
+             curr_litt%snag_in(dl_sf) = curr_litt%snag_in(dl_sf) + donatable_mass *  retain_m2
+
+             ![JStenzel add] Snag combustion diagnostic.
+             new_litt%snag_combust(dl_sf) = new_litt%snag_combust(dl_sf) + &
+                   burned_mass / newPatch%area
+
+             ![JStenzel added]
+             !?flux_diags%snag_input(dl_sf) = flux_diags%snag_input(dl_sf) + donatable_mass
+
+             !do dcmpy=1,ndcmpy
+               !  dcmpy_frac = GetDecompyFrac(pft,leaf_organ,dcmpy)
+                ! new_litt%leaf_fines(dcmpy) = new_litt%leaf_fines(dcmpy) + &
+                  !                            donatable_mass*donate_m2*dcmpy_frac
+                 !curr_litt%leaf_fines(dcmpy) = curr_litt%leaf_fines(dcmpy) + &
+               !                                donatable_mass*retain_m2*dcmpy_frac
+             !end do
 
              site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
 
@@ -1781,10 +2160,24 @@ contains
                       burned_mass = num_dead_trees * SF_val_CWD_frac(c) * bstem * &
                       currentCohort%fraction_crown_burned
                       site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
+                      new_litt%snag_combust(c) = new_litt%snag_combust(c) + burned_mass / newPatch%area ![JStenzel add] Snag combustion diagnostic
                 endif
-                new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + donatable_mass * donate_m2
-                curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + donatable_mass * retain_m2
-                flux_diags%cwd_ag_input(c) = flux_diags%cwd_ag_input(c) + donatable_mass
+
+                new_litt%snag(c) = new_litt%snag(c) + donatable_mass * donate_m2     ![JStenzel] Add killed mass to snag rather than cwd poll
+                !new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + donatable_mass * donate_m2
+                curr_litt%snag(c) = curr_litt%snag(c) + donatable_mass * retain_m2 ![JStenzel] Add killed mass to snag rather than cwd poll
+                !curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + donatable_mass * retain_m2
+                flux_diags%cwd_ag_input(c) = flux_diags%cwd_ag_input(c) + donatable_mass  ![JStenzel note] Only keep this until there is a snag diagnostic
+
+                ! [JStenzel added] Diagnostics
+                new_litt%snag_in(c) = new_litt%snag_in(c) + donatable_mass * donate_m2
+                curr_litt%snag_in(c) = curr_litt%snag_in(c) + donatable_mass * retain_m2
+
+
+                !![JStenzel added] In this location, this equals the cwd_ag input, but wil differ
+                ! in total due to receiving no logging fluxes.
+                !?flux_diags%snag_input(c) = flux_diags%snag_input(c) + donatable_mass
+
              enddo
 
 
@@ -1922,14 +2315,26 @@ contains
           end if
 
           ! Transfer leaves of dying trees to leaf litter (includes seeds too)
-          do dcmpy=1,ndcmpy
-              dcmpy_frac = GetDecompyFrac(pft,leaf_organ,dcmpy)
-              new_litt%leaf_fines(dcmpy) = new_litt%leaf_fines(dcmpy) + &
-                    num_dead*(leaf_m+repro_m)*donate_m2*dcmpy_frac
 
-              curr_litt%leaf_fines(dcmpy) = curr_litt%leaf_fines(dcmpy) + &
-                    num_dead*(leaf_m+repro_m)*retain_m2*dcmpy_frac
-          end do
+          ![JStenzel edit] Dying leaves go to snag pool instead of litter pools
+
+          new_litt%snag(dl_sf) = new_litt%snag(dl_sf) + num_dead * (leaf_m+repro_m) * donate_m2
+          curr_litt%snag(dl_sf) = curr_litt%snag(dl_sf) + num_dead * (leaf_m+repro_m) * retain_m2
+
+          new_litt%snag_in(dl_sf) = new_litt%snag_in(dl_sf) + num_dead * (leaf_m+repro_m) * & ![JStenzel add] diagnostic
+               donate_m2
+          curr_litt%snag_in(dl_sf) = curr_litt%snag_in(dl_sf) + num_dead * (leaf_m+repro_m) * & ![JStenzel add] diagnostic
+               retain_m2
+          ![JStenzel] Snag input diagnostics
+          !?flux_diags%snag_input(dl_sf) = flux_diags%snag_input(dl_sf) + num_dead * (leaf_m+repro_m)
+          !do dcmpy=1,ndcmpy
+         !     dcmpy_frac = GetDecompyFrac(pft,leaf_organ,dcmpy)
+         !     new_litt%leaf_fines(dcmpy) = new_litt%leaf_fines(dcmpy) + &
+         !           num_dead*(leaf_m+repro_m)*donate_m2*dcmpy_frac
+
+         !     curr_litt%leaf_fines(dcmpy) = curr_litt%leaf_fines(dcmpy) + &
+         !           num_dead*(leaf_m+repro_m)*retain_m2*dcmpy_frac
+          !end do
 
           ! Pre-calculate Structural and sapwood, below and above ground, total mass [kg]
           ag_wood = num_dead * (struct_m + sapw_m) * prt_params%allom_agb_frac(pft)
@@ -1942,11 +2347,27 @@ contains
           do c=1,ncwd
 
              ! Transfer wood of dying trees to AG CWD pools
-             new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + ag_wood * &
+
+             new_litt%snag(c) = new_litt%snag(c) + ag_wood * &         ![JStenzel add]
                     SF_val_CWD_frac(c) * donate_m2
 
-             curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + ag_wood * &
-                   SF_val_CWD_frac(c) * retain_m2
+             new_litt%snag_in(c) = new_litt%snag_in(c) + ag_wood * &         ![JStenzel add] diagnostic
+                    SF_val_CWD_frac(c) * donate_m2
+             !new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + ag_wood * &
+               !     SF_val_CWD_frac(c) * donate_m2
+
+             curr_litt%snag(c) = curr_litt%snag(c) + ag_wood * &     ![JStenzel add]
+                     SF_val_CWD_frac(c) * retain_m2
+
+             curr_litt%snag_in(c) = curr_litt%snag_in(c) + ag_wood * &     ![JStenzel add] diagnostic
+                     SF_val_CWD_frac(c) * retain_m2
+
+             ![JStenzel added]
+             !?flux_diags%snag_input(c) = flux_diags%snag_input(c) + ag_wood * SF_val_CWD_frac(c)
+
+
+             !curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + ag_wood * &
+               !    SF_val_CWD_frac(c) * retain_m2
 
              ! Transfer wood of dying trees to BG CWD pools
              do sl = 1,currentSite%nlevsoil
@@ -1990,7 +2411,7 @@ contains
 
           ! track diagnostic fluxes
           do c=1,ncwd
-             flux_diags%cwd_ag_input(c) = &
+             flux_diags%cwd_ag_input(c) = &                      ![JStenzel note] This currently includes the snag inputs
                   flux_diags%cwd_ag_input(c) + SF_val_CWD_frac(c) * ag_wood
 
              flux_diags%cwd_bg_input(c) = &
@@ -2075,9 +2496,13 @@ contains
         call new_patch%litter(el)%InitConditions(init_leaf_fines = fates_unset_r8, &
               init_root_fines = fates_unset_r8, &
               init_ag_cwd = fates_unset_r8, &
+              init_snag = fates_unset_r8, &    ![JStenzel]
               init_bg_cwd = fates_unset_r8, &
               init_seed = fates_unset_r8,   &
               init_seed_germ = fates_unset_r8)
+        new_patch%litter(el)%seed_kill(:) = 0.0_r8   ! [JStenzel] 3x new variable zeroing here !!!! keep?
+        new_patch%litter(el)%seed_germ_kill(:) = 0.0_r8 !!!!
+        new_patch%litter(el)%seed_in_planted(:) = 0.0_r8 !!!!
     end do
 
     call zero_patch(new_patch) !The nan value in here is not working??
@@ -3047,7 +3472,9 @@ contains
    frac_site_primary = 0._r8
    currentPatch => site_in%oldest_patch
    do while (associated(currentPatch))
-      if (currentPatch%anthro_disturbance_label .eq. primaryforest) then
+      ![JStenzel] redefine 'frac_site_primary' to mean fraction of the site w/ natural pfts
+      if (currentPatch%anthro_disturbance_label .eq. primaryforest .or. &
+           currentPatch%anthro_disturbance_label .eq. secondaryforest ) then
          frac_site_primary = frac_site_primary + currentPatch%area * AREA_INV
       endif
       currentPatch => currentPatch%younger
