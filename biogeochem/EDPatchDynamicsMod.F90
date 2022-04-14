@@ -1845,7 +1845,7 @@ contains
            ! Transfer root fines (none burns)
            do sl = 1,currentSite%nlevsoil
                donatable_mass = curr_litt%root_fines(dcmpy,sl) * patch_site_areadis
-               new_litt%root_fines(dcmpy,sl) = new_litt%root_fines(dcmpy,sl) + donatable_mass*donate_
+               new_litt%root_fines(dcmpy,sl) = new_litt%root_fines(dcmpy,sl) + donatable_mass*donate_m2
                curr_litt%root_fines(dcmpy,sl) = curr_litt%root_fines(dcmpy,sl) + donatable_mass*retain_m2
           end do
 
@@ -1920,7 +1920,7 @@ contains
        if (debug) then
           burn_flux1    = site_mass%burn_flux_to_atm
           litter_stock1 = curr_litt%GetTotalLitterMass()*remainder_area + &
-                          new_litt%GetTotalLitterMass()* newPatch%area 
+                          new_litt%GetTotalLitterMass()* newPatch%area
           error = (litter_stock1 - litter_stock0) + (burn_flux1-burn_flux0)
           if(abs(error)>1.e-8_r8) then
              write(fates_log(),*) 'non trivial carbon mass balance error in litter transfer'
