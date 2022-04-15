@@ -385,6 +385,9 @@ variables:
 	double fates_mort_scalar_cstarvation(fates_pft) ;
 		fates_mort_scalar_cstarvation:units = "1/yr" ;
 		fates_mort_scalar_cstarvation:long_name = "maximum mortality rate from carbon starvation" ;
+	double fates_bmort_stress_multiplier(fates_pft) ;
+		fates_bmort_stress_multiplier:units = "unitless" ;
+		fates_bmort_stress_multiplier:long_name = "maximum multiplier for bmort rate, scaled by C-storage fraction of target " ;
 	double fates_mort_scalar_hydrfailure(fates_pft) ;
 		fates_mort_scalar_hydrfailure:units = "1/yr" ;
 		fates_mort_scalar_hydrfailure:long_name = "maximum mortality rate from hydraulic failure" ;
@@ -1556,4 +1559,6 @@ data:
  fates_temp_delay = 182 ;
 
  fates_seed_planted = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
+
+ fates_bmort_stress_multiplier = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 }
