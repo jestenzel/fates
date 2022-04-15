@@ -18,7 +18,7 @@ Summary:
 
 (Fuels)
 - New parameter for live -> CWD destination fraction from branch turnover. Previously, fractions from mortality and turnover were the same and were, by default, dominated by 1000 hr fuels. 
--SNAGS !!!! Dying tree biomass that is not combusted or exported now enters snag pools (no decomposition). Snag fall rate to litter/cwd pools is dictated by a new parameter. Snag leaves, twigs, and small branches can combust during fire given that average patch scorch height is greater than [X] m. 
+- SNAGS !!!! Dying tree biomass that is not combusted or exported now enters snag pools (no decomposition). Snag fall rate to litter/cwd pools is dictated by a new parameter. Snag leaves, twigs, and small branches can combust during fire given that average patch scorch height is greater than [X] m. 
 
 (c-starvation)
 - Parameter added for c-starvation storage tolerance. The fraction of target storage at which mortality begins can now be set. Background mortality can now be scaled by by a stress multiplier to represent a stress interaction w/  undefined mortality agent (e.g. insects/pathogens). 
