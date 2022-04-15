@@ -168,9 +168,12 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
 
        call storage_fraction_of_target(leaf_c_target, store_c, frac)
     ! [JStenzel 1.27.2022] Added cstarvetol parameter in place of "1" to allow mortality threshold to vary.
+    ![JStenzel 4.2022] Added background mortality stress scalar.
        if( frac .lt. EDPftvarcon_inst%cstarvetol(cohort_in%pft) ) then
           cmort = max(0.0_r8,EDPftvarcon_inst%mort_scalar_cstarvation(cohort_in%pft) * &
                (1.0_r8 - frac))
+          bmort = bmort + bmort * (1.0_r8 - frac) * &
+               max(0.0_r8, (EDPftvarcon_inst%bmort_stress_scalar(cohort_in%pft) - 1.0_r8) )
        else
           cmort = 0.0_r8
        endif
