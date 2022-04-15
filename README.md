@@ -21,12 +21,15 @@ Summary:
 -SNAGS !!!! Dying tree biomass that is not combusted or exported now enters snag pools (no decomposition). Snag fall rate to litter/cwd pools is dictated by a new parameter. Snag leaves, twigs, and small branches can combust during fire given that average patch scorch height is greater than [X] m. 
 
 (c-starvation)
--Parameter added for c-starvation storage tolerance. The fraction of target storage at which mortality begins can now be set. 
+-Parameter added for c-starvation storage tolerance. The fraction of target storage at which mortality begins can now be set. Background mortality can now be scaled by by a stress multiplier to represent a stress interaction w/  undefined mortality agent (e.g. insects/pathogens). 
 
 (Management)
 - CTSM harvest layers from landuse timeseries can now be used to prescribe “regeneration harvest” events (i.e. harvest AND planting). A new parameter has been added to prescribe planted seedling mass by PFT. PFTs can be planted on a site where they were not present at run start. The natural seedbank is sent to the soil decay pool.
 -Parameters added for the proportion of live harvested and existing dead mass within harvest-disturbed areas that get combusted as slash during harvest events.  Previously, mass EXCEPT for exported bole fractions was added to litter/cwd pools. 
 
+(Misc Fixes)
+-Hydraulic failure mortality is now delayed until the first yr July 1st, as early run hydr mortality was occuring before soil moisture was spun up. 
+- New parameter to delay temperature-based mortality so that the initial cohorts are not murdered due to a Jan 1 model start and no chance to grow/harden.
 
 Added / Changed-usage parameters:
 (+) 12
