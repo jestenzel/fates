@@ -94,7 +94,7 @@ module EDPftvarcon
      real(r8), allocatable :: mort_r_age_senescence(:) ! rate of change in mortality with age
      real(r8), allocatable :: mort_scalar_coldstress(:)
      real(r8), allocatable :: mort_scalar_heatstress(:)
-     real(r8), allocatable :: bmort_stress_scalar(:)
+     real(r8), allocatable :: bmort_stress_multiplier(:)
      real(r8), allocatable :: mort_scalar_cstarvation(:) ![JStenzel]
      real(r8), allocatable :: mort_scalar_hydrfailure(:)
      real(r8), allocatable :: hf_sm_threshold(:)
@@ -532,7 +532,7 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_bmort_stress_scalar'
+    name = 'fates_bmort_stress_multiplier'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -886,9 +886,9 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%mort_scalar_cstarvation)
 
-    name = 'fates_bmort_stress_scalar'
+    name = 'fates_bmort_stress_multiplier'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%bmort_stress_scalar)
+         data=this%bmort_stress_multiplier)
 
     name = 'fates_mort_scalar_hydrfailure'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -1497,7 +1497,7 @@ contains
         write(fates_log(),fmt0) 'mort_scalar_coldstress = ',EDPftvarcon_inst%mort_scalar_coldstress
 	write(fates_log(),fmt0) 'mort_scalar_heatstress = ',EDPftvarcon_inst%mort_scalar_heatstress
         write(fates_log(),fmt0) 'mort_scalar_cstarvation = ',EDPftvarcon_inst%mort_scalar_cstarvation
-        write(fates_log(),fmt0) 'bmort_stress_scalar = ',EDPftvarcon_inst%bmort_stress_scalar
+        write(fates_log(),fmt0) 'bmort_stress_multiplier = ',EDPftvarcon_inst%bmort_stress_multiplier
         write(fates_log(),fmt0) 'mort_scalar_hydrfailure = ',EDPftvarcon_inst%mort_scalar_hydrfailure
         write(fates_log(),fmt0) 'hf_sm_threshold = ',EDPftvarcon_inst%hf_sm_threshold
         write(fates_log(),fmt0) 'hf_flc_threshold = ',EDPftvarcon_inst%hf_flc_threshold
