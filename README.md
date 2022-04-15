@@ -25,7 +25,7 @@ Summary:
 
 (Management)
 - CTSM harvest layers from landuse timeseries can now be used to prescribe “regeneration harvest” events (i.e. harvest AND planting). A new parameter has been added to prescribe planted seedling mass by PFT. PFTs can be planted on a site where they were not present at run start. The natural seedbank is sent to the soil decay pool.
--Parameters added for the proportion of live harvested and existing dead mass within harvest-disturbed areas that get combusted as slash during harvest events.  Previously, mass EXCEPT for exported bole fractions was added to litter/cwd pools. 
+- Parameters added for the proportion of live harvested and existing dead mass within harvest-disturbed areas that get combusted as slash during harvest events.  Previously, mass EXCEPT for exported bole fractions was added to litter/cwd pools. 
 
 (Misc Fixes)
 - Hydraulic failure mortality is now delayed until the first yr July 1st, as early run hydr mortality was occuring before soil moisture was spun up. 
@@ -38,10 +38,10 @@ Added / Changed-usage parameters:
 Mortality:
 + fates_mort_heat_tol (pft) :maximum temperature tolerance, post-seedling; degress C.
 + fates_mort_heat_tol_seedling (pft): maximum temperature tolerance, seedling; degrees C
-+fates_mort_scalar_heatstress (pft) : maximum mortality rate from heat stress; 1/yr.
++ fates_mort_scalar_heatstress (pft) : maximum mortality rate from heat stress; 1/yr.
 + fates_freezetol_seedling (pft): minimum temperature tolerance, seedling
 Δ  (definition change) fates_mort_freezetol (pft): minimum temperature tolerance, post-seedling; degrees C
-+fates_temp_delay : Days since run start required for turning temperature-based mortality (heat,freeze) “on”. 
++ fates_temp_delay : Days since run start required for turning temperature-based mortality (heat,freeze) “on”. 
  Δ  (definition change) fates_mort_scalar_hydrfailure (pft): (max mortality rate from hydraulic failure). This value will be 0 before model day 182 due to early run hydraulic mortality that was resulting from soil moisture spinup.
 + fates_mort_hard_dbh (pft): minimum dbh for non-seedling temperature mortality (i.e. hardened plant)
 + fates_mort_cstarvetol (pft): threshold storage c : leaf c fraction for start of cstarvation mortality; 1/leafC. 
