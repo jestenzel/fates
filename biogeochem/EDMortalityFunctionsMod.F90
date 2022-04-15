@@ -173,7 +173,7 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
           cmort = max(0.0_r8,EDPftvarcon_inst%mort_scalar_cstarvation(cohort_in%pft) * &
                (1.0_r8 - frac))
           bmort = bmort + bmort * (1.0_r8 - frac) * &
-               max(0.0_r8, (EDPftvarcon_inst%bmort_stress_scalar(cohort_in%pft) - 1.0_r8) )
+               max(0.0_r8, (EDPftvarcon_inst%bmort_stress_multiplier(cohort_in%pft) - 1.0_r8) )
        else
           cmort = 0.0_r8
        endif
