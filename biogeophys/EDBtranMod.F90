@@ -158,10 +158,10 @@ contains
                 do while (associated(ccohort))    ![JStenzel] start cohort loop
                    ft = ccohort%pft
 
-                     call set_root_fraction_dbh(sites(s)%rootfrac_scr, ft, sites(s)%zi_soil, & ![JStenzel new subroutine]
-                          bc_in(s)%max_rooting_depth_index_col, ccohort%dbh )
-                     !call set_root_fraction(sites(s)%rootfrac_scr, ft, sites(s)%zi_soil, & !
-                     !    bc_in(s)%max_rooting_depth_index_col)
+                     !call set_root_fraction_dbh(sites(s)%rootfrac_scr, ft, sites(s)%zi_soil, & ![JStenzel new subroutine]
+                     !     bc_in(s)%max_rooting_depth_index_col, ccohort%dbh )
+                     call set_root_fraction(sites(s)%rootfrac_scr, ft, sites(s)%zi_soil, & !
+                         bc_in(s)%max_rooting_depth_index_col)
 
                    ccohort%btran_coh= 0.0_r8
                    cpatch%btran_ft(ft) = 0.0_r8
