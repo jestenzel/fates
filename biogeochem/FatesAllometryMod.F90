@@ -2097,12 +2097,14 @@ contains
      real(r8) :: a  ! local temporary for "a" parameter
      real(r8) :: b  ! ""  "b" parameter
      real(r8) :: z_fr  ! Maximum depth of plant's roots [m]
+     real(r8) :: sum_rootfr ! sum of cohort root fractions for normalizing
 
      real(r8) :: dbh_0
      real(r8) :: dbh_max
      real(r8) :: frk
      real(r8) :: z_fr_0
      real(r8) :: z_fr_max
+     real(r8) :: z_max_soil
 
 
      real(r8) :: dbh_rel   ! Relative dbh of plant between the diameter at which we
@@ -2115,6 +2117,7 @@ contains
      integer :: corr_id(1)        ! This is the bin with largest fraction
                                   ! add/subtract any corrections there
      integer :: nlevroot
+     integer :: lev
      real(r8) :: correction       ! This correction ensures that root fractions
                                   ! sum to 1.0
 
@@ -2123,10 +2126,12 @@ contains
      dbh_0        = prt_params%allom_zroot_min_dbh(ft)
      z_fr_max     = prt_params%allom_zroot_max_z(ft)
      z_fr_0       = prt_params%allom_zroot_min_z(ft)
-     frk          = prt_params%allom_zroot_k(ft))
+     frk          = prt_params%allom_zroot_k(ft)
 
      a = prt_params%fnrt_prof_a(ft)
      b = prt_params%fnrt_prof_b(ft)
+
+     z_max_soil = 5.0_r8
 
      if(size(zi) .ne. (size(root_fraction)+1)) then
         write(fates_log(),*) 'layer interface array should be 1 larger than'
