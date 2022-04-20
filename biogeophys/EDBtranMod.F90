@@ -154,7 +154,7 @@ contains
              !!!!do ft = 1,numpft
                 !!!! JStenzel start cohort loop.
 
-                ccohort => currentPatch%tallest
+                ccohort => cpatch%tallest
                 do while (associated(ccohort))    ![JStenzel] start cohort loop
                    ft = ccohort%pft
 
@@ -288,14 +288,14 @@ contains
              if(hlm_use_planthydro.eq.ifalse) then
                 !weight patch level output BTRAN for the
                 bc_out(s)%btran_pa(ifp) = 0.0_r8
-                ccohort => currentPatch%tallest
+                ccohort => cpatch%tallest
                 do while (associated(ccohort))
 
                    if( sum_pftgs > 0._r8)then !prevent problem with the first timestep - might fail
                       !bit-retart test as a result? FIX(RF,032414)
                       bc_out(s)%btran_pa(ifp)   = bc_out(s)%btran_pa(ifp) + ccohort%btran_coh  * ccohort%g_sb_laweight/sum_pftgs
                    else
-                      bc_out(s)%btran_pa(ifp)   = bc_out(s)%btran_pa(ifp) + ccohort%btran_coh * 1./cpatch%count_cohorts
+                      bc_out(s)%btran_pa(ifp)   = bc_out(s)%btran_pa(ifp) + ccohort%btran_coh * 1./cpatch%countcohorts
                    end if
 
                    ccohort => ccohort%shorter
