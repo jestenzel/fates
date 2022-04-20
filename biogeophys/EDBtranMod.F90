@@ -244,8 +244,9 @@ contains
              !contributions to use.
              do j= 1, bc_in(s)%nlevsoil
                 do ft = 1,numpft
-                   if( resis_sum(ft) > 0._r8 )
-                   root_resis(ft,j) = root_resis(ft,j) / resis_sum(ft)
+                   if( resis_sum(ft) > 0._r8 ) then
+                      root_resis(ft,j) = root_resis(ft,j) / resis_sum(ft)
+                   end if
                 end do
              end do
 
