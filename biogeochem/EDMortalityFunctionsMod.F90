@@ -148,15 +148,17 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
          hmort = 0.0_r8
        endif
       else
-       if(cohort_in%patchptr%btran_ft(cohort_in%pft) <= hf_sm_threshold)then
-         hmort = EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)
-       else
-         hmort = 0.0_r8
-       endif
+       !if(cohort_in%patchptr%btran_ft(cohort_in%pft) <= hf_sm_threshold)then
+      !   hmort = EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)
+         if(cohort_in%btran_coh <= hf_sm_threshold) then     ![JStenzel] HMort based on new cohort btran
+            hmort = EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)
+         else
+            hmort = 0.0_r8
+         endif
       endif
     else   !!!!
       hmort = 0.0_r8
-    endif                               !!!!!!!!!!!!! End temporary hmort shutoff
+   endif                               !!!!!!!!!!!!! [JStenzel] End temporary hmort shutoff
 
 
 

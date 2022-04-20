@@ -622,6 +622,9 @@ contains
     currentCohort%crownfire_mort        = nan ! probability of tree post-fire mortality due to crown scorch
     currentCohort%fire_mort             = nan ! post-fire mortality from cambial and crown damage assuming two are independent
 
+    !JStenzel
+    currentCohort%btran_coh = nan
+
   end subroutine nan_cohort
 
   !-------------------------------------------------------------------------------------!
@@ -700,6 +703,9 @@ contains
 
     currentCohort%daily_n_need = 0._r8
     currentCohort%daily_p_need = 0._r8
+
+    currentCohort%btran_coh = 0._r8 ![JStenzel] Not sure why this needs to be zeroed, but new patches
+                                    ! have their btran_ft zeroed ...
 
     ! Initialize these as negative
     currentCohort%daily_p_demand = -9._r8
@@ -1909,6 +1915,9 @@ contains
     if( hlm_use_planthydro.eq.itrue ) then
       call CopyCohortHydraulics(n,o)
     endif
+
+    !JStenzel
+    n%btran_coh        = o%btran_coh !
 
     ! indices for binning
     n%size_class      = o%size_class

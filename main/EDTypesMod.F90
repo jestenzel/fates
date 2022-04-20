@@ -252,6 +252,7 @@ module EDTypesMod
      integer  ::  coage_by_pft_class                     ! An index that indicates the cohorts position of the join cohort age class x PFT
      integer ::  size_class_lasttimestep                 ! size class of the cohort at the last time step
 
+
      ! CARBON FLUXES
 
      ! ----------------------------------------------------------------------------------
@@ -387,6 +388,9 @@ module EDTypesMod
 
      ! Hydraulics
      type(ed_cohort_hydr_type), pointer :: co_hydr       ! All cohort hydraulics data, see FatesHydraulicsMemMod.F90
+
+     real(r8) :: btran_coh                               ! [JStenzel added] Cohort btran.
+                                                         ! Needed for pft x dbh -dependent root distributions
 
 
      ! Running means
@@ -1075,6 +1079,7 @@ module EDTypesMod
      write(fates_log(),*) 'co%canopy_layer_yesterday = ', ccohort%canopy_layer_yesterday
      write(fates_log(),*) 'co%nv                     = ', ccohort%nv
      write(fates_log(),*) 'co%status_coh             = ', ccohort%status_coh
+     write(fates_log(),*) 'co%btran_coh             = ', ccohort%btran_coh  ![JStenzel]
      write(fates_log(),*) 'co%canopy_trim            = ', ccohort%canopy_trim
      write(fates_log(),*) 'co%excl_weight            = ', ccohort%excl_weight
      write(fates_log(),*) 'co%prom_weight            = ', ccohort%prom_weight

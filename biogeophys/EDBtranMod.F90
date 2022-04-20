@@ -2,11 +2,11 @@ module EDBtranMod
 
   !-------------------------------------------------------------------------------------
   ! Description:
-  ! 
+  !
   ! ------------------------------------------------------------------------------------
 
   use EDPftvarcon       , only : EDPftvarcon_inst
-  use FatesConstantsMod , only : tfrz => t_water_freeze_k_1atm 
+  use FatesConstantsMod , only : tfrz => t_water_freeze_k_1atm
   use FatesConstantsMod , only : itrue,ifalse,nearzero
   use EDTypesMod        , only : ed_site_type,       &
        ed_patch_type,      &
@@ -18,7 +18,7 @@ module EDBtranMod
        numpft
   use FatesInterfaceTypesMod , only : hlm_use_planthydro
   use FatesGlobals      , only : fates_log
-  use FatesAllometryMod , only : set_root_fraction
+  use FatesAllometryMod , only : set_root_fraction, set_root_fraction_dbh ![JStenzel]
 
   !
   implicit none
@@ -28,7 +28,7 @@ module EDBtranMod
   public :: get_active_suction_layers
   public :: check_layer_water
 
-contains 
+contains
 
   ! ====================================================================================
 
@@ -102,6 +102,7 @@ contains
     type(bc_in_type),intent(in)             :: bc_in(nsites)
     type(bc_out_type),intent(inout)         :: bc_out(nsites)
 
+
     !
     ! !LOCAL VARIABLES:
     type(ed_patch_type),pointer             :: cpatch ! Current Patch Pointer
@@ -109,14 +110,17 @@ contains
     integer  :: s                 ! site
     integer  :: j                 ! soil layer
     integer  :: ifp               ! patch vector index for the site
-    integer  :: ft                ! plant functional type index
+    integer  :: ft                ! [old: plant functional type index] [JStenzel redifine] current cohort pft
     real(r8) :: smp_node          ! matrix potential
     real(r8) :: rresis            ! suction limitation to transpiration independent
     ! of root density
     real(r8) :: pftgs(maxpft)     ! pft weighted stomatal conductance m/s
     real(r8) :: temprootr
     real(r8) :: sum_pftgs         ! sum of weighted conductances (for normalization)
-    real(r8), allocatable :: root_resis(:,:)  ! Root resistance in each pft x layer
+    real(r8), allocatable :: root_resis(:,:)  ! [JStenzel def change]  patch (pft x layer) sum from cohorts:  fractional btran scaled by cohort canopy area
+    real(r8), allocatable :: extract_pf(:,:)  ! [JStenzel] root extraction (sum of cohort root fraction x weighted stomatal conductance )
+    real(r8), allocatable :: cohort_resis(:)  ![JStenzel added] cohort x layer  resistance
+    real(r8) :: resis_sum(maxpft) ![JStenzel] patch (pft ) sum from cohorts:  fractional btran scaled by cohort canopy area
     !------------------------------------------------------------------------------
 
     associate(                                 &
@@ -127,69 +131,107 @@ contains
     do s = 1,nsites
 
        allocate(root_resis(numpft,bc_in(s)%nlevsoil))
+       allocate(extract_pf(numpft,bc_in(s)%nlevsoil)) ! [JStenzel add]
+       allocate(cohort_resis(bc_in(s)%nlevsoil)) ! [JStenzel add]
 
        bc_out(s)%rootr_pasl(:,:) = 0._r8
 
        ifp = 0
+
+
        cpatch => sites(s)%oldest_patch
-       do while (associated(cpatch))                 
+       do while (associated(cpatch))
           if(cpatch%nocomp_pft_label.ne.0)then ! only for veg patches
              ifp=ifp+1
 
+             root_resis(:,:) = 0._r8  !!! [Jstenzel?]
+             extract_pf(:,:) = 0._r8  !!! [Jstenzel?]
+             resis_sum(1:maxpft) = 0._r8 ! [JStenzel]
+             pftgs(1:maxpft) = 0._r8 !!!! [JStenzel moved] is there any reason that this can't be here?
+
              ! THIS SHOULD REALLY BE A COHORT LOOP ONCE WE HAVE rootfr_ft FOR COHORTS (RGK)
 
-             do ft = 1,numpft
+             !!!!do ft = 1,numpft
+                !!!! JStenzel start cohort loop.
 
-                  call set_root_fraction(sites(s)%rootfrac_scr, ft, sites(s)%zi_soil, &
-                       bc_in(s)%max_rooting_depth_index_col ) 
+                ccohort => currentPatch%tallest
+                do while (associated(ccohort))    ![JStenzel] start cohort loop
+                   ft = ccohort%pft
 
-                cpatch%btran_ft(ft) = 0.0_r8
-                do j = 1,bc_in(s)%nlevsoil
+                     call set_root_fraction_dbh(sites(s)%rootfrac_scr, ft, sites(s)%zi_soil, & ![JStenzel new subroutine]
+                          bc_in(s)%max_rooting_depth_index_col, ccohort%dbh )
+                     !call set_root_fraction(sites(s)%rootfrac_scr, ft, sites(s)%zi_soil, & !
+                     !    bc_in(s)%max_rooting_depth_index_col)
 
-                   ! Calculations are only relevant where liquid water exists
-                   ! see clm_fates%wrap_btran for calculation with CLM/ALM
+                   ccohort%btran_coh= 0.0_r8
+                   cpatch%btran_ft(ft) = 0.0_r8
+                   do j = 1,bc_in(s)%nlevsoil
 
-                   if ( check_layer_water(bc_in(s)%h2o_liqvol_sl(j),bc_in(s)%tempk_sl(j)) )  then
+                      ! Calculations are only relevant where liquid water exists
+                      ! see clm_fates%wrap_btran for calculation with CLM/ALM
 
-                      smp_node = max(smpsc(ft), bc_in(s)%smp_sl(j))
+                      if ( check_layer_water(bc_in(s)%h2o_liqvol_sl(j),bc_in(s)%tempk_sl(j)) )  then
 
-                      rresis  = min( (bc_in(s)%eff_porosity_sl(j)/bc_in(s)%watsat_sl(j))*               &
-                           (smp_node - smpsc(ft)) / (smpso(ft) - smpsc(ft)), 1._r8)
+                         smp_node = max(smpsc(ft), bc_in(s)%smp_sl(j))
 
-                      root_resis(ft,j) = sites(s)%rootfrac_scr(j)*rresis
+                         rresis  = min( (bc_in(s)%eff_porosity_sl(j)/bc_in(s)%watsat_sl(j))*               &
+                              (smp_node - smpsc(ft)) / (smpso(ft) - smpsc(ft)), 1._r8)
 
-                      ! root water uptake is not linearly proportional to root density,
-                      ! to allow proper deep root funciton. Replace with equations from SPA/Newman. FIX(RF,032414)
+                         cohort_resis(j) = sites(s)%rootfrac_scr(j) * rresis    ! [JStenzel] This root fraction is now dependent on pft AND dbh
+                         root_resis(ft,j) = root_resis(ft,j) + cohort_resis(j) * &    ![JStenzel] patch (pft x layer) sum from cohorts:  fractional btran scaled by cohort canopy area
+                              ccohort%c_area
+                         resis_sum(ft) = resis_sum(ft) + cohort_resis(j) * &  ![JStenzel] patch (pft) sum from cohorts
+                              ccohort%c_area
+                        ! root_resis(ft) = root_resis(ft,j) + sites(s)%rootfrac_scr(j)*rresis
 
-                      cpatch%btran_ft(ft) = cpatch%btran_ft(ft) + root_resis(ft,j)
+                         ! root water uptake is not linearly proportional to root density,
+                         ! to allow proper deep root funciton. Replace with equations from SPA/Newman. FIX(RF,032414)
 
-                   else
-                      root_resis(ft,j) = 0._r8
-                   end if
+                      else
+                         cohort_resis(j) = 0._r8
+                         root_resis(ft,j) = 0._r8
+                      end if
 
-                end do !j
+                      ccohort%btran_coh = ccohort%btran_coh +  cohort_resis(j)  ![JStenzel]
 
-                ! Normalize root resistances to get layer contribution to ET
-                do j = 1,bc_in(s)%nlevsoil  
-                   if (cpatch%btran_ft(ft)  >  nearzero) then
-                      root_resis(ft,j) = root_resis(ft,j)/cpatch%btran_ft(ft)
-                   else
-                      root_resis(ft,j) = 0._r8
-                   end if
-                end do
 
-             end do !PFT
+                   end do !j
+
+                   ![JStenzel partial] Was thinking about calculating btran_ft here, but I'd need to
+                   !weigh by cohort g_sb_laweight and then later divide by that total. However
+                   ! if conductance = 0 (not sure why?), post-calc btran would be forced to zero also.
+                   !cpatch%btran_ft(ft) = cpatch%btran_ft(ft)
+
+                   ! Normalize root resistances to get layer contribution to ET
+                   do j = 1,bc_in(s)%nlevsoil
+                      if (ccohort%btran_coh  >  nearzero) then
+                         cohort_resis(j) = cohort_resis(j)/ccohort%btran_coh
+                      else
+                         cohort_resis(j) = 0._r8
+                      end if
+                      !![Jstenzel added] Calculate patch H2O extraction contribution resulting from
+                      ! cohort conductance x root layer distribution for extraction calcs below.
+                      extract_pf(ft,j) = extract_pf(ft,j) + cohort_resis(j) * ccohort%g_sb_laweight   ! [m/s] * [m2]
+                   end do
+
+
+                   pftgs(ft) = pftgs(ft) + ccohort%g_sb_laweight
+
+                   ccohort => ccohort%shorter ![JStenzel]
+                end do ![JStenzel] !Cohort
+
+             !!!!end do !PFT  [JStenzel remove pft loop]
 
              ! PFT-averaged point level root fraction for extraction purposese.
              ! The cohort's conductance g_sb_laweighted, contains a weighting factor
              ! based on the cohort's leaf area. units: [m/s] * [m2]
 
-             pftgs(1:maxpft) = 0._r8
-             ccohort => cpatch%tallest
-             do while(associated(ccohort))
-                pftgs(ccohort%pft) = pftgs(ccohort%pft) + ccohort%g_sb_laweight
-                ccohort => ccohort%shorter
-             enddo
+
+            ! ccohort => cpatch%tallest
+            ! do while(associated(ccohort))
+                !pftgs(ccohort%pft) = pftgs(ccohort%pft) + ccohort%g_sb_laweight
+               ! ccohort => ccohort%shorter
+             !enddo
 
              ! Process the boundary output, this is necessary for calculating the soil-moisture
              ! sink term across the different layers in driver/host.  Photosynthesis will
@@ -197,14 +239,28 @@ contains
              ! distributed over the soil layers.
              sum_pftgs = sum(pftgs(1:numpft))
 
+             ![JStenzel added] Even though btran is now a cohort variable, we still need to normalize
+             !a pft-level root_resis for when sum Gc = 0 and thus there are no weighted Gc
+             !contributions to use.
+             do j= 1, bc_in(s)%nlevsoil
+                do ft = 1,numpft
+                   if( resis_sum(ft) > 0._r8 )
+                   root_resis(ft,j) = root_resis(ft,j) / resis_sum(ft)
+                end do
+             end do
+
              do j = 1, bc_in(s)%nlevsoil
                 bc_out(s)%rootr_pasl(ifp,j) = 0._r8
                 do ft = 1,numpft
+
                    if( sum_pftgs > 0._r8)then !prevent problem with the first timestep - might fail
-                      !bit-retart test as a result? FIX(RF,032414)  
+                      !bit-retart test as a result? FIX(RF,032414)
                       bc_out(s)%rootr_pasl(ifp,j) = bc_out(s)%rootr_pasl(ifp,j) + &
-                           root_resis(ft,j) * pftgs(ft)/sum_pftgs
+                           !root_resis(ft,j) * pftgs(ft)/sum_pftgs
+                           extract_pf(ft,j) / sum_pftgs  ![JStenzel]
+
                    else
+
                       bc_out(s)%rootr_pasl(ifp,j) = bc_out(s)%rootr_pasl(ifp,j) + &
                            root_resis(ft,j) * 1._r8/real(numpft,r8)
                    end if
@@ -215,18 +271,38 @@ contains
              ! used only for diagnostics. If plant hydraulics is turned off
              ! we are using the patchxpft level btran calculation
 
+            ! if(hlm_use_planthydro.eq.ifalse) then
+                !weight patch level output BTRAN for the
+            !    bc_out(s)%btran_pa(ifp) = 0.0_r8
+            !    do ft = 1,numpft
+            !       if( sum_pftgs > 0._r8)then !prevent problem with the first timestep - might fail
+            !          !bit-retart test as a result? FIX(RF,032414)
+            !          bc_out(s)%btran_pa(ifp)   = bc_out(s)%btran_pa(ifp) + cpatch%btran_ft(ft)  * pftgs(ft)/sum_pftgs
+            !       else
+            !          bc_out(s)%btran_pa(ifp)   = bc_out(s)%btran_pa(ifp) + cpatch%btran_ft(ft) * 1./numpft
+            !       end if
+            !    enddo
+            ! end if
+
+!!!! [JStenzel added start]
              if(hlm_use_planthydro.eq.ifalse) then
                 !weight patch level output BTRAN for the
                 bc_out(s)%btran_pa(ifp) = 0.0_r8
-                do ft = 1,numpft
+                ccohort => currentPatch%tallest
+                do while (associated(ccohort))
+
                    if( sum_pftgs > 0._r8)then !prevent problem with the first timestep - might fail
-                      !bit-retart test as a result? FIX(RF,032414)   
-                      bc_out(s)%btran_pa(ifp)   = bc_out(s)%btran_pa(ifp) + cpatch%btran_ft(ft)  * pftgs(ft)/sum_pftgs
+                      !bit-retart test as a result? FIX(RF,032414)
+                      bc_out(s)%btran_pa(ifp)   = bc_out(s)%btran_pa(ifp) + ccohort%btran_coh  * ccohort%g_sb_laweight/sum_pftgs
                    else
-                      bc_out(s)%btran_pa(ifp)   = bc_out(s)%btran_pa(ifp) + cpatch%btran_ft(ft) * 1./numpft
+                      bc_out(s)%btran_pa(ifp)   = bc_out(s)%btran_pa(ifp) + ccohort%btran_coh * 1./cpatch%count_cohorts
                    end if
-                enddo
+
+                   ccohort => ccohort%shorter
+
+                end do ! cohort
              end if
+!!! [JStenzel end]
 
              temprootr = sum(bc_out(s)%rootr_pasl(ifp,1:bc_in(s)%nlevsoil))
 
@@ -236,11 +312,13 @@ contains
                    bc_out(s)%rootr_pasl(ifp,j) = bc_out(s)%rootr_pasl(ifp,j)/temprootr
                 enddo
              end if
-          endif ! not bare ground              
+          endif ! not bare ground
           cpatch => cpatch%younger
        end do
 
        deallocate(root_resis)
+       deallocate(extract_pf) ![JStenzel]
+       deallocate(cohort_resis) ![JStenzel]
 
     end do
 

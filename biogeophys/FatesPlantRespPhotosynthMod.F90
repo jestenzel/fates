@@ -52,7 +52,7 @@ module FATESPlantRespPhotosynthMod
   use EDParamsMod,       only : ED_val_base_mr_20, stomatal_model
   use PRTParametersMod,  only : prt_params
   use EDPftvarcon         , only : EDPftvarcon_inst
-  
+
   ! CIME Globals
   use shr_log_mod , only      : errMsg => shr_log_errMsg
 
@@ -85,17 +85,17 @@ module FATESPlantRespPhotosynthMod
   ! Constants used to define conductance models
   integer, parameter :: medlyn_model = 2
   integer, parameter :: ballberry_model = 1
-  
+
   ! Alternatively, Gross Assimilation can be used to estimate
   ! leaf co2 partial pressure and therefore conductance. The default
   !is to use anet
   logical, parameter :: use_agross = .false.
 
 
-  
 
-  
-  
+
+
+
 contains
 
   !--------------------------------------------------------------------------------------
@@ -436,12 +436,14 @@ contains
                                   cumulative_lai    = lai_canopy_above + lai_layers_above + 0.5*lai_current
 
                                   leaf_psi = currentCohort%co_hydr%psi_ag(1)
-                                  
+
                                else
 
-                                  stomatal_intercept_btran = max( cf/rsmax0,stomatal_intercept(ft)*currentPatch%btran_ft(ft) )
+                                  !stomatal_intercept_btran = max( cf/rsmax0,stomatal_intercept(ft)*currentPatch%btran_ft(ft) )
+                                  stomatal_intercept_btran = max( cf/rsmax0,stomatal_intercept(ft)*currentCohort%btran_coh ) ![JStenzel]
 
-                                  btran_eff = currentPatch%btran_ft(ft)
+                                  !btran_eff = currentPatch%btran_ft(ft)
+                                  btran_eff = currentCohort%btran_coh        ![JStenzel]
                                   ! For consistency sake, we use total LAI here, and not exposed
                                   ! if the plant is under-snow, it will be effectively dormant for
                                   ! the purposes of nscaler
@@ -560,7 +562,7 @@ contains
                                     co2_cpoint,                         &  ! in
                                     lmr_z(iv,ft,cl),                    &  ! in
                                     leaf_psi,                           &  ! in
-                                    bc_in(s)%rb_pa(ifp),                &  ! in  
+                                    bc_in(s)%rb_pa(ifp),                &  ! in
                                     currentPatch%psn_z(cl,ft,iv),       &  ! out
                                     rs_z(iv,ft,cl),                     &  ! out
                                     anet_av_z(iv,ft,cl),                &  ! out
@@ -935,16 +937,16 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
   real(r8), intent(in) :: lmr             ! Leaf Maintenance Respiration  (umol CO2/m**2/s)
   real(r8), intent(in) :: leaf_psi        ! Leaf water potential [MPa]
   real(r8), intent(in) :: rb              ! Boundary Layer resistance of leaf [s/m]
-  
+
   real(r8), intent(out) :: psn_out        ! carbon assimilated in this leaf layer umolC/m2/s
   real(r8), intent(out) :: rstoma_out     ! stomatal resistance (1/gs_lsl) (s/m)
   real(r8), intent(out) :: anet_av_out    ! net leaf photosynthesis (umol CO2/m**2/s)
   ! averaged over sun and shade leaves.
   real(r8), intent(out) :: c13disc_z      ! carbon 13 in newly assimilated carbon
 
- 
 
-  
+
+
   ! Locals
   ! ------------------------------------------------------------------------
   integer :: c3c4_path_index    ! Index for which photosynthetic pathway
@@ -1018,7 +1020,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
   ! ----------------------------------------------------------------------------------
 
   if_daytime: if ( parsun_lsl <= 0._r8 ) then  ! night time
- 
+
      anet_av_out = -lmr
      psn_out     = 0._r8
 
@@ -1032,7 +1034,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
   else ! day time (a little bit more complicated ...)
 
      ! Is there leaf area? - (NV can be larger than 0 with only stem area if deciduous)
-     
+
      if_leafarea: if ( laisun_lsl + laisha_lsl > 0._r8 ) then
 
         !Loop aroun shaded and unshaded leaves
@@ -1139,9 +1141,9 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
                  agross = min(r1,r2)
 
               end if
-              
+
               ! Calculate anet, only exit iteration with negative anet when
-              ! using anet in calculating gs this is version B  
+              ! using anet in calculating gs this is version B
               anet = agross  - lmr
 
               if (use_agross) then
@@ -1158,9 +1160,9 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
               end if
 
               ! With an <= 0, then gs_mol = stomatal_intercept_btran
-              leaf_co2_ppress = can_co2_ppress- h2o_co2_bl_diffuse_ratio/gb_mol * a_gs * can_press 		   
+              leaf_co2_ppress = can_co2_ppress- h2o_co2_bl_diffuse_ratio/gb_mol * a_gs * can_press
               leaf_co2_ppress = max(leaf_co2_ppress,1.e-06_r8)
-              
+
               if ( stomatal_model == medlyn_model ) then
                  !stomatal conductance calculated from Medlyn et al. (2011), the numerical &
                  !implementation was adapted from the equations in CLM5.0
@@ -1186,7 +1188,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
                  call quadratic_f (aquad, bquad, cquad, r1, r2)
                  gs_mol = max(r1,r2)
               end if
-              
+
               ! Derive new estimate for co2_inter_c
               co2_inter_c = can_co2_ppress - anet * can_press * &
                    (h2o_co2_bl_diffuse_ratio*gs_mol+h2o_co2_stoma_diffuse_ratio*gb_mol) / (gb_mol*gs_mol)
@@ -1203,8 +1205,8 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
            end do iter_loop
 
            ! End of co2_inter_c iteration.  Check for an < 0, in which case gs_mol = bbb
-           ! And Final estimates for leaf_co2_ppress and co2_inter_c 
-           ! (needed for early exit of co2_inter_c iteration when an < 0)	 
+           ! And Final estimates for leaf_co2_ppress and co2_inter_c
+           ! (needed for early exit of co2_inter_c iteration when an < 0)
            if (anet < 0._r8) then
               gs_mol = stomatal_intercept_btran
            end if
@@ -1272,8 +1274,8 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
         else
            rstoma_out = 1._r8/gstoma
         end if
-           
-        
+
+
      else
 
         ! No leaf area. This layer is present only because of stems.
@@ -1301,9 +1303,9 @@ end subroutine LeafLayerPhotosynthesis
 
 function LeafHumidityStomaResis(leaf_psi, veg_tempk, ceair, can_press, veg_esat, &
                                 rb, gstoma, ft) result(rstoma_out)
-  
+
   ! -------------------------------------------------------------------------------------
-  ! This calculates inner leaf humidity as a function of mesophyll water potential 
+  ! This calculates inner leaf humidity as a function of mesophyll water potential
   ! Adopted from  Vesala et al., 2017 https://www.frontiersin.org/articles/10.3389/fpls.2017.00054/full
   !
   ! Equation 1 in Vesala et al:
@@ -1318,7 +1320,7 @@ function LeafHumidityStomaResis(leaf_psi, veg_tempk, ceair, can_press, veg_esat,
   ! Unit conversions:
   ! 1 Pa = 1 N/m2 = 1 J/m3
   ! density of liquid water [kg/m3] = 1000
-  ! 
+  !
   ! units of equation 1:  exp( [MPa]*[g/mol]/( [J/K/mol] * [K] ) )
   !                            [MJ/m3]*[g/mol]*[m3/kg]*[kg/g]*[J/MJ]  / ([J/mol])
   ! dimensionless:             [J/g]*[g/mol]/([J/mol])
@@ -1327,7 +1329,7 @@ function LeafHumidityStomaResis(leaf_psi, veg_tempk, ceair, can_press, veg_esat,
   !
   ! Junyan Ding 2021
   ! -------------------------------------------------------------------------------------
-  
+
   ! Arguments
   real(r8) :: leaf_psi   ! Leaf water potential [MPa]
   real(r8) :: veg_tempk  ! Leaf temperature     [K]
@@ -1348,17 +1350,17 @@ function LeafHumidityStomaResis(leaf_psi, veg_tempk, ceair, can_press, veg_esat,
   real(r8) :: lwp_star   ! leaf water potential scaling coefficient
                          ! for inner leaf humidity, 0 means total dehydroted
                          ! leaf, 1 means total saturated leaf
-  
+
   ! Note: to disable this control, set k_lwp to zero, LWP_star will be 1
   k_lwp = EDPftvarcon_inst%hydr_k_lwp(ft)
   if (leaf_psi<0._r8) then
      lwp_star = exp(k_lwp*leaf_psi*molar_mass_water/(rgas_J_K_mol *veg_tempk))
-  else 
+  else
      lwp_star = 1._r8
   end if
 
   ! compute specific humidity from vapor pressure
-  ! q = molar_mass_ratio_vapdry*e/(can_press - (1-molar_mass_ratio_vapdry)*e) 
+  ! q = molar_mass_ratio_vapdry*e/(can_press - (1-molar_mass_ratio_vapdry)*e)
   ! source https://cran.r-project.org/web/packages/humidity/vignettes/humidity-measures.html
   ! now adjust inner leaf humidity by LWP_star
 
@@ -1373,20 +1375,20 @@ function LeafHumidityStomaResis(leaf_psi, veg_tempk, ceair, can_press, veg_esat,
      ! if inner leaf vapor pressure is less then or equal to that at leaf surface
      ! then set stomata resistance to be very large to stop the transpiration or back flow of vapor
      rstoma_out = rsmax0
-     
+
   else
 
      rstoma_out = (qsat-qs)*( 1/gstoma + rb)/(qsat_adj - qs)-rb
-     
+
   end if
-  
+
   if (rstoma_out < nearzero ) then
      write (fates_log(),*) 'qsat:', qsat, 'qs:', qs
      write (fates_log(),*) 'LWP :', leaf_psi
-     write (fates_log(),*) 'ceair:', ceair, 'veg_esat:', veg_esat            
-     write (fates_log(),*) 'rstoma_out:', rstoma_out, 'rb:', rb  
-     write (fates_log(),*) 'LWP_star', lwp_star 
-     call endrun(msg=errMsg(sourcefile, __LINE__))                  
+     write (fates_log(),*) 'ceair:', ceair, 'veg_esat:', veg_esat
+     write (fates_log(),*) 'rstoma_out:', rstoma_out, 'rb:', rb
+     write (fates_log(),*) 'LWP_star', lwp_star
+     call endrun(msg=errMsg(sourcefile, __LINE__))
   end if
 
 end function LeafHumidityStomaResis
@@ -1910,7 +1912,7 @@ subroutine LeafLayerMaintenanceRespiration(lmr25top_ft, &
    lmr)
 
    use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
-   
+
 
    ! Arguments
    real(r8), intent(in)  :: lmr25top_ft  ! canopy top leaf maint resp rate at 25C
