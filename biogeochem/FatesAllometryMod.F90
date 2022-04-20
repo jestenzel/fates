@@ -2079,7 +2079,7 @@ contains
      ! the attenuation function, all depths deeper than root max will have fractions = 0 before normalization.
      !
      ! !USES:
-     use FatesPlantHydraulicsMod, only : MaximumRootingDepth
+     !use FatesPlantHydraulicsMod, only : MaximumRootingDepth
 
      !
      ! !ARGUMENTS
@@ -2098,6 +2098,19 @@ contains
      real(r8) :: b  ! ""  "b" parameter
      real(r8) :: z_fr  ! Maximum depth of plant's roots [m]
 
+     real(r8) :: dbh_0
+     real(r8) :: dbh_max
+     real(r8) :: frk
+     real(r8) :: z_fr_0
+     real(r8) :: z_fr_max
+
+
+     real(r8) :: dbh_rel   ! Relative dbh of plant between the diameter at which we
+                           ! define the shallowest rooting depth (dbh_0) and the diameter
+                           ! at which we define the deepest rooting depth (dbh_max)
+
+
+
      !integer :: root_profile_type
      integer :: corr_id(1)        ! This is the bin with largest fraction
                                   ! add/subtract any corrections there
@@ -2106,6 +2119,11 @@ contains
                                   ! sum to 1.0
 
      !----------------------------------------------------------------------
+     dbh_max      = prt_params%allom_zroot_max_dbh(ft)   ![Jstenzel] Copied from MaximumRootingDepth subroutine
+     dbh_0        = prt_params%allom_zroot_min_dbh(ft)
+     z_fr_max     = prt_params%allom_zroot_max_z(ft)
+     z_fr_0       = prt_params%allom_zroot_min_z(ft)
+     frk          = prt_params%allom_zroot_k(ft))
 
      a = prt_params%fnrt_prof_a(ft)
      b = prt_params%fnrt_prof_b(ft)
@@ -2134,7 +2152,12 @@ contains
 
 
      ! Calculate max rooting depth based on cohort dbh
-     call MaximumRootingDepth(dbh, ft, 10.0_r8 , z_fr) ![JStenzel] temp hardcoded max rooting depth [m]
+     !call MaximumRootingDepth(dbh, ft, 10.0_r8 , z_fr) ![JStenzel] temp hardcoded max rooting depth [m]
+
+     ![JStenzel] Pulled from MaximumRootingDepth subroutine
+      dbh_rel      = min(1._r8,(max(dbh,dbh_0) - dbh_0)/(dbh_max - dbh_0))
+      z_fr = min(z_max_soil, z_fr_max/(1._r8 + ((z_fr_max-z_fr_0)/z_fr_0)*exp(-frk*dbh_rel)))
+
 
      ! Edits to exponential_2p_profile_type calculation to normalize by max rooting-depth root fraction
 
@@ -2157,7 +2180,7 @@ contains
                   ( exp(-a * zi(lev-1))  &
                   + exp(-b * zi(lev-1))  &
                   - exp(-a * zi(lev))    &
-                  - exp(-b * zi(lev))  )  
+                  - exp(-b * zi(lev))  )
          else
             root_fraction(lev) = 0._r8
          end if
