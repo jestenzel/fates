@@ -2583,7 +2583,8 @@ end subroutine flush_hvars
                      ccohort%ddbhdt*ccohort%n / m2_per_ha * m_per_cm
 
                end if
-
+               ! [JStenzel ]
+               
                ! mortality sums [#/m2]
                hio_m1_si_scpf(io_si,scpf) = hio_m1_si_scpf(io_si,scpf) +       &
                   ccohort%bmort*ccohort%n / m2_per_ha

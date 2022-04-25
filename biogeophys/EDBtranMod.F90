@@ -125,7 +125,8 @@ contains
 
     associate(                                 &
          smpsc     => EDPftvarcon_inst%smpsc          , &  ! INTERF-TODO: THESE SHOULD BE FATES PARAMETERS
-         smpso     => EDPftvarcon_inst%smpso            &  ! INTERF-TODO: THESE SHOULD BE FATES PARAMETERS
+         smpso     => EDPftvarcon_inst%smpso          , &  ! INTERF-TODO: THESE SHOULD BE FATES PARAMETERS
+         smp_coeff  => EDPftvarcon_inst%smp_coeff  &   ![JStenzel added]
          )
 
     do s = 1,nsites
@@ -158,10 +159,10 @@ contains
                 do while (associated(ccohort))    ![JStenzel] start cohort loop
                    ft = ccohort%pft
 
-                     !call set_root_fraction_dbh(sites(s)%rootfrac_scr, ft, sites(s)%zi_soil, & ![JStenzel new subroutine]
-                     !     bc_in(s)%max_rooting_depth_index_col, ccohort%dbh )
-                     call set_root_fraction(sites(s)%rootfrac_scr, ft, sites(s)%zi_soil, & !
-                         bc_in(s)%max_rooting_depth_index_col)
+                     call set_root_fraction_dbh(sites(s)%rootfrac_scr, ft, sites(s)%zi_soil, & ![JStenzel new subroutine]
+                          bc_in(s)%max_rooting_depth_index_col, ccohort%dbh )
+                     !call set_root_fraction(sites(s)%rootfrac_scr, ft, sites(s)%zi_soil, & !
+                     !    bc_in(s)%max_rooting_depth_index_col)
 
                    ccohort%btran_coh= 0.0_r8
                    cpatch%btran_ft(ft) = 0.0_r8
@@ -174,8 +175,27 @@ contains
 
                          smp_node = max(smpsc(ft), bc_in(s)%smp_sl(j))
 
-                         rresis  = min( (bc_in(s)%eff_porosity_sl(j)/bc_in(s)%watsat_sl(j))*               &
-                              (smp_node - smpsc(ft)) / (smpso(ft) - smpsc(ft)), 1._r8)
+                         !rresis  = min( (bc_in(s)%eff_porosity_sl(j)/bc_in(s)%watsat_sl(j))*      &
+                           !   (smp_node - smpsc(ft)) / (smpso(ft) - smpsc(ft)), 1._r8)
+
+                         ![JStenzel add] Exponential model of btran x smp. Added to represent
+                         ! varying degrees of non-fatal hydraulic dysfunction across spp or any other
+                         ! non-linear behavior affecting stomatal sensitivity to smp. Previously,
+                         ! variations in stomatal slope were impacting water use efficiency, but
+                         ! not the duration of the water uptake period during the growing season and therefore
+                         ! not the duration of the c-store depletion period during drough. A pft that had a higher
+                         ! WUE used similar amounts of water as a low WUE pft
+                         ! due to the linear negative feedback between water use and btran. With this modification
+                         ! 2 pfts can face different BTRAN values at the same SMP conditions, and
+                         ! therefore different durations of cstarvation based degree of isohydry and
+                         ! resulting pre-drought water use. Relative to a hypothetical anisohydric spp
+                         ! This new scheme allows a pft to have both have higher stomatal conductance
+                         ! at low water stress and lower stomatal conductance as stress increases.
+                         rresis = min( (bc_in(s)%eff_porosity_sl(j)/bc_in(s)%watsat_sl(j)) *       &
+                         ( ( 1._r8 - exp( -1.0_r8 * smp_coeff * ((smp_node-smpsc(ft)) /            &
+                         (smpso(ft)-smpsc(ft))) ) ) / (1 - exp(-1 * smp_coeff))  )                 &
+                         , 1._r8 )
+
 
                          cohort_resis(j) = sites(s)%rootfrac_scr(j) * rresis    ! [JStenzel] This root fraction is now dependent on pft AND dbh
                          root_resis(ft,j) = root_resis(ft,j) + cohort_resis(j) * &    ![JStenzel] patch (pft x layer) sum from cohorts:  fractional btran scaled by cohort canopy area

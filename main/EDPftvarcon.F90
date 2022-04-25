@@ -82,6 +82,8 @@ module EDPftvarcon
      real(r8), allocatable :: smpsc(:)               ! Soil water potential at full stomatal closure
                                                      ! (non-HYDRO mode only) [mm]
 
+     real(r8), allocatable :: smp_coeff(:)           ![JStenzel] Coefficient determining linearity of
+                                                     ! pft BTRAN x smp response
 
      real(r8), allocatable :: maintresp_reduction_curvature(:) ! curvature of MR reduction as f(carbon storage),
                                                                ! 1=linear, 0=very curved
@@ -433,6 +435,10 @@ contains
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fates_smpsc'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_smp_coeff'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -801,6 +807,10 @@ contains
     name = 'fates_smpsc'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%smpsc)
+
+    name = 'fates_smp_coeff'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%smp_coeff)
 
     name = 'fates_maintresp_reduction_curvature'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -1489,6 +1499,7 @@ contains
         write(fates_log(),fmt0) 'vcmax25top = ',EDPftvarcon_inst%vcmax25top
         write(fates_log(),fmt0) 'smpso = ',EDPftvarcon_inst%smpso
         write(fates_log(),fmt0) 'smpsc = ',EDPftvarcon_inst%smpsc
+        write(fates_log(),fmt0) 'smp_coeff = ',EDPftvarcon_inst%smp_coeff
         write(fates_log(),fmt0) 'bmort = ',EDPftvarcon_inst%bmort
         write(fates_log(),fmt0) 'mort_ip_size_senescence = ', EDPftvarcon_inst%mort_ip_size_senescence
         write(fates_log(),fmt0) 'mort_r_size_senescence = ', EDPftvarcon_inst%mort_r_size_senescence
