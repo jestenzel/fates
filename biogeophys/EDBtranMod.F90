@@ -192,8 +192,8 @@ contains
                          ! This new scheme allows a pft to have both have higher stomatal conductance
                          ! at low water stress and lower stomatal conductance as stress increases.
                          rresis = min( (bc_in(s)%eff_porosity_sl(j)/bc_in(s)%watsat_sl(j)) *       &
-                         ( ( 1._r8 - exp( -1.0_r8 * smp_coeff * ((smp_node-smpsc(ft)) /            &
-                         (smpso(ft)-smpsc(ft))) ) ) / (1 - exp(-1 * smp_coeff))  )                 &
+                         ( ( 1._r8 - exp( -1.0_r8 * smp_coeff(ft) * ((smp_node-smpsc(ft)) /        &
+                         (smpso(ft)-smpsc(ft))) ) ) / (1 - exp(-1 * smp_coeff(ft)))  )             &
                          , 1._r8 )
 
 
