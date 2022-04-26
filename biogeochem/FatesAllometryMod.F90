@@ -2122,14 +2122,16 @@ contains
                                   ! sum to 1.0
 
      !----------------------------------------------------------------------
-     dbh_max      = prt_params%allom_zroot_max_dbh(ft)   ![Jstenzel] Copied from MaximumRootingDepth subroutine
-     dbh_0        = prt_params%allom_zroot_min_dbh(ft)
-     z_fr_max     = prt_params%allom_zroot_max_z(ft)
-     z_fr_0       = prt_params%allom_zroot_min_z(ft)
-     frk          = prt_params%allom_zroot_k(ft)
 
-     a = prt_params%fnrt_prof_a(ft)
-     b = prt_params%fnrt_prof_b(ft)
+     associate( &
+     dbh_max      => prt_params%allom_zroot_max_dbh(ft) &   ![Jstenzel] Copied from MaximumRootingDepth subroutine
+     dbh_0        => prt_params%allom_zroot_min_dbh(ft) &
+     z_fr_max     => prt_params%allom_zroot_max_z(ft) &
+     z_fr_0       => prt_params%allom_zroot_min_z(ft) &
+     frk          => prt_params%allom_zroot_k(ft) &
+     a =>  prt_params%fnrt_prof_a(ft) &
+     b =>   prt_params%fnrt_prof_b(ft) )
+
 
      z_max_soil = 5.0_r8
 
