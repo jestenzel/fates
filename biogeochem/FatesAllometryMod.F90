@@ -2104,7 +2104,7 @@ contains
      !real(r8) :: frk
      !real(r8) :: z_fr_0
      !real(r8) :: z_fr_max
-     !real(r8) :: z_max_soil
+     real(r8) :: z_max_soil
 
 
      real(r8) :: dbh_rel   ! Relative dbh of plant between the diameter at which we
@@ -2203,7 +2203,7 @@ contains
      root_fraction(corr_id(1)) = root_fraction(corr_id(1)) + correction
 
 
-
+     end associate
      return
   end subroutine set_root_fraction_dbh
 
