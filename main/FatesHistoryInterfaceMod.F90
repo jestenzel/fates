@@ -3139,10 +3139,14 @@ end subroutine flush_hvars
       end do
       sites(s)%recruitment_rate(:) = 0._r8
 
-      ! summarize all of the mortality fluxes by PFT
+      ! summarize all of the mortality fluxes by PFT ![JStenzel] Added BTRAN scpf summary here
       do i_pft = 1, numpft
          do i_scls = 1,nlevsclass
             i_scpf = (i_pft-1)*nlevsclass + i_scls
+
+            ! [JStenzel added] divide cohort sum of btran by number of cohorts per scpf
+            hio_btransum_si_scpf(io_si,i_scpf) = hio_btransum_si_scpf(io_si,i_scpf) / &
+                 hio_ncohort_si_scpf(io_si,i_scpf)
 
             hio_mortality_si_pft(io_si,i_pft) = hio_mortality_si_pft(io_si,i_pft) + &
                hio_m1_si_scpf(io_si,i_scpf) + &
