@@ -2593,7 +2593,7 @@ end subroutine flush_hvars
                end if
                ! [JStenzel add ] BTRAN sums and scpf ncohort for non-weighted averaging
                hio_ncohort_si_scpf(io_si,scpf) = hio_ncohort_si_scpf(io_si,scpf) + 1._r8
-               hio_btransum_si_scpf](io_si,scpf) = hio_btransum_si_scpf(io_si,scpf) + &
+               hio_btransum_si_scpf(io_si,scpf) = hio_btransum_si_scpf(io_si,scpf) + &
                      ccohort%btran_coh
 
                ! mortality sums [#/m2]
