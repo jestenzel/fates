@@ -393,6 +393,10 @@ module FatesHistoryInterfaceMod
   integer :: ih_ar_canopy_si_scpf
   integer :: ih_ar_understory_si_scpf
 
+
+  integer :: ih_btransum_si_scpf ![JStenzel add]
+  integer :: ih_ncohort_si_scpf !
+
   integer :: ih_ddbh_si_scpf
   integer :: ih_growthflux_si_scpf
   integer :: ih_growthflux_fusion_si_scpf
@@ -1937,6 +1941,10 @@ end subroutine flush_hvars
                hio_nplant_si_scpf      => this%hvars(ih_nplant_si_scpf)%r82d, &
                hio_nplant_si_capf      => this%hvars(ih_nplant_si_capf)%r82d, &
 
+               ![JStenzel add]
+               hio_btransum_si_scpf   => this%hvars(ih_btransum_si_scpf)%r82d, &
+               hio_ncohort_si_scpf    => this%hvars(ih_ncohort_si_scpf)%r82d, &
+
                hio_m1_si_scpf          => this%hvars(ih_m1_si_scpf)%r82d, &
                hio_m2_si_scpf          => this%hvars(ih_m2_si_scpf)%r82d, &
                hio_m3_si_scpf          => this%hvars(ih_m3_si_scpf)%r82d, &
@@ -2583,8 +2591,11 @@ end subroutine flush_hvars
                      ccohort%ddbhdt*ccohort%n / m2_per_ha * m_per_cm
 
                end if
-               ! [JStenzel ]
-               
+               ! [JStenzel add ] BTRAN sums and scpf ncohort for non-weighted averaging
+               hio_ncohort_si_scpf(io_si,scpf) = hio_ncohort_si_scpf(io_si,scpf) + 1._r8
+               hio_btransum_si_scpf](io_si,scpf) = hio_btransum_si_scpf(io_si,scpf) + &
+                     ccohort%btran_coh
+
                ! mortality sums [#/m2]
                hio_m1_si_scpf(io_si,scpf) = hio_m1_si_scpf(io_si,scpf) +       &
                   ccohort%bmort*ccohort%n / m2_per_ha
@@ -2622,7 +2633,7 @@ end subroutine flush_hvars
                   (ccohort%lmort_direct+ccohort%lmort_collateral+ccohort%lmort_infra) * ccohort%n / m2_per_ha
                hio_m8_si_scls(io_si,scls) = hio_m8_si_scls(io_si,scls) + &
                   ccohort%frmort*ccohort%n / m2_per_ha
-	       hio_m11_si_scls(io_si,scls) = hio_m11_si_scls(io_si,scls) + &
+	            hio_m11_si_scls(io_si,scls) = hio_m11_si_scls(io_si,scls) + &
                   ccohort%heatmort*ccohort%n / m2_per_ha
                hio_m9_si_scls(io_si,scls) = hio_m9_si_scls(io_si,scls) + ccohort%smort*ccohort%n / m2_per_ha
 
@@ -5867,6 +5878,21 @@ end subroutine update_history_hifrq
           use_default='inactive', avgflag='A', vtype=site_size_pft_r8,         &
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_mortality_canopy_si_scpf)
+
+    ![JStenel added] BTRAN sum and scpf ncohorts (for averaging)
+    call this%set_history_var(vname='FATES_BTRAN_SUM_SZPF',            &
+          units = 'fraction of BTRAN=1 (unstressed)',                           &
+          long='Sum of BTRAN by pft/size', &
+          use_default='inactive',           &
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', upfreq=1,       &
+          ivar=ivar, initialize=initialize_variables, index = ih_btransum_si_scpf)
+
+    call this%set_history_var(vname='FATES_NCOHORT_SZPF',            &
+          units = 'Cohort count',                                              &
+          long='Number of chohorts by pft/size ', &
+          use_default='inactive',           &
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', upfreq=1,       &
+          ivar=ivar, initialize=initialize_variables, index = ih_ncohort_si_scpf)
 
     call this%set_history_var(vname='FATES_C13DISC_SZPF', units = 'per mil',   &
          long='C13 discrimination by pft/size',use_default='inactive',         &
