@@ -3145,8 +3145,10 @@ end subroutine flush_hvars
             i_scpf = (i_pft-1)*nlevsclass + i_scls
 
             ! [JStenzel added] divide cohort sum of btran by number of cohorts per scpf
-            hio_btransum_si_scpf(io_si,i_scpf) = hio_btransum_si_scpf(io_si,i_scpf) / &
-                 hio_ncohort_si_scpf(io_si,i_scpf)
+            if ( hio_ncohort_si_scpf(io_si,i_scpf) .gt. 0.0_r8) then
+               hio_btransum_si_scpf(io_si,i_scpf) = hio_btransum_si_scpf(io_si,i_scpf) / &
+                  hio_ncohort_si_scpf(io_si,i_scpf)
+            end if
 
             hio_mortality_si_pft(io_si,i_pft) = hio_mortality_si_pft(io_si,i_pft) + &
                hio_m1_si_scpf(io_si,i_scpf) + &
