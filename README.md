@@ -6,15 +6,15 @@ Changes:
 - Snags ! Biomass turnover. 
 - Harvest slash combustion
 - Harvest seedling planting
+- Root depth increases by DBH => water access differs for sm trees
 
 Disturbance_1 branch changes: 
 
 Summary:
 
-(Temperature-based mortality)
-- heat mortality added (like freeze mortality)
-- Temperature-based mortalities now based on daily min/max temperature INSTEAD of mean temperature. 
-- Seedling temperature tolerances set by separate parameters to represent seedling vs hardened stems.
+(Root depth & water use)
+- Root depth & water access can scale by tree size! FATES hydro root min/max depth/dbh paramneters (x5) can now be used to set PFT root depth by DBH in coordination with fnrt_prof root profile shape parameters.  BTRAN resulting from new root profiles is calculated by cohort, NOT by pft x site. 
+- New parameter changes stomatal sensititivy to increasing soil matric potential by allowing plant BTRAN downreg to be a) linear with increasing SMP (isohydric); or b) exponential increase in (1-BTRAN) (anisohydric)
 
 (Fuels)
 - New parameter for live -> CWD destination fraction from branch turnover. Previously, fractions from mortality and turnover were the same and were, by default, dominated by 1000 hr fuels. 
@@ -31,9 +31,22 @@ Summary:
 - Hydraulic failure mortality is now delayed until the first yr July 1st, as early run hydr mortality was occuring before soil moisture was spun up. 
 - New parameter to delay temperature-based mortality so that the initial cohorts are not murdered due to a Jan 1 model start and no chance to grow/harden.
 
+(Optional Temperature-based mortality)
+- Temperature-based mortalities now based on daily min/max temperature INSTEAD of mean temperature. 
+- Seedling temperature tolerances set by separate parameters to represent seedling vs hardened stems.
+- heat mortality added (like freeze mortality)
+
 Added / Changed-usage parameters:
-(+) 12
-(Δ) 3
+(+) 13
+(Δ) 9
+
+Water use/access:
+Δ (definition change) zroot_k: Now applies outside of FATES Hydro
+Δ (definition change) zroot_max_dbh: Now applies outside of FATES Hydro
+Δ (definition change) zroot_max_z: Now applies outside of FATES Hydro
+Δ (definition change) zroot_min_dbh: Now applies outside of FATES Hydro
+Δ (definition change) zroot_min_z: Now applies outside of FATES Hydro
++ fates_smp_coeff : Lower (non-zero) = linear BTRAN ~ SMP. Higher = anisohydric, BTRAN increasing rapidly only @ extreme soil matric potentials. 
 
 Mortality:
 + fates_mort_heat_tol (pft) :maximum temperature tolerance, post-seedling; degress C.
