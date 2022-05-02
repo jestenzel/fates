@@ -1016,7 +1016,7 @@ contains
            units='kg/m2', veclength=num_elements, flushval = flushzero, &
            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_seedgerm_decay_litt)
 
-! [ JStenzel added x 3] !!!!
+! [ JStenzel added x 4] !!!!
     call this%RegisterCohortVector(symbol_base='fates_seed_kill_frag', vtype=cohort_r8, &
            long_name_base='seed bank kill fragmentation flux (non-germinated)',  &
            units='kg/m2', veclength=num_elements, flushval = flushzero, &
@@ -2252,6 +2252,8 @@ contains
                  do i = 1,nsnag
                     this%rvars(ir_snag_litt+el)%r81d(io_idx_pa_nsnag) = litt%snag(i)        ![JStenzel add]
                     this%rvars(ir_snag_frag_litt+el)%r81d(io_idx_pa_nsnag) = litt%snag_frag(i)
+
+                    io_idx_pa_nsnag = io_idx_pa_nsnag + 1
                  end do
 
                  do i = 1,ncwd
@@ -2292,6 +2294,7 @@ contains
              io_idx_pa_ib   = io_idx_co_1st
              io_idx_co      = io_idx_co_1st
              io_idx_pa_ncl  = io_idx_co_1st
+             io_idx_pa_nsnag  = io_idx_co_1st  !JStenzel
 
              if ( debug ) then
                 write(fates_log(),*) 'CLTV io_idx_co_1st ', io_idx_co_1st
@@ -3087,6 +3090,7 @@ contains
                   do i = 1,nsnag
                      litt%snag(i) = this%rvars(ir_snag_litt+el)%r81d(io_idx_pa_nsnag)                 ![JStenzel add]
                      litt%snag_frag(i) = this%rvars(ir_snag_frag_litt+el)%r81d(io_idx_pa_nsnag)
+                     io_idx_pa_nsnag = io_idx_pa_nsnag + 1
                   end do
 
                   do i = 1,ndcmpy
@@ -3140,6 +3144,7 @@ contains
              io_idx_pa_ib   = io_idx_co_1st
              io_idx_co      = io_idx_co_1st
              io_idx_pa_ncl  = io_idx_co_1st
+             io_idx_pa_nsnag  = io_idx_co_1st !JStenel
 
              if ( debug ) then
                 write(fates_log(),*) 'CVTL io_idx_co_1st ', io_idx_co_1st
