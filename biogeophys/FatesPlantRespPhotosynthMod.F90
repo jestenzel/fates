@@ -1260,10 +1260,10 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
               gs_mol_err = bb_slope(ft)*max(anet, 0._r8)*hs/leaf_co2_ppress*can_press + stomatal_intercept_btran
            end if
 
-           if (abs(gs_mol-gs_mol_err) > 1.e-01_r8) then
-              write (fates_log(),*) 'Stomatal model error check - stomatal conductance error:'
-              write (fates_log(),*) gs_mol, gs_mol_err
-           end if
+           !if (abs(gs_mol-gs_mol_err) > 1.e-01_r8) then   ![JStenzel commented out] For now. Those log files were huge!
+            !  write (fates_log(),*) 'Stomatal model error check - stomatal conductance error:'
+            !  write (fates_log(),*) gs_mol, gs_mol_err
+          ! end if
 
         enddo !sunsha loop
 
