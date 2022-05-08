@@ -328,7 +328,7 @@ contains
              temprootr = sum(bc_out(s)%rootr_pasl(ifp,1:bc_in(s)%nlevsoil))
 
              if(abs(1.0_r8-temprootr) > 1.0e-10_r8 .and. temprootr > 1.0e-10_r8)then
-                write(fates_log(),*) 'error with rootr in canopy fluxes',temprootr,sum_pftgs
+                !write(fates_log(),*) 'error with rootr in canopy fluxes',temprootr,sum_pftgs
                 do j = 1,bc_in(s)%nlevsoil
                    bc_out(s)%rootr_pasl(ifp,j) = bc_out(s)%rootr_pasl(ifp,j)/temprootr
                 enddo
