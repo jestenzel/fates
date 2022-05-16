@@ -113,7 +113,7 @@ contains
     ![JStenzel added] Decide if any surface layers of soil are frozen. This is meant to prevent hydraulic
     ! failure mortality from small trees with roots in superficial layers only.
     unfrozen_soil = .true.
-    if ( minval( bc_in%eff_porosity_sl(1:4)/bc_in%watsat_sl(1:4) ) .lt. 0.05_r8 ) then
+    if ( minval( bc_in%eff_porosity_sl(1:4)/bc_in%watsat_sl(1:4) ) .lt. 0.30_r8 ) then
        unfrozen_soil = .false.
     end if
 
