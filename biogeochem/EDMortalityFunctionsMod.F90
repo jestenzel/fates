@@ -83,7 +83,7 @@ contains
     real(r8) :: min_fmc            ! minimum fraction of maximum conductivity for whole plant
     real(r8) :: flc                ! fractional loss of conductivity
     logical :: unfrozen_soil        ![JStenzel added]
-    !integer  :: j                  ![JStenzel added]
+    integer  :: j                  ![JStenzel added]
 
     real(r8), parameter :: frost_mort_buffer = 5.0_r8  ! 5deg buffer for freezing mortality
     logical, parameter :: test_zero_mortality = .false. ! Developer test which
@@ -113,14 +113,14 @@ contains
     ![JStenzel added] Decide if any surface layers of soil are frozen. This is meant to prevent hydraulic
     ! failure mortality from small trees with roots in superficial layers only.
     unfrozen_soil = .true.
-    if ( minval( bc_in%eff_porosity_sl(1:4)/bc_in%watsat_sl(1:4) ) .lt. 0.30_r8 ) then
-       unfrozen_soil = .false.
-    end if
+    !if ( minval( bc_in%eff_porosity_sl(1:4)/bc_in%watsat_sl(1:4) ) .lt. 0.30_r8 ) then
+      ! unfrozen_soil = .false.
+    !end if
 
-    !do j =1,4
-      !if( (bc_in%eff_porosity_sl(j)/bc_in%watsat_sl(j)) .lt. 0.1_r8 )
-      !unfrozen_soil = .false.
-    !end do
+    do j =1,4
+       if( (bc_in%eff_porosity_sl(j)/bc_in%watsat_sl(j)) .lt. 0.3_r8 )
+       unfrozen_soil = .false.
+    end do
 
     if ( mort_ip_age_senescence < fates_check_param_set ) then
        ! Age Dependent Senescence
