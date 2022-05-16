@@ -5,6 +5,7 @@ module EDMortalityFunctionsMod
   ! ============================================================================
 
    use FatesConstantsMod     , only : r8 => fates_r8
+   use FatesConstantsMod , only : tfrz => t_water_freeze_k_1atm
    use FatesGlobals          , only : fates_log
    use EDPftvarcon           , only : EDPftvarcon_inst
    use EDTypesMod            , only : ed_cohort_type
@@ -116,12 +117,16 @@ contains
     !if ( minval( bc_in%eff_porosity_sl(1:4)/bc_in%watsat_sl(1:4) ) .lt. 0.30_r8 ) then
       ! unfrozen_soil = .false.
     !end if
-
     do j =1,4
        if( (bc_in%eff_porosity_sl(j)/bc_in%watsat_sl(j)) .lt. 0.3_r8 ) then
           unfrozen_soil = .false.
        end if
+       if ( bc_in%tempk_sl(j)) .lt. tfrz-2._r8 ) then
+         unfrozen_soil = .false.
+       end if
     end do
+
+
 
     if ( mort_ip_age_senescence < fates_check_param_set ) then
        ! Age Dependent Senescence
