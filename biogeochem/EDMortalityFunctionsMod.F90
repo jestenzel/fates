@@ -118,8 +118,9 @@ contains
     !end if
 
     do j =1,4
-       if( (bc_in%eff_porosity_sl(j)/bc_in%watsat_sl(j)) .lt. 0.3_r8 )
-       unfrozen_soil = .false.
+       if( (bc_in%eff_porosity_sl(j)/bc_in%watsat_sl(j)) .lt. 0.3_r8 ) then
+          unfrozen_soil = .false.
+       end if
     end do
 
     if ( mort_ip_age_senescence < fates_check_param_set ) then
