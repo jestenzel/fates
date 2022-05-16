@@ -121,7 +121,7 @@ contains
        if( (bc_in%eff_porosity_sl(j)/bc_in%watsat_sl(j)) .lt. 0.3_r8 ) then
           unfrozen_soil = .false.
        end if
-       if ( bc_in%tempk_sl(j)) .lt. tfrz-2._r8 ) then
+       if ( bc_in%tempk_sl(j) .lt. tfrz-2._r8 ) then
          unfrozen_soil = .false.
        end if
     end do
