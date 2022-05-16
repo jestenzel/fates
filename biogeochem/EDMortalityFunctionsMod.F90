@@ -82,6 +82,8 @@ contains
     real(r8) :: min_fmc_ar         ! minimum fraction of maximum conductivity for absorbing root
     real(r8) :: min_fmc            ! minimum fraction of maximum conductivity for whole plant
     real(r8) :: flc                ! fractional loss of conductivity
+    logical :: unfrozen_soil        ![JStenzel added]
+    !integer  :: j                  ![JStenzel added]
 
     real(r8), parameter :: frost_mort_buffer = 5.0_r8  ! 5deg buffer for freezing mortality
     logical, parameter :: test_zero_mortality = .false. ! Developer test which
@@ -107,6 +109,18 @@ contains
 
     mort_r_age_senescence = EDPftvarcon_inst%mort_r_age_senescence(cohort_in%pft)
     mort_ip_age_senescence = EDPftvarcon_inst%mort_ip_age_senescence(cohort_in%pft)
+
+    ![JStenzel added] Decide if any surface layers of soil are frozen. This is meant to prevent hydraulic
+    ! failure mortality from small trees with roots in superficial layers only.
+    unfrozen_soil = .true.
+    if ( minval( bc_in%eff_porosity_sl(1:4)/bc_in%watsat_sl(1:4) ) .lt. 0.05_r8 ) then
+       unfrozen_soil = .false.
+    end if
+
+    !do j =1,4
+      !if( (bc_in%eff_porosity_sl(j)/bc_in%watsat_sl(j)) .lt. 0.1_r8 )
+      !unfrozen_soil = .false.
+    !end do
 
     if ( mort_ip_age_senescence < fates_check_param_set ) then
        ! Age Dependent Senescence
@@ -150,7 +164,9 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
       else
        !if(cohort_in%patchptr%btran_ft(cohort_in%pft) <= hf_sm_threshold)then
       !   hmort = EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)
-         if(cohort_in%btran_coh <= hf_sm_threshold) then     ![JStenzel] HMort based on new cohort btran
+      ![JStenzel] HMort based on new cohort btran. Hmort prevented if ice is present in any of the
+      !first 5 soil layers to prevent hydraulic mortality during winter.
+         if(cohort_in%btran_coh <= hf_sm_threshold .and. unfrozen_soil) then
             hmort = EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)
          else
             hmort = 0.0_r8
