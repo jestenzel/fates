@@ -1248,9 +1248,9 @@ contains
        !If the canopy area is approaching closure, squash the tree canopies and make them taller and thinner
 
           if(patchlevel_canopyarea/currentPatch%area > ED_val_canopy_closure_thresh) then
-            currentPatch%spread = currentPatch%spread(z) - inc
+            currentPatch%spread = currentPatch%spread - inc
           else
-            currentPatch%spread = currentPatch%spread(z) + inc
+            currentPatch%spread = currentPatch%spread + inc
           endif
 
           currentPatch%spread = max(min(currentPatch%spread, 1._r8), 0._r8)
