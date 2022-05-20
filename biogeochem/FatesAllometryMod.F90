@@ -441,10 +441,10 @@ contains
   ! Generic crown area allometry wrapper
   ! ============================================================================
 
-  subroutine carea_allom(dbh,nplant,site_spread,ipft,c_area,inverse)
+  subroutine carea_allom(dbh,nplant,patch_spread,ipft,c_area,inverse)     ![JStenzel]
 
      real(r8),intent(inout) :: dbh          ! plant diameter at breast (reference) height [cm]
-     real(r8),intent(in)    :: site_spread  ! site level spread factor (crowdedness)
+     real(r8),intent(in)    :: patch_spread  ! patch level spread factor (crowdedness) ![JStenzel]
      real(r8),intent(in)    :: nplant       ! number of plants [1/ha]
      integer(i4),intent(in) :: ipft         ! PFT index
      real(r8),intent(inout) :: c_area       ! crown area per cohort (m2)
@@ -477,14 +477,14 @@ contains
        select case(int(allom_lmode))
        case(1)
           dbh_eff = min(dbh,dbh_maxh)
-          call carea_2pwr(dbh_eff,site_spread,d2bl_p2,d2bl_ediff,d2ca_min,d2ca_max,c_area,do_inverse)
+          call carea_2pwr(dbh_eff,patch_spread,d2bl_p2,d2bl_ediff,d2ca_min,d2ca_max,c_area,do_inverse)
           capped_allom = .true.
        case(2)   ! "2par_pwr")
-          call carea_2pwr(dbh,site_spread,d2bl_p2,d2bl_ediff,d2ca_min,d2ca_max,c_area,do_inverse)
+          call carea_2pwr(dbh,patch_spread,d2bl_p2,d2bl_ediff,d2ca_min,d2ca_max,c_area,do_inverse)
           capped_allom = .false.
        case(3)
           dbh_eff = min(dbh,dbh_maxh)
-          call carea_2pwr(dbh_eff,site_spread,d2bl_p2,d2bl_ediff,d2ca_min,d2ca_max,c_area,do_inverse)
+          call carea_2pwr(dbh_eff,patch_spread,d2bl_p2,d2bl_ediff,d2ca_min,d2ca_max,c_area,do_inverse)
           capped_allom = .true.
        case DEFAULT
           write(fates_log(),*) 'An undefined leaf allometry was specified: ', &
@@ -2027,7 +2027,7 @@ contains
      ! ============================================================================
 
      real(r8),intent(inout) :: dbh      ! diameter at breast (refernce) height [cm]
-     real(r8),intent(in) :: spread      ! site level relative spread score [0-1]
+     real(r8),intent(in) :: spread      ! patch level relative spread score [0-1]  ![JStenel]
      real(r8),intent(in) :: d2bl_p2     ! parameter 2 in the diameter->bleaf allometry (exponent)
      real(r8),intent(in) :: d2bl_ediff  ! area difference factor in the diameter-bleaf allometry (exponent)
      real(r8),intent(in) :: d2ca_min    ! minimum diameter to crown area scaling factor

@@ -163,6 +163,8 @@ module FatesHistoryInterfaceMod
   integer :: ih_reproc_si
   integer :: ih_totvegc_si
 
+  integer :: ih_spread_si   !JStenzel  Site average patch spread
+
   integer :: ih_storen_si
   integer :: ih_storentfrac_si
   integer :: ih_leafn_si
@@ -1851,6 +1853,7 @@ end subroutine flush_hvars
                hio_area_plant_si       => this%hvars(ih_area_plant_si)%r81d, &
                hio_area_trees_si  => this%hvars(ih_area_trees_si)%r81d, &
                hio_canopy_spread_si    => this%hvars(ih_canopy_spread_si)%r81d, &
+               hio_spread_si           => this%hvars(ih_spread_si)%r81d, &   ![JStenzel]
                hio_biomass_si_pft      => this%hvars(ih_biomass_si_pft)%r82d, &
                hio_leafbiomass_si_pft  => this%hvars(ih_leafbiomass_si_pft)%r82d, &
                hio_storebiomass_si_pft => this%hvars(ih_storebiomass_si_pft)%r82d, &
@@ -2962,6 +2965,8 @@ end subroutine flush_hvars
 
          hio_fire_intensity_area_product_si(io_si) = hio_fire_intensity_area_product_si(io_si) + &
             cpatch%FI * cpatch%frac_burnt * cpatch%area * AREA_INV * J_per_kJ
+         ! Patch canopy spread [JStenzel]
+         hio_spread_si(io_si) = hio_spread_si(io_si) + cpatch%spread * cpatch%area * AREA_INV  ![JStenzel]
 
          ! Update Litter Flux Variables
 
@@ -4546,6 +4551,12 @@ end subroutine update_history_hifrq
          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index=ih_canopy_spread_si)
+
+    call this%set_history_var(vname='FATES_CANOPY_SPREAD_PATCH', units='',     &
+         long='scaling factor (0-1), Patch spread average',                    &
+         use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
+         upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
+         index=ih_spread_si)
 
     call this%set_history_var(vname='FATES_VEGC_PF', units='kg m-2',           &
          long='total PFT-level biomass in kg of carbon per land area',         &

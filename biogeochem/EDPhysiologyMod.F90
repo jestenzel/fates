@@ -488,7 +488,7 @@ contains
 
           trimmed = .false.
           ipft = currentCohort%pft
-          call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread,currentCohort%pft,currentCohort%c_area)
+          call carea_allom(currentCohort%dbh,currentCohort%n,currentPatch%spread,currentCohort%pft,currentCohort%c_area)
 
           leaf_c   = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
 
@@ -2199,7 +2199,7 @@ contains
                   temp_cohort%laimemory, temp_cohort%sapwmemory, temp_cohort%structmemory, &
                   cohortstatus, recruitstatus, &
                   temp_cohort%canopy_trim,temp_cohort%c_area, &
-                  currentPatch%NCL_p, currentSite%spread, bc_in)
+                  currentPatch%NCL_p, currentPatch%spread, bc_in)
 
              ! Note that if hydraulics is on, the number of cohorts may had
              ! changed due to hydraulic constraints.

@@ -425,7 +425,7 @@ module EDTypesMod
      integer  ::  ncl_p                                            ! Number of occupied canopy layers
      integer  ::  anthro_disturbance_label                         ! patch label for anthropogenic disturbance classification
      real(r8) ::  age_since_anthro_disturbance                     ! average age for secondary forest since last anthropogenic disturbance
-
+     real(r8) ::  spread                                           ![JStenzel added] Returning to patch-level spread. Especially fine since if disturb_frac == 0 
 
      ! Running means
      !class(rmean_type), pointer :: t2m                          ! Place-holder for 2m air temperature (variable window-size)

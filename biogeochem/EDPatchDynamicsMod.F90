@@ -211,7 +211,7 @@ contains
 
           call mortality_rates(currentCohort,bc_in,cmort,hmort,bmort,frmort,heatmort,smort,asmort)
           currentCohort%dmort  = cmort+hmort+bmort+frmort+heatmort+smort+asmort
-          call carea_allom(currentCohort%dbh,currentCohort%n,site_in%spread,currentCohort%pft, &
+          call carea_allom(currentCohort%dbh,currentCohort%n,currentPatch%spread,currentCohort%pft, &
                currentCohort%c_area)
 
           ! Initialize diagnostic mortality rates
@@ -2566,6 +2566,7 @@ contains
     new_patch%burnt_frac_litter(:) = 0._r8
     new_patch%total_tree_area    = 0.0_r8
     new_patch%NCL_p              = 1
+    new_patch%spread             = 1._r8   ![JStenzel]
 
 
     return
@@ -2597,6 +2598,7 @@ contains
     currentPatch%patchno  = 999
 
     currentPatch%age                        = nan
+    currentPatch%spread                     = nan  ![JStenzel]
     currentPatch%age_class                  = 1
     currentPatch%area                       = nan
     currentPatch%canopy_layer_tlai(:)       = nan
@@ -3013,6 +3015,8 @@ contains
     ! [Jstenzel]
     call rp%tveg24_min%FuseRMean(dp%tveg24_min,rp%area*inv_sum_area)
     call rp%tveg24_max%FuseRMean(dp%tveg24_max,rp%area*inv_sum_area)
+
+    rp%spread    = (dp%spread *dp%area + rp%spread *rp%area) * inv_sum_area ![JStenzel]
 
     rp%fuel_eff_moist       = (dp%fuel_eff_moist*dp%area + rp%fuel_eff_moist*rp%area) * inv_sum_area
     rp%livegrass            = (dp%livegrass*dp%area + rp%livegrass*rp%area) * inv_sum_area

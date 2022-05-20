@@ -180,6 +180,7 @@ module FatesRestartInterfaceMod
   integer :: ir_livegrass_pa
   integer :: ir_age_pa
   integer :: ir_area_pa
+  integer :: ir_spread_pa   ![JStenzel add]
   integer :: ir_agesinceanthrodist_pa
   integer :: ir_patchdistturbcat_pa
   integer :: ir_nocomp_pft_label_pa
@@ -964,6 +965,11 @@ contains
     call this%set_restart_var(vname='fates_litter_moisture_pa_nfsc', vtype=cohort_r8, &
          long_name='scorch height', units='m', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_litter_moisture_pa_nfsc)
+
+    call this%set_restart_var(vname='fates_patch_spread', vtype=cohort_r8, &
+         long_name='canopy spread of the patch', units='fraction', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_spread_pa )
+
 
     ! Site Level Diagnostics over multiple nutrients
 
@@ -1892,6 +1898,7 @@ contains
            rio_livegrass_pa            => this%rvars(ir_livegrass_pa)%r81d, &
            rio_age_pa                  => this%rvars(ir_age_pa)%r81d, &
            rio_patchdistturbcat_pa     => this%rvars(ir_patchdistturbcat_pa)%int1d, &
+           rio_spread_pa               => this%rvars(ir_spread_pa)%int1d, &              ![JStenzel]
            rio_agesinceanthrodist_pa   => this%rvars(ir_agesinceanthrodist_pa)%r81d, &
            rio_nocomp_pft_label_pa     => this%rvars(ir_nocomp_pft_label_pa)%int1d, &
            rio_area_pa                 => this%rvars(ir_area_pa)%r81d, &
@@ -2169,6 +2176,7 @@ contains
              rio_agesinceanthrodist_pa(io_idx_co_1st) = cpatch%age_since_anthro_disturbance
              rio_nocomp_pft_label_pa(io_idx_co_1st)= cpatch%nocomp_pft_label
              rio_area_pa(io_idx_co_1st)        = cpatch%area
+             rio_spread_pa(io_idx_co_1st)   = cpatch%spread
 
              ! Patch level running means
              call this%SetRMeanRestartVar(cpatch%tveg24, ir_tveg24_pa, io_idx_co_1st)
@@ -2757,6 +2765,7 @@ contains
           rio_livegrass_pa            => this%rvars(ir_livegrass_pa)%r81d, &
           rio_age_pa                  => this%rvars(ir_age_pa)%r81d, &
           rio_patchdistturbcat_pa     => this%rvars(ir_patchdistturbcat_pa)%int1d,  &
+          rio_spread_pa               => this%rvars(ir_spread_pa)%int1d,  &   ![JStenzel]
           rio_agesinceanthrodist_pa   => this%rvars(ir_agesinceanthrodist_pa)%r81d, &
           rio_nocomp_pft_label_pa     => this%rvars(ir_nocomp_pft_label_pa)%int1d, &
           rio_area_pa                 => this%rvars(ir_area_pa)%r81d, &
@@ -3023,6 +3032,7 @@ contains
              cpatch%area               = rio_area_pa(io_idx_co_1st)
              cpatch%age_class          = get_age_class_index(cpatch%age)
              cpatch%fcansno            = rio_fcansno_pa(io_idx_co_1st)
+             cpatch%spread              = rio_spread_pa(io_idx_co_1st)
 
              ! Set zenith angle info
              cpatch%solar_zenith_flag  = ( rio_solar_zenith_flag_pa(io_idx_co_1st) .eq. itrue )

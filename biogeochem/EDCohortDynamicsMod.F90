@@ -1251,18 +1251,18 @@ contains
                                       !
 
                                       call carea_allom(currentCohort%dbh,currentCohort%n, &
-                                           currentSite%spread,currentCohort%pft,&
+                                           currentPatch%spread,currentCohort%pft,&
                                            currentCohort%c_area,inverse=.false.)
 
                                       call carea_allom(nextc%dbh,nextc%n, &
-                                           currentSite%spread,nextc%pft,&
+                                           currentPatch%spread,nextc%pft,&
                                            nextc%c_area,inverse=.false.)
 
                                       currentCohort%c_area = currentCohort%c_area + nextc%c_area
 
                                       !
                                       dbh = currentCohort%dbh
-                                      call carea_allom(dbh,newn,currentSite%spread,currentCohort%pft,&
+                                      call carea_allom(dbh,newn,currentPatch%spread,currentCohort%pft,&
                                            currentCohort%c_area,inverse=.true.)
                                       !
                                       if (abs(dbh-fates_unset_r8)<nearzero) then
@@ -1277,7 +1277,7 @@ contains
 
                                          end if
                                          !
-                                         call carea_allom(currentCohort%dbh,newn,currentSite%spread,currentCohort%pft,&
+                                         call carea_allom(currentCohort%dbh,newn,currentPatch%spread,currentCohort%pft,&
                                               currentCohort%c_area,inverse=.false.)
 
                                       else
@@ -1314,7 +1314,7 @@ contains
 
                                       end if
                                       !
-                                      call carea_allom(currentCohort%dbh,newn,currentSite%spread,currentCohort%pft,&
+                                      call carea_allom(currentCohort%dbh,newn,currentPatch%spread,currentCohort%pft,&
                                            currentCohort%c_area,inverse=.false.)
                                       !
                                    case default
@@ -1502,7 +1502,7 @@ contains
                                    ! update hydraulics quantities that are functions of hite & biomasses
                                    ! deallocate the hydro structure of nextc
                                    if (hlm_use_planthydro.eq.itrue) then
-                                      call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread, &
+                                      call carea_allom(currentCohort%dbh,currentCohort%n,currentPatch%spread, &
                                            currentCohort%pft,currentCohort%c_area)
                                       leaf_c   = currentCohort%prt%GetState(leaf_organ, carbon12_element)
                                       currentCohort%treelai = tree_lai(leaf_c,             &
