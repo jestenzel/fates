@@ -167,7 +167,7 @@ contains
 
                    ccohort%btran_coh= 0.0_r8
                    cpatch%btran_ft(ft) = 0.0_r8
-                   grav_potential = smp_coeff * ccohort%hite      ![JStenzel] ht (m) * grav potential (MPa m-1)
+                   grav_potential = smp_coeff(ft) * ccohort%hite      ![JStenzel] ht (m) * grav potential (MPa m-1)
                    do j = 1,bc_in(s)%nlevsoil
 
                       ! Calculations are only relevant where liquid water exists
