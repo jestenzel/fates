@@ -121,6 +121,7 @@ contains
     real(r8), allocatable :: extract_pf(:,:)  ! [JStenzel] root extraction (sum of cohort root fraction x weighted stomatal conductance )
     real(r8), allocatable :: cohort_resis(:)  ![JStenzel added] cohort x layer  resistance
     real(r8) :: resis_sum(maxpft) ![JStenzel] patch (pft ) sum from cohorts:  fractional btran scaled by cohort canopy area
+    real(r8) :: grav_potential    ![Penalty for large trees] default will be 0.01 MPa m-1
     !------------------------------------------------------------------------------
 
     associate(                                 &
@@ -166,6 +167,7 @@ contains
 
                    ccohort%btran_coh= 0.0_r8
                    cpatch%btran_ft(ft) = 0.0_r8
+                   grav_potential = smp_coeff * ccohort%hite      ![JStenzel] ht (m) * grav potential (MPa m-1)
                    do j = 1,bc_in(s)%nlevsoil
 
                       ! Calculations are only relevant where liquid water exists
@@ -191,11 +193,8 @@ contains
                          ! resulting pre-drought water use. Relative to a hypothetical anisohydric spp
                          ! This new scheme allows a pft to have both have higher stomatal conductance
                          ! at low water stress and lower stomatal conductance as stress increases.
-                         rresis = min( (bc_in(s)%eff_porosity_sl(j)/bc_in(s)%watsat_sl(j)) *       &
-                         ( ( 1._r8 - exp( -1.0_r8 * smp_coeff(ft) * ((smp_node-smpsc(ft)) /        &
-                         (smpso(ft)-smpsc(ft))) ) ) / (1 - exp(-1 * smp_coeff(ft)))  )             &
-                         , 1._r8 )
-
+                         rresis  = min( (bc_in(s)%eff_porosity_sl(j)/bc_in(s)%watsat_sl(j))*       &    ![JStenzel] Add limitation based on tree height.
+                         (smp_node - (smpsc(ft) + grav_potential ) ) / (smpso(ft) - smpsc(ft)), 1._r8)
 
                          cohort_resis(j) = sites(s)%rootfrac_scr(j) * rresis    ! [JStenzel] This root fraction is now dependent on pft AND dbh
                          root_resis(ft,j) = root_resis(ft,j) + cohort_resis(j) * &    ![JStenzel] patch (pft x layer) sum from cohorts:  fractional btran scaled by cohort canopy area
