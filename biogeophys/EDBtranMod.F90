@@ -175,7 +175,7 @@ contains
 
                       if ( check_layer_water(bc_in(s)%h2o_liqvol_sl(j),bc_in(s)%tempk_sl(j)) )  then
 
-                         smp_node = max(smpsc(ft), bc_in(s)%smp_sl(j))
+                         smp_node = max( ( smpsc(ft) + grav_potential ), bc_in(s)%smp_sl(j))     ![JStenzel]
 
                          !rresis  = min( (bc_in(s)%eff_porosity_sl(j)/bc_in(s)%watsat_sl(j))*      &
                            !   (smp_node - smpsc(ft)) / (smpso(ft) - smpsc(ft)), 1._r8)
