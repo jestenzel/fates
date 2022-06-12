@@ -208,6 +208,8 @@ contains
     !
     ! -----------------------------------------------------------------------------------
 
+    ! !USES:
+    use FatesConstantsMod , only : tfrz => t_water_freeze_k_1atm ![JStenzel]
 
     ! !ARGUMENTS
     type(ed_site_type), intent(inout)  :: currentSite
@@ -221,24 +223,26 @@ contains
     ! the different element types
     integer :: el                          ! Litter element loop index
     integer :: nlev_eff_decomp             ! Number of active layers over which
+    real(r8) :: temp_in_min_C      ! Daily minimum temperature in Celcius [JStenzel]
     ! fragmentation fluxes are transfered
     !------------------------------------------------------------------------------------
 
     ! Calculate the fragmentation rates
     call fragmentation_scaler(currentPatch, bc_in)
 
+    temp_in_min_C = currentPatch%tveg24_min%GetMean() - tfrz   ! 24 hr tmin [Jstenzel]
+
     do el = 1, num_elements
 
        litt => currentPatch%litter(el)
 
-
        ! Calculate loss rate of viable seeds to litter
-       call SeedDecay(litt)
+       call SeedDecay(litt, temp_in_min_C)
 
        ! Calculate seed germination rate, the status flags prevent
        ! germination from occuring when the site is in a drought
        ! (for drought deciduous) or too cold (for cold deciduous)
-       call SeedGermination(litt, currentSite%cstatus, currentSite%dstatus)
+       call SeedGermination(litt, currentSite%cstatus, currentSite%dstatus, temp_in_min_C)
 
        !1
        ! Send fluxes from newly created litter into the litter pools
@@ -1786,7 +1790,7 @@ contains
 
   ! ============================================================================
 
-  subroutine SeedDecay( litt )
+  subroutine SeedDecay( litt , temp_in_min_C )
     !
     ! !DESCRIPTION:
     !  Flux from seed pool into leaf litter pool
@@ -1796,6 +1800,7 @@ contains
     !
     ! !LOCAL VARIABLES:
     integer  ::  pft
+    real(r8), intent(in) :: temp_in_min_C ! [JStenzel] 24 hr min veg temperature C
     !----------------------------------------------------------------------
 
     ! default value from Liscke and Loffler 2006 ; making this a PFT-specific parameter
@@ -1818,8 +1823,16 @@ contains
       end if
 
       if ( litt%seed_germ_kill(pft) .eq. 0.0_r8  ) then
-         litt%seed_germ_decay(pft) = litt%seed_germ(pft) * &
-             EDPftvarcon_inst%seed_decay_rate(pft)*years_per_day
+
+         ! [JStenzel] If 24 hr veg min temp is less than the seedling freezetol, all existing
+         ! seed_germ mass is added to the decay flux
+         if ( temp_in_min_C .ge. EDPftvarcon_inst%freezetol_seedling(pft) ) then
+            litt%seed_germ_decay(pft) = litt%seed_germ(pft) * &
+               EDPftvarcon_inst%seed_decay_rate(pft)*years_per_day
+         else
+             litt%seed_germ_decay(pft) = litt%seed_germ(pft)
+         end if
+
       else
          litt%seed_germ_decay(pft) = litt%seed_germ_kill(pft)   ![JStenzel]
       end if
@@ -1830,7 +1843,7 @@ contains
   end subroutine SeedDecay
 
   ! ============================================================================
-  subroutine SeedGermination( litt, cold_stat, drought_stat )
+  subroutine SeedGermination( litt, cold_stat, drought_stat, temp_in_min_C )
     !
     ! !DESCRIPTION:
     !  Flux from seed pool into sapling pool
@@ -1842,6 +1855,7 @@ contains
     type(litter_type) :: litt
     integer, intent(in) :: cold_stat    ! Is the site in cold leaf-off status?
     integer, intent(in) :: drought_stat ! Is the site in drought leaf-off status?
+    real(r8), intent(in) :: temp_in_min_C ! [JStenzel] 24 hr min veg temperature C
     !
     ! !LOCAL VARIABLES:
     integer :: pft
@@ -1849,10 +1863,14 @@ contains
 
     real(r8), parameter ::  max_germination = 1.0_r8 ! Cap on germination rates.
     ! KgC/m2/yr Lishcke et al. 2009
+    real(r8) :: temp_dep_fraction  ! [JStenzel] Temp. function (germination freezing mortality)
+
 
     ! Turning of this cap? because the cap will impose changes on proportionality
     ! of nutrients. (RGK 02-2019)
     !real(r8), parameter :: max_germination = 1.e6_r8  ! Force to very high number
+
+    real(r8), parameter :: frost_mort_buffer = 5.0_r8  ! 5deg buffer for freezing mortality
 
     !----------------------------------------------------------------------
 
@@ -1862,13 +1880,26 @@ contains
     ! and thus the mortality rate (in units of individuals) is the product of
     ! that times the ratio of (hypothetical) seed mass to recruit biomass
 
+
     do pft = 1,numpft
 
        ! [JStenzel] Only calculate a seed germination flux if seed_kill(pft) equals zeros
        ! To prevent double counting of fluxes.
        if ( litt%seed_kill(pft) .eq. 0.0_r8 ) then
-          litt%seed_germ_in(pft) =  min(litt%seed(pft) * EDPftvarcon_inst%germination_rate(pft), &
-               max_germination)*years_per_day
+
+          ! [JStenzel] Germinated seedlings (-> recruitment) fail for 24 hr periods w/ tmin below pft tolerance
+          ! litt%seed_germ_decay(pft) for the existing germination pool was calculated immediately before this
+          if ( temp_in_min_C .ge. EDPftvarcon_inst%freezetol_seedling(pft) ) then
+             litt%seed_germ_in(pft) =  min(litt%seed(pft) * EDPftvarcon_inst%germination_rate(pft), &
+                 max_germination)*years_per_day
+          else
+             litt%seed_germ_in(pft) =  min(litt%seed(pft) * EDPftvarcon_inst%germination_rate(pft), &
+                 max_germination)*years_per_day
+             litt%seed_germ_decay(pft) = litt%seed_germ_decay(pft) + litt%seed_germ_in(pft)
+          end if
+
+       else
+          litt%seed_germ_in(pft) = 0.0_r8
        end if
 
        !set the germination only under the growing season...c.xu
