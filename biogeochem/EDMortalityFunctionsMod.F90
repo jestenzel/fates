@@ -152,7 +152,7 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     hf_flc_threshold = EDPftvarcon_inst%hf_flc_threshold(cohort_in%pft)
 
 
-    if ( hlm_model_day > 183.0_r8 ) then         !!!! temporary shutoff of hydraulic failure mortality until day
+    if ( hlm_model_day > temp_delay ) then         !!!! temporary shutoff of hydraulic failure mortality until after temp_delay days are exceeded
       if(hlm_use_planthydro.eq.itrue)then
        !note the flc is set as the fraction of max conductivity in hydro
        min_fmc_ag = minval(cohort_in%co_hydr%ftc_ag(:))
