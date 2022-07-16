@@ -371,7 +371,7 @@ contains
 
                 sites(s)%fire_scalar = bc_in(s)%pft_areafrac(0)   ![JStenzel] Bare ground value will be interpreted as a fire duration scalar.
                                                                   ! This can represent spatial suppression, etc. Only use if nocomp is FALSE
-                if( sites(s)%fire_scalar .lt. 0.01_r8 ) then      !
+                if( sites(s)%fire_scalar .lt. 0.001_r8 ) then      !
                    sites(s)%fire_scalar = 0.0_r8                  !
                 end if                                            !
 

@@ -741,7 +741,7 @@ contains
                             exp(SF_val_durat_slope*currentSite%FDI))
 
           if( currentSite%fire_scalar .ge. 0.01_r8  ) then        ![JStenzel] Was fire scaling set?
-             fire_scalar = currentSite%fire_scalar / 10.0_r8      ! surfdat input x 0.1 (ie 10 -> 1)
+             fire_scalar = currentSite%fire_scalar * 10.0_r8      ! bareground frac x 10 (ie 0.2 -> 2)
              currentPatch%FD = currentPatch%FD * fire_scalar      ! FD scaled by input
           end if
 
