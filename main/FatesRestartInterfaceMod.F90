@@ -2774,7 +2774,7 @@ contains
           rio_age_pa                  => this%rvars(ir_age_pa)%r81d, &
           rio_patchdistturbcat_pa     => this%rvars(ir_patchdistturbcat_pa)%int1d,  &
           rio_spread_pa               => this%rvars(ir_spread_pa)%r81d,  &   ![JStenzel]
-          rio_fire_scalar_si_pa       => this%rvars(ir_fire_scalar_si_pa)%r81d,  &   ![JStenzel]
+          rio_fire_scalar_si          => this%rvars(ir_fire_scalar_si)%r81d,  &   ![JStenzel]
           rio_agesinceanthrodist_pa   => this%rvars(ir_agesinceanthrodist_pa)%r81d, &
           rio_nocomp_pft_label_pa     => this%rvars(ir_nocomp_pft_label_pa)%int1d, &
           rio_area_pa                 => this%rvars(ir_area_pa)%r81d, &
