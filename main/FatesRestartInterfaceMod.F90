@@ -2834,7 +2834,7 @@ contains
              sites(s)%area_pft(i_pft)     = rio_area_pft_sift(io_idx_co_1st+i_pft-1)
           enddo
 
-          site(s)%fire_scalar = rio_fire_scalar_si(io_idx_si)   ![JStenzel added]
+          sites(s)%fire_scalar = rio_fire_scalar_si(io_idx_si)   ![JStenzel added]
 
           ! Mass balance and diagnostics across elements at the site level
           do el = 1, num_elements
