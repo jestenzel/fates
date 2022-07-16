@@ -369,7 +369,7 @@ contains
              if(hlm_use_nocomp.eq.ifalse)then ! when not in nocomp (i.e. or SP) mode,
                 ! subsume bare ground evenly into the existing patches.
 
-                sites(s)%fire_scalar = bc_in(s)$pft_areafrac(0)   ![JStenzel] Bare ground value will be interpreted as a fire duration scalar.
+                sites(s)%fire_scalar = bc_in(s)%pft_areafrac(0)   ![JStenzel] Bare ground value will be interpreted as a fire duration scalar.
                                                                   ! This can represent spatial suppression, etc. Only use if nocomp is FALSE
                 if( sites(s)%fire_scalar .lt. 0.01_r8 ) then      !
                    sites(s)%fire_scalar = 0.0_r8                  !
