@@ -425,7 +425,7 @@ module EDTypesMod
      integer  ::  ncl_p                                            ! Number of occupied canopy layers
      integer  ::  anthro_disturbance_label                         ! patch label for anthropogenic disturbance classification
      real(r8) ::  age_since_anthro_disturbance                     ! average age for secondary forest since last anthropogenic disturbance
-     real(r8) ::  spread                                           ![JStenzel added] Returning to patch-level spread. Especially fine since if disturb_frac == 0 
+     real(r8) ::  spread                                           ![JStenzel added] Returning to patch-level spread. Especially fine since if disturb_frac == 0
 
      ! Running means
      !class(rmean_type), pointer :: t2m                          ! Place-holder for 2m air temperature (variable window-size)
@@ -716,6 +716,7 @@ module EDTypesMod
      real(r8) ::  lon                                          ! longitude: degrees
 
      ! Fixed Biogeography mode inputs
+     real(r8), allocatable :: fire_scalar                      ![JStenzel] generic fire duration ->area scalar
      real(r8), allocatable :: area_PFT(:)                      ! Area allocated to individual PFTs
      integer, allocatable  :: use_this_pft(:)                  ! Is area_PFT > 0 ? (1=yes, 0=no)
 

@@ -138,6 +138,7 @@ contains
        allocate(site_in%area_pft(0:numpft))
     else  ! SP and nocomp require a bare-ground patch.
        allocate(site_in%area_pft(1:numpft))
+       allocate(site_in%fire_scalar)                               ![JStenzel] coopt bare ground for fire scalar
     endif
 
     allocate(site_in%use_this_pft(1:numpft))
@@ -256,6 +257,7 @@ contains
     site_in%spread = 0._r8
 
     site_in%area_pft(:) = 0._r8
+    site_in%fire_scalar = 0._r8                ![JStenzel]
     site_in%use_this_pft(:) = fates_unset_int
     site_in%area_by_age(:) = 0._r8
 
@@ -366,6 +368,12 @@ contains
 
              if(hlm_use_nocomp.eq.ifalse)then ! when not in nocomp (i.e. or SP) mode,
                 ! subsume bare ground evenly into the existing patches.
+
+                sites(s)%fire_scalar = bc_in(s)$pft_areafrac(0)   ![JStenzel] Bare ground value will be interpreted as a fire duration scalar.
+                                                                  ! This can represent spatial suppression, etc. Only use if nocomp is FALSE
+                if( sites(s)%fire_scalar .lt. 0.01_r8 ) then      !
+                   sites(s)%fire_scalar = 0.0_r8                  !
+                end if                                            !
 
                 sumarea = sum(sites(s)%area_pft(1:numpft))
                 do ft =  1,numpft

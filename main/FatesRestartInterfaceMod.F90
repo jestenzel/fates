@@ -205,6 +205,7 @@ module FatesRestartInterfaceMod
   integer :: ir_recrate_sift
   integer :: ir_use_this_pft_sift
   integer :: ir_area_pft_sift
+  integer :: ir_fire_scalar_si           ![JStenzel add]
   integer :: ir_fmortrate_cano_siscpf
   integer :: ir_fmortrate_usto_siscpf
   integer :: ir_imortrate_siscpf
@@ -667,6 +668,10 @@ contains
          units='kgC/m2', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_trunk_product_si )
 
+    call this%set_restart_var(vname='fates_fire_scalar_site', vtype=site_r8, &     ![JStenzel add]
+         long_name='Fates fire duration scalar', &
+         units='unitless', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_fire_scalar_si )
 
     ! -----------------------------------------------------------------------------------
     ! Variables stored within cohort vectors
@@ -1843,6 +1848,7 @@ contains
            rio_gdd_si                  => this%rvars(ir_gdd_si)%r81d, &
            rio_snow_depth_si           => this%rvars(ir_snow_depth_si)%r81d, &
            rio_trunk_product_si        => this%rvars(ir_trunk_product_si)%r81d, &
+           rio_fire_scalar_si          => this%rvars(ir_fire_scalar_si)%r81d, &    ![JStenzel add]
            rio_ncohort_pa              => this%rvars(ir_ncohort_pa)%int1d, &
            rio_fcansno_pa              => this%rvars(ir_fcansno_pa)%r81d, &
            rio_solar_zenith_flag_pa    => this%rvars(ir_solar_zenith_flag_pa)%int1d, &
@@ -1964,6 +1970,8 @@ contains
           do i_pft = 1,numpft
              rio_use_this_pft_sift(io_idx_co_1st+i_pft-1)   = sites(s)%use_this_pft(i_pft)
           end do
+
+          rio_fire_scalar_si(io_idx_si) = sites(s)%fire_scalar ![JStenzel add]
 
           do i_pft = 1,numpft
              rio_area_pft_sift(io_idx_co_1st+i_pft-1)      = sites(s)%area_pft(i_pft)
@@ -2766,6 +2774,7 @@ contains
           rio_age_pa                  => this%rvars(ir_age_pa)%r81d, &
           rio_patchdistturbcat_pa     => this%rvars(ir_patchdistturbcat_pa)%int1d,  &
           rio_spread_pa               => this%rvars(ir_spread_pa)%r81d,  &   ![JStenzel]
+          rio_fire_scalar_si_pa       => this%rvars(ir_fire_scalar_si_pa)%r81d,  &   ![JStenzel]
           rio_agesinceanthrodist_pa   => this%rvars(ir_agesinceanthrodist_pa)%r81d, &
           rio_nocomp_pft_label_pa     => this%rvars(ir_nocomp_pft_label_pa)%int1d, &
           rio_area_pa                 => this%rvars(ir_area_pa)%r81d, &
@@ -2824,6 +2833,8 @@ contains
              sites(s)%use_this_pft(i_pft) = rio_use_this_pft_sift(io_idx_co_1st+i_pft-1)
              sites(s)%area_pft(i_pft)     = rio_area_pft_sift(io_idx_co_1st+i_pft-1)
           enddo
+
+          site(s)%fire_scalar = rio_fire_scalar_si(io_idx_si)   ![JStenzel added]
 
           ! Mass balance and diagnostics across elements at the site level
           do el = 1, num_elements
