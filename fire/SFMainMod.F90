@@ -743,7 +743,7 @@ contains
           if( currentSite%fire_scalar .ge. 0.01_r8  ) then        ![JStenzel] Was fire scaling set?
              fire_scalar = currentSite%fire_scalar * 10.0_r8      ! bareground frac x 10 (ie 0.2 -> 2)
              currentPatch%FD = currentPatch%FD * fire_scalar      ! FD scaled by input
-          end if
+          end if                                                  !
 
           if(write_SF == itrue)then
              if ( hlm_masterproc == itrue ) write(fates_log(),*) 'fire duration minutes',currentPatch%fd
