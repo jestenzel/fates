@@ -4922,25 +4922,25 @@ end subroutine update_history_hifrq
    ![JStenzel added] Snags
    call this%set_history_var(vname='FATES_SNAG_FC', units='kg m-2',  &
         long='snag mass in in kg element per m2 per sec',                &
-        use_default='active', avgflag='A', vtype=site_fuel_r8,                &
+        use_default='inactive', avgflag='A', vtype=site_fuel_r8,                &
         hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
         index = ih_snag_si_fuel)
 
    call this%set_history_var(vname='FATES_SNAG_IN_FC', units='kg m-2 s-1',  &
         long='snag mass influx (mortality) in kg element per m2 per sec',     &
-        use_default='active', avgflag='A', vtype=site_fuel_r8,                &
+        use_default='inactive', avgflag='A', vtype=site_fuel_r8,                &
         hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
         index = ih_snag_in_si_fuel)
 
    call this%set_history_var(vname='FATES_SNAG_FRAG_FC', units='kg m-2 s-1',  &
         long='snag mass fall flux (to ground) in in kg element per m2 per sec',  &
-        use_default='active', avgflag='A', vtype=site_fuel_r8,                &
+        use_default='inactive', avgflag='A', vtype=site_fuel_r8,                &
         hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
         index = ih_snag_frag_si_fuel)
 
    call this%set_history_var(vname='FATES_SNAG_COMBUST_FC', units='kg m-2 s-1',  &
         long='snag mass combustion outflux in in kg element per m2 per sec',     &
-        use_default='active', avgflag='A', vtype=site_fuel_r8,                &
+        use_default='inactive', avgflag='A', vtype=site_fuel_r8,                &
         hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
         index = ih_snag_combust_si_fuel)
 
@@ -5227,16 +5227,16 @@ end subroutine update_history_hifrq
          use_default='active', &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_tveg24_si )
-
+    ![JStenzel added]
     call this%set_history_var(vname='FATES_TVEG24_MIN', units='degree_Celsius', &
          long='fates 24-hr min vegetation temperature by site', &
-         use_default='active', &
+         use_default='inactive', &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_tveg24_min_si )
-
+    ![JStenzel added]
     call this%set_history_var(vname='FATES_TVEG24_MAX', units='degree_Celsius', &
          long='fates 24-hr max vegetation temperature by site', &
-         use_default='active', &
+         use_default='inactive', &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_tveg24_max_si )
 
@@ -5896,7 +5896,7 @@ end subroutine update_history_hifrq
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_mortality_canopy_si_scpf)
 
-    ![JStenel added] BTRAN sum and scpf ncohorts (for averaging)
+    ![JStenzel added] BTRAN sum and scpf ncohorts (for averaging)
     call this%set_history_var(vname='FATES_BTRAN_SUM_SZPF',            &
           units = 'fraction of BTRAN=1 (unstressed)',                           &
           long='Sum of BTRAN by pft/size', &
