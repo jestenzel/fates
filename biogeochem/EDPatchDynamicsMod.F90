@@ -508,6 +508,13 @@ contains
                                              ! based on hlm input  [JStenzel added]
     integer  :: planting_time                ! binary 0/1 that dictates if a harvest is resulting in
                                              ! seedling planting on site [JStenzel added]
+    integer  :: planting_type                ! Planted pft input type 1,2, or 3
+    real(r8) :: planting_rate_VH2             ! Planting rate, VH2-type [JStenzel added]
+    real(r8) :: planting_rate_SH1             ! Planting rate, SH1-type [JStenzel added]
+    real(r8) :: planting_rate_SH2             ! Planting rate, SH2-type [JStenzel added]
+    !integer  :: type_VH2                     ! plant VH2-determined pft seeds [JStenzel added]
+    !integer  :: type_SH1                     ! plant SH1-determined pft seeds [JStenzel added]
+    !integer  :: type_SH2                     ! plant SH2-determined pft seeds [JStenzel added]
     integer :: h_index   ! for looping over harvest categories [JStenzel added]
     integer :: i_fuel    ![JStenzel added] for looping over fuels categories
 
@@ -536,17 +543,54 @@ contains
     ! [JStenzel Start]
 
     planting_rate = 0.0_r8
+    planting_rate_VH2 = 0.0_r8
+    planting_rate_SH1 = 0.0_r8
+    planting_rate_SH2 = 0.0_r8
+
     planting_time = 0
+    planting_type = 0
 
     do h_index = 1, hlm_num_lu_harvest_cats
-      if ( bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_VH2" ) then     !!!!! need to make sure this works
-         planting_rate = planting_rate + bc_in%hlm_harvest_rates(h_index)
+
+      !if ( bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_VH2" .or. &
+      !   bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_SH1".or. &
+      !   bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2") then       !!!!! need to make sure this works
+      !      planting_rate = planting_rate + bc_in%hlm_harvest_rates(h_index)
+      !end if
+      if ( bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_VH2" ) then
+         planting_rate_VH2 = planting_rate_VH2 + bc_in%hlm_harvest_rates(h_index)
       end if
+
+      if ( bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_SH1" ) then
+         planting_rate_SH1 = planting_rate_SH1 + bc_in%hlm_harvest_rates(h_index)
+      end if
+
+      if ( bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2" ) then
+         planting_rate_SH2 = planting_rate_SH2 + bc_in%hlm_harvest_rates(h_index)
+      end if
+
     end do
 
+    planting_rate = planting_rate + planting_rate_VH2 + planting_rate_SH1 + planting_rate_SH2
+
     if ( planting_rate .gt. 0.0_r8) then
+
       planting_time = 1
+
+      if ( planting_rate_VH2 .gt. planting_rate_SH1 .and. &
+        planting_rate_VH2 .gt. planting_rate_SH2 ) then
+           planting_type = 1
+      elseif ( planting_rate_SH1 .gt. planting_rate_VH2 .and. &
+        planting_rate_SH1 .gt. planting_rate_SH2 ) then
+           planting_type = 2
+      else
+           planting_type = 3
+      end if
+
+
     end if
+
+
 
 
     ! [JStenzel End]
@@ -780,7 +824,7 @@ contains
 
              !call TransLitterNewPatch( currentSite, currentPatch, new_patch, patch_site_areadis)
              call TransLitterNewPatch( currentSite, currentPatch, new_patch, patch_site_areadis, &
-                  planting_time)
+                  planting_time, planting_type)
 
              ! Transfer in litter fluxes from plants in various contexts of death and destruction
 
@@ -1509,7 +1553,8 @@ contains
                                  currentPatch,       &
                                  newPatch,           &
                                  patch_site_areadis, &
-                                 planting_time)  ! JStenzel added
+                                 planting_time,      &  ! JStenzel added
+                                 planting_type)         ! JStenzel added
 
     ! -----------------------------------------------------------------------------------
     !
@@ -1560,6 +1605,8 @@ contains
                                                                     ! by current patch
     ! Flag for hlm regeneration harvest event [JStenzel add]
     integer         , intent(in)          :: planting_time
+    integer         , intent(in)          :: planting_type
+
 
 
 
@@ -1871,14 +1918,26 @@ contains
                 new_litt%seed_germ_kill(pft) = new_litt%seed_germ_kill(pft) + donatable_mass * donate_m2
                 curr_litt%seed_germ(pft) = curr_litt%seed_germ(pft) + donatable_mass * retain_m2
 
-                ! Add external seed_germ planting influx. Parameter denstity x disturbance area
+                ! [JStenzel added] Add external seed_germ planting influx. Parameter denstity x disturbance area
                 ! divided by new patch area. It's likely that logging will be the primary disturbance
                 ! on primary lands. However, these clearcut + plantings will be combined with disturbance
                 ! area from all donor secondary patch disturbance area. If ifall disturbance type
                 ! is prevented by mort_disturb_frac = 0, this combination of donor patch disturbance
                 ! types can be largely avoided by cutting outside of the typical fire season.
-                new_litt%seed_in_planted(pft) = new_litt%seed_in_planted(pft) + &
-                      EDPftvarcon_inst%seed_planted(pft) * patch_site_areadis * donate_m2
+                !
+                ! !! For now, each planting type is leading to one type of planting. To Be Changed!
+
+                if ( planting_type .eq. 1 ) then
+                   new_litt%seed_in_planted(pft) = new_litt%seed_in_planted(pft) + &
+                        EDPftvarcon_inst%seed_planted_VH2(pft) * patch_site_areadis * donate_m2
+                elseif ( planting_type .eq. 2) then
+                   new_litt%seed_in_planted(pft) = new_litt%seed_in_planted(pft) + &
+                        EDPftvarcon_inst%seed_planted_SH1(pft) * patch_site_areadis * donate_m2
+                else
+                   new_litt%seed_in_planted(pft) = new_litt%seed_in_planted(pft) + &
+                        EDPftvarcon_inst%seed_planted_SH2(pft) * patch_site_areadis * donate_m2
+                end if
+
                 !new_litt%seed_in_extern(pft) = new_litt%seed_in_extern(pft) + seed_in_planted
                 !new_litt%seed_germ(pft) = new_litt%seed_germ(pft) + &
                      !seed_in_planted

@@ -363,11 +363,13 @@ contains
        if (patch_anthro_disturbance_label .eq. primaryforest .or. &
             patch_anthro_disturbance_label .eq. secondaryforest) then
           if(hlm_harvest_catnames(h_index) .eq. "HARVEST_VH1" .or. &
-                hlm_harvest_catnames(h_index) .eq. "HARVEST_VH2") then
+                hlm_harvest_catnames(h_index) .eq. "HARVEST_VH2" .or. &
+                hlm_harvest_catnames(h_index) .eq. "HARVEST_SH1" .or. &
+                hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2" ) then
              harvest_rate = harvest_rate + hlm_harvest_rates(h_index)
           endif
        else if (patch_anthro_disturbance_label .eq. tertiaryforest ) then
-          if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH1") then
+          if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH3") then
              harvest_rate = harvest_rate + hlm_harvest_rates(h_index)
           endif
        !else if (patch_anthro_disturbance_label .eq. secondaryforest .and. &

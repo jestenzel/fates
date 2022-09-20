@@ -58,7 +58,9 @@ module EDPftvarcon
 
      real(r8), allocatable :: seed_suppl(:)          ! seeds that come from outside the gridbox.
      ! [JStenzel added]
-     real(r8), allocatable :: seed_planted(:)        ! planted seeds that come from outside the gridbox
+     real(r8), allocatable :: seed_planted_VH2(:)        ! VH1 planted seeds that come from outside the gridbox
+     real(r8), allocatable :: seed_planted_SH1(:)        ! SH1 planted seeds that come from outside the gridbox
+     real(r8), allocatable :: seed_planted_SH2(:)        ! SH2 planted seeds that come from outside the gridbox
      real(r8), allocatable :: bb_slope(:)            ! ball berry slope parameter
      real(r8), allocatable :: medlyn_slope(:)        ! Medlyn slope parameter KPa^0.5
      real(r8), allocatable :: stomatal_intercept(:)  ! intercept of stomatal conductance model
@@ -377,7 +379,15 @@ contains
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
 ! [JStenzel added]
-    name = 'fates_seed_planted'
+    name = 'fates_seed_planted_VH2'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+        dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_seed_planted_SH1'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+        dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_seed_planted_SH2'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -748,9 +758,17 @@ contains
          data=this%seed_suppl)
 
 ! [JStenzel added]
-    name = 'fates_seed_planted'
+    name = 'fates_seed_planted_VH2'
     call fates_params%RetreiveParameterAllocate(name=name, &
-        data=this%seed_planted)
+        data=this%seed_planted_VH2)
+
+    name = 'fates_seed_planted_SH1'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+       data=this%seed_planted_SH1)
+
+    name = 'fates_seed_planted_SH2'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+        data=this%seed_planted_SH2)
 
     name = 'fates_leaf_stomatal_slope_ballberry'
     call fates_params%RetreiveParameterAllocate(name=name, &
