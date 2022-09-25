@@ -80,7 +80,7 @@ module EDMainMod
   use FatesPlantHydraulicsMod  , only : AccumulateMortalityWaterStorage
   use FatesAllometryMod        , only : h_allom,tree_sai,tree_lai
   use FatesPlantHydraulicsMod  , only : UpdateSizeDepRhizHydStates
-  use EDLoggingMortalityMod    , only : IsItLoggingTime
+  use EDLoggingMortalityMod    , only : IsItLoggingTime, logging_time
   use EDPatchDynamicsMod       , only : get_frac_site_primary
   use FatesGlobals             , only : endrun => fates_endrun
   use ChecksBalancesMod        , only : SiteMassStock
@@ -222,12 +222,15 @@ contains
     ! Reproduction, Recruitment and Cohort Dynamics : controls cohort organization
     !******************************************************************************
 
-    if(hlm_use_ed_st3.eq.ifalse.and.hlm_use_sp.eq.ifalse) then
+    if(hlm_use_ed_st3.eq.ifalse.and.hlm_use_sp.eq.ifalse ) then
        currentPatch => currentSite%oldest_patch
        do while (associated(currentPatch))
 
           ! adds small cohort of each PFT
-          call recruitment(currentSite, currentPatch, bc_in)
+          if( .not. logging_time ) then     ![JStenzel added] Don't allow recruitment on logging time steps to ensure no probs with eliminated patches and fusion
+             call recruitment(currentSite, currentPatch, bc_in)
+          end if
+
 
           currentPatch => currentPatch%younger
        enddo
