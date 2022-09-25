@@ -223,17 +223,18 @@ contains
     !******************************************************************************
 
     if(hlm_use_ed_st3.eq.ifalse.and.hlm_use_sp.eq.ifalse ) then
-       currentPatch => currentSite%oldest_patch
-       do while (associated(currentPatch))
 
-          ! adds small cohort of each PFT
-          if( .not. logging_time ) then     ![JStenzel added] Don't allow recruitment on logging time steps to ensure no probs with eliminated patches and fusion
-             call recruitment(currentSite, currentPatch, bc_in)
-          end if
+       if( .not. logging_time ) then     ![JStenzel added] Don't allow recruitment on logging time steps to ensure no probs with eliminated patches and fusion
+             currentPatch => currentSite%oldest_patch
+             do while (associated(currentPatch))
 
+                ! adds small cohort of each PFT
 
-          currentPatch => currentPatch%younger
-       enddo
+                   call recruitment(currentSite, currentPatch, bc_in)
+
+                currentPatch => currentPatch%younger
+             enddo
+       end if                            ![JStenzel added] End logging_time recruit prevention statement
 
        call TotalBalanceCheck(currentSite,1)
 
