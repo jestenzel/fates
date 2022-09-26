@@ -647,7 +647,7 @@ contains
           elseif ( currentPatch%anthro_disturbance_label .eq. tertiaryforest  .or. &
              (currentPatch%disturbance_mode .eq. dtype_ilog .and. &
               planting_time .eq. 1 .and. &
-               .and. planting_type .ne. 4 ) ) then ! [JStenzel added] tertiary (planted) lands
+                planting_type .ne. 4 ) ) then ! [JStenzel added] tertiary (planted) lands
 
               site_areadis_tertiary = site_areadis_tertiary + currentPatch%area * currentPatch%disturbance_rate
 
