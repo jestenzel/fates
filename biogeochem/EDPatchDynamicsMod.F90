@@ -783,7 +783,9 @@ contains
                   new_patch => new_patch_primary
 
                elseif ( currentPatch%anthro_disturbance_label .eq. tertiaryforest  .or. &    ! [JStenzel added] tertiary (planted) lands
-                  (currentPatch%disturbance_mode .eq. dtype_ilog .and. planting_time .eq. 1) ) then
+                  (currentPatch%disturbance_mode .eq. dtype_ilog .and. &
+                   planting_time .eq. 1 .and. &
+                   planting_type .ne. 4 ) ) then
 
                    new_patch => new_patch_tertiary
 
