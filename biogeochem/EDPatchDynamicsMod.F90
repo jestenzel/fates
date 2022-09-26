@@ -508,10 +508,11 @@ contains
                                              ! based on hlm input  [JStenzel added]
     integer  :: planting_time                ! binary 0/1 that dictates if a harvest is resulting in
                                              ! seedling planting on site [JStenzel added]
-    integer  :: planting_type                ! Planted pft input type 1,2, or 3
+    integer  :: planting_type                ! Planted pft input type 1,2, ,3, or 4
     real(r8) :: planting_rate_VH2             ! Planting rate, VH2-type [JStenzel added]
     real(r8) :: planting_rate_SH1             ! Planting rate, SH1-type [JStenzel added]
     real(r8) :: planting_rate_SH2             ! Planting rate, SH2-type [JStenzel added]
+    real(r8) :: planting_rate_SH3             ! Planting rate, SH3-type [JStenzel added]
     !integer  :: type_VH2                     ! plant VH2-determined pft seeds [JStenzel added]
     !integer  :: type_SH1                     ! plant SH1-determined pft seeds [JStenzel added]
     !integer  :: type_SH2                     ! plant SH2-determined pft seeds [JStenzel added]
@@ -546,6 +547,7 @@ contains
     planting_rate_VH2 = 0.0_r8
     planting_rate_SH1 = 0.0_r8
     planting_rate_SH2 = 0.0_r8
+    planting_rate_SH3 = 0.0_r8
 
     planting_time = 0
     planting_type = 0
@@ -569,25 +571,33 @@ contains
          planting_rate_SH2 = planting_rate_SH2 + bc_in%hlm_harvest_rates(h_index)
       end if
 
+      if ( bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_SH3" ) then
+         planting_rate_SH3 = planting_rate_SH3 + bc_in%hlm_harvest_rates(h_index)
+      end if
+
     end do
 
-    planting_rate = planting_rate + planting_rate_VH2 + planting_rate_SH1 + planting_rate_SH2
+    planting_rate = planting_rate + planting_rate_VH2 + planting_rate_SH1 + planting_rate_SH2 + planting_rate_SH3
 
     if ( planting_rate .gt. 0.0_r8) then
 
       planting_time = 1
 
       if ( planting_rate_VH2 .gt. planting_rate_SH1 .and. &
-        planting_rate_VH2 .gt. planting_rate_SH2 ) then
+        planting_rate_VH2 .gt. planting_rate_SH2 .and. &
+         planting_rate_VH2 .gt. planting_rate_SH3 ) then
            planting_type = 1
       elseif ( planting_rate_SH1 .gt. planting_rate_VH2 .and. &
-        planting_rate_SH1 .gt. planting_rate_SH2 ) then
+        planting_rate_SH1 .gt. planting_rate_SH2 .and. &
+        planting_rate_SH1 .gt. planting_rate_SH3 ) then
            planting_type = 2
-      else
+      elseif ( planting_rate_SH2 .gt. planting_rate_VH2 .and. &
+        planting_rate_SH2 .gt. planting_rate_SH1 .and. &
+        planting_rate_SH2 .gt. planting_rate_SH3 ) then
            planting_type = 3
+      else
+           planting_type = 4
       end if
-
-
     end if
 
 
@@ -635,9 +645,11 @@ contains
                   currentPatch%area * currentPatch%disturbance_rate * AREA_INV
 
           elseif ( currentPatch%anthro_disturbance_label .eq. tertiaryforest  .or. &
-             (currentPatch%disturbance_mode .eq. dtype_ilog .and. planting_time .eq. 1) ) then ! [JStenzel added] tertiary (planted) lands
+             (currentPatch%disturbance_mode .eq. dtype_ilog .and. &
+              planting_time .eq. 1 .and. &
+               .and. planting_type .ne. 4 ) ) then ! [JStenzel added] tertiary (planted) lands
 
-             site_areadis_tertiary = site_areadis_tertiary + currentPatch%area * currentPatch%disturbance_rate
+              site_areadis_tertiary = site_areadis_tertiary + currentPatch%area * currentPatch%disturbance_rate
 
                   if ( currentPatch%anthro_disturbance_label .eq. tertiaryforest) then
                      ! note: with the below 'else' this implies that tertiary forests are not being planted more than once
@@ -1933,10 +1945,17 @@ contains
                 elseif ( planting_type .eq. 2) then
                    new_litt%seed_in_planted(pft) = new_litt%seed_in_planted(pft) + &
                         EDPftvarcon_inst%seed_planted_SH1(pft) * patch_site_areadis * donate_m2
-                else
+                elseif ( planting_type .eq. 3) then
                    new_litt%seed_in_planted(pft) = new_litt%seed_in_planted(pft) + &
                         EDPftvarcon_inst%seed_planted_SH2(pft) * patch_site_areadis * donate_m2
+
+                else
+                    if (currentSite%use_this_pft(pft).eq.itrue) then
+                       new_litt%seed_in_planted(pft) = new_litt%seed_in_planted(pft) + &
+                          EDPftvarcon_inst%seed_planted_SH3(pft) * patch_site_areadis * donate_m2
+                    end if
                 end if
+
 
                 !new_litt%seed_in_extern(pft) = new_litt%seed_in_extern(pft) + seed_in_planted
                 !new_litt%seed_germ(pft) = new_litt%seed_germ(pft) + &
