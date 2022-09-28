@@ -387,7 +387,7 @@ contains
           patch_anthro_disturbance_label .eq. secondaryforest) then
         if (frac_site_primary .gt. fates_tiny) then
            !harvest_rate = min((harvest_rate / frac_site_primary),frac_site_primary)
-           harvest_rate = min((harvest_rate / frac_site_primary), 0.99_r8)  ![JStenzel added] Redefine to allow prescribed absolute potion of gridcell harvested,
+           harvest_rate = min((harvest_rate / frac_site_primary), 1._r8)  ![JStenzel added] Redefine to allow prescribed absolute potion of gridcell harvested,
                                                                         ! rather than a fraction of the selected anthro_dist_type patches
         else
            harvest_rate = 0._r8
@@ -618,10 +618,22 @@ contains
                burned_mass = ag_wood * SF_val_CWD_frac(c) * SF_val_live_slash_burn(c)         ![kg]
 
 
-               new_litt%ag_cwd(c)     = new_litt%ag_cwd(c) + donatable_mass * &
-                    donate_frac /  newPatch%area
-               cur_litt%ag_cwd(c)     = cur_litt%ag_cwd(c) + donatable_mass * &
-                    retain_frac / remainder_area
+
+
+               if ( remainder_area .gt. fates_tiny ) then    ![JStenzel modified] Prevent div 0
+
+                  new_litt%ag_cwd(c)     = new_litt%ag_cwd(c) + donatable_mass * &
+                       donate_frac /  newPatch%area
+
+                  cur_litt%ag_cwd(c)  = cur_litt%ag_cwd(c) + donatable_mass * &
+                  retain_frac / remainder_area
+
+               else
+                  new_litt%ag_cwd(c)  = new_litt%ag_cwd(c) + donatable_mass  /  newPatch%area !* & donate_frac /  newPatch%area
+                  !cur_litt%ag_cwd(c)  = cur_litt%ag_cwd(c) + donatable_mass * &
+                  !retain_frac / remainder_area
+               end if
+
 
                site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass ! mass combustion flux
                ![JStenzel added end]
@@ -631,14 +643,25 @@ contains
                !      ag_wood * SF_val_CWD_frac(c) * retain_frac/remainder_area
 
                do ilyr = 1,nlevsoil
+                  if ( remainder_area .gt. fates_tiny ) then          ![JStenzel modified] Prevent div 0
 
-                  new_litt%bg_cwd(c,ilyr) = new_litt%bg_cwd(c,ilyr) + &
-                        bg_wood * currentSite%rootfrac_scr(ilyr) * &
-                        SF_val_CWD_frac(c) * donate_frac/newPatch%area
+                     new_litt%bg_cwd(c,ilyr) = new_litt%bg_cwd(c,ilyr) + &
+                           bg_wood * currentSite%rootfrac_scr(ilyr) * &
+                           SF_val_CWD_frac(c) * donate_frac/newPatch%area
 
-                  cur_litt%bg_cwd(c,ilyr) = cur_litt%bg_cwd(c,ilyr) + &
-                        bg_wood * currentSite%rootfrac_scr(ilyr) * &
-                        SF_val_CWD_frac(c) * retain_frac/remainder_area
+                     cur_litt%bg_cwd(c,ilyr) = cur_litt%bg_cwd(c,ilyr) + &
+                           bg_wood * currentSite%rootfrac_scr(ilyr) * &
+                           SF_val_CWD_frac(c) * retain_frac/remainder_area
+
+                  else
+
+                     new_litt%bg_cwd(c,ilyr) = new_litt%bg_cwd(c,ilyr) + &
+                           bg_wood * currentSite%rootfrac_scr(ilyr) * &
+                           SF_val_CWD_frac(c) / newPatch%area !* donate_frac/newPatch%area
+
+                  end if
+
+
                end do
 
 
@@ -675,11 +698,15 @@ contains
             donatable_mass = ag_wood * SF_val_CWD_frac(ncwd) * (1._r8 - SF_val_live_slash_burn(ncwd)) ![kg]
             burned_mass = ag_wood * SF_val_CWD_frac(ncwd) * SF_val_live_slash_burn(ncwd)        ![kg]
 
-
-            new_litt%ag_cwd(ncwd)     = new_litt%ag_cwd(ncwd) + donatable_mass * &
-                 donate_frac /  newPatch%area
-            cur_litt%ag_cwd(ncwd)     = cur_litt%ag_cwd(ncwd) + donatable_mass * &
-                 retain_frac / remainder_area
+            if ( remainder_area .gt. fates_tiny ) then                ![JStenzel modified] Prevent div 0
+               new_litt%ag_cwd(ncwd)     = new_litt%ag_cwd(ncwd) + donatable_mass * &
+                    donate_frac /  newPatch%area
+               cur_litt%ag_cwd(ncwd)     = cur_litt%ag_cwd(ncwd) + donatable_mass * &
+                    retain_frac / remainder_area
+            else
+               new_litt%ag_cwd(ncwd)     = new_litt%ag_cwd(ncwd) + donatable_mass / &
+                    newPatch%area     !donate_frac /  newPatch%area
+            end if
 
             site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass ! mass combustion flux
             !new_litt%ag_cwd(ncwd) = new_litt%ag_cwd(ncwd) + ag_wood * &
@@ -689,14 +716,20 @@ contains
             !      SF_val_CWD_frac(ncwd) * retain_frac/remainder_area
 
             do ilyr = 1,nlevsoil
+               if ( remainder_area .gt. fates_tiny ) then                ![JStenzel modified] Prevent div 0
 
-               new_litt%bg_cwd(ncwd,ilyr) = new_litt%bg_cwd(ncwd,ilyr) + &
-                     bg_wood * currentSite%rootfrac_scr(ilyr) * &
-                     SF_val_CWD_frac(ncwd) * donate_frac/newPatch%area
+                  new_litt%bg_cwd(ncwd,ilyr) = new_litt%bg_cwd(ncwd,ilyr) + &
+                        bg_wood * currentSite%rootfrac_scr(ilyr) * &
+                        SF_val_CWD_frac(ncwd) * donate_frac/newPatch%area
 
-               cur_litt%bg_cwd(ncwd,ilyr) = cur_litt%bg_cwd(ncwd,ilyr) + &
-                     bg_wood * currentSite%rootfrac_scr(ilyr) * &
-                     SF_val_CWD_frac(ncwd) * retain_frac/remainder_area
+                  cur_litt%bg_cwd(ncwd,ilyr) = cur_litt%bg_cwd(ncwd,ilyr) + &
+                        bg_wood * currentSite%rootfrac_scr(ilyr) * &
+                        SF_val_CWD_frac(ncwd) * retain_frac/remainder_area
+               else
+                  new_litt%bg_cwd(ncwd,ilyr) = new_litt%bg_cwd(ncwd,ilyr) + &
+                        bg_wood * currentSite%rootfrac_scr(ilyr) * &
+                        SF_val_CWD_frac(ncwd) / newPatch%area  !* donate_frac/newPatch%area
+               end if
 
             end do
 
@@ -721,13 +754,19 @@ contains
                   (1._r8 - prt_params%allom_agb_frac(currentCohort%pft))
 
             do ilyr = 1,nlevsoil
-                new_litt%bg_cwd(ncwd,ilyr) = new_litt%bg_cwd(ncwd,ilyr) + &
-                      bg_wood * currentSite%rootfrac_scr(ilyr) * &
-                      donate_frac/newPatch%area
+                if ( remainder_area .gt. fates_tiny ) then                ![JStenzel modified] Prevent div 0
+                   new_litt%bg_cwd(ncwd,ilyr) = new_litt%bg_cwd(ncwd,ilyr) + &
+                         bg_wood * currentSite%rootfrac_scr(ilyr) * &
+                         donate_frac/newPatch%area
 
-                cur_litt%bg_cwd(ncwd,ilyr) = cur_litt%bg_cwd(ncwd,ilyr) + &
-                      bg_wood * currentSite%rootfrac_scr(ilyr) * &
-                      retain_frac/remainder_area
+                   cur_litt%bg_cwd(ncwd,ilyr) = cur_litt%bg_cwd(ncwd,ilyr) + &
+                         bg_wood * currentSite%rootfrac_scr(ilyr) * &
+                         retain_frac/remainder_area
+                else
+                   new_litt%bg_cwd(ncwd,ilyr) = new_litt%bg_cwd(ncwd,ilyr) + &
+                        bg_wood * currentSite%rootfrac_scr(ilyr) / newPatch%area !* &
+                        !donate_frac/newPatch%area
+                end if
             end do
 
             flux_diags%cwd_bg_input(ncwd) = flux_diags%cwd_bg_input(ncwd) + &
@@ -756,10 +795,15 @@ contains
             burned_mass = ag_wood * SF_val_live_slash_burn(ncwd) * &       ![kg]
                  (1._r8-logging_export_frac)
 
-            new_litt%ag_cwd(ncwd)     = new_litt%ag_cwd(ncwd) + donatable_mass * &
-                 donate_frac /  newPatch%area
-            cur_litt%ag_cwd(ncwd)     = cur_litt%ag_cwd(ncwd) + donatable_mass * &
-                 retain_frac / remainder_area
+            if ( remainder_area .gt. fates_tiny ) then                ![JStenzel modified] Prevent div 0
+               new_litt%ag_cwd(ncwd)     = new_litt%ag_cwd(ncwd) + donatable_mass * &
+                    donate_frac /  newPatch%area
+               cur_litt%ag_cwd(ncwd)     = cur_litt%ag_cwd(ncwd) + donatable_mass * &
+                    retain_frac / remainder_area
+            else
+               new_litt%ag_cwd(ncwd)     = new_litt%ag_cwd(ncwd) + donatable_mass / & !* &
+                    newPatch%area !donate_frac /  newPatch%area
+            end if
 
             site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass ! mass combustion flux
 
@@ -791,25 +835,40 @@ contains
 
                dcmpy_frac = GetDecompyFrac(pft,leaf_organ,dcmpy)
 
-               new_litt%leaf_fines(dcmpy) = new_litt%leaf_fines(dcmpy) + & ![JStenzel edit]
-                    donatable_mass * donate_frac/newPatch%area * dcmpy_frac
-               !new_litt%leaf_fines(dcmpy) = new_litt%leaf_fines(dcmpy) + &
-               !     leaf_litter * donate_frac/newPatch%area * dcmpy_fra
+               if ( remainder_area .gt. fates_tiny ) then                ![JStenzel modified] Prevent div 0
 
-               cur_litt%leaf_fines(dcmpy) = cur_litt%leaf_fines(dcmpy) + & ![JStenzel edit]
-                    donatable_mass * retain_frac/remainder_area * dcmpy_frac
-               !cur_litt%leaf_fines(dcmpy) = cur_litt%leaf_fines(dcmpy) + &
-               !     leaf_litter * retain_frac/remainder_area * dcmpy_frac
+                  new_litt%leaf_fines(dcmpy) = new_litt%leaf_fines(dcmpy) + & ![JStenzel edit]
+                       donatable_mass * donate_frac/newPatch%area * dcmpy_frac
+                  !new_litt%leaf_fines(dcmpy) = new_litt%leaf_fines(dcmpy) + &
+                  !     leaf_litter * donate_frac/newPatch%area * dcmpy_fra
+
+                  cur_litt%leaf_fines(dcmpy) = cur_litt%leaf_fines(dcmpy) + & ![JStenzel edit]
+                       donatable_mass * retain_frac/remainder_area * dcmpy_frac
+                  !cur_litt%leaf_fines(dcmpy) = cur_litt%leaf_fines(dcmpy) + &
+                  !     leaf_litter * retain_frac/remainder_area * dcmpy_frac
+               else
+                  new_litt%leaf_fines(dcmpy) = new_litt%leaf_fines(dcmpy) + & !
+                       donatable_mass / newPatch%area * dcmpy_frac
+                       !* donate_frac/newPatch%area * dcmpy_frac
+               end if
 
                dcmpy_frac = GetDecompyFrac(pft,fnrt_organ,dcmpy)
                do ilyr = 1,nlevsoil
-                  new_litt%root_fines(dcmpy,ilyr) = new_litt%root_fines(dcmpy,ilyr) + &
-                       root_litter * currentSite%rootfrac_scr(ilyr) * dcmpy_frac * &
-                       donate_frac/newPatch%area
 
-                  cur_litt%root_fines(dcmpy,ilyr) = cur_litt%root_fines(dcmpy,ilyr) + &
-                       root_litter * currentSite%rootfrac_scr(ilyr) * dcmpy_frac * &
-                       retain_frac/remainder_area
+                  if ( remainder_area .gt. fates_tiny ) then                ![JStenzel modified] Prevent div 0
+
+                     new_litt%root_fines(dcmpy,ilyr) = new_litt%root_fines(dcmpy,ilyr) + &
+                          root_litter * currentSite%rootfrac_scr(ilyr) * dcmpy_frac * &
+                          donate_frac/newPatch%area
+
+                     cur_litt%root_fines(dcmpy,ilyr) = cur_litt%root_fines(dcmpy,ilyr) + &
+                          root_litter * currentSite%rootfrac_scr(ilyr) * dcmpy_frac * &
+                          retain_frac/remainder_area
+                 else
+                    new_litt%root_fines(dcmpy,ilyr) = new_litt%root_fines(dcmpy,ilyr) + &
+                         root_litter * currentSite%rootfrac_scr(ilyr) * dcmpy_frac / &
+                         newPatch%area !donate_frac/newPatch%area
+                 end if
                end do
             end do
 
