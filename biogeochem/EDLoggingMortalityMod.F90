@@ -387,7 +387,7 @@ contains
           patch_anthro_disturbance_label .eq. secondaryforest) then
         if (frac_site_primary .gt. fates_tiny) then
            !harvest_rate = min((harvest_rate / frac_site_primary),frac_site_primary)
-           harvest_rate = min((harvest_rate / frac_site_primary), 1._r8)  ![JStenzel added] Redefine to allow prescribed absolute potion of gridcell harvested,
+           harvest_rate = min((harvest_rate / frac_site_primary), 0.99_r8)  ![JStenzel added] Redefine to allow prescribed absolute potion of gridcell harvested,
                                                                         ! rather than a fraction of the selected anthro_dist_type patches
         else
            harvest_rate = 0._r8
