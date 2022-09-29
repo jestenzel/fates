@@ -191,7 +191,7 @@ contains
                                      lmort_collateral,lmort_infra, l_degrad, &
                                      hlm_harvest_rates, hlm_harvest_catnames, &
                                      hlm_harvest_units, &
-                                     patch_anthro_disturbance_label, secondary_age, &
+                                     patch_anthro_disturbance_label, patch_age, &
                                      frac_site_primary)
 
       ! Arguments
@@ -202,7 +202,8 @@ contains
       character(len=64), intent(in) :: hlm_harvest_catnames(:) ! names of hlm harvest categories
       integer, intent(in) :: hlm_harvest_units     ! unit type of hlm harvest rates: [area vs. mass]
       integer, intent(in) :: patch_anthro_disturbance_label    ! patch level anthro_disturbance_label
-      real(r8), intent(in) :: secondary_age     ! patch level age_since_anthro_disturbance
+      real(r8), intent(in) :: patch_age     ! patch level age  ![JStenzel redefine ] from "secondary age", which seems to have
+                                             ! problematically include non-anthro disturbance area to existing secondary lands
       real(r8), intent(out) :: lmort_direct     ! direct (harvestable) mortality fraction
       real(r8), intent(out) :: lmort_collateral ! collateral damage mortality fraction
       real(r8), intent(out) :: lmort_infra      ! infrastructure mortality fraction
@@ -248,7 +249,7 @@ contains
 
             ! Get the area-based harvest rates based on info passed to FATES from the boundary condition
             call get_harvest_rate_area (patch_anthro_disturbance_label, hlm_harvest_catnames, &
-                 hlm_harvest_rates, frac_site_primary, secondary_age, harvest_rate)
+                 hlm_harvest_rates, frac_site_primary, patch_age, harvest_rate)
 
          else if (hlm_use_lu_harvest == itrue .and. hlm_harvest_units == hlm_harvest_carbon) then
             ! 2=use carbon from hlm
@@ -313,7 +314,7 @@ contains
    ! ============================================================================
 
    subroutine get_harvest_rate_area (patch_anthro_disturbance_label, hlm_harvest_catnames, hlm_harvest_rates, &
-                 frac_site_primary, secondary_age, harvest_rate)
+                 frac_site_primary, patch_age, harvest_rate)
 
 
      ! -------------------------------------------------------------------------------------------
@@ -326,7 +327,7 @@ contains
       real(r8), intent(in) :: hlm_harvest_rates(:) ! annual harvest rate per hlm category
       character(len=64), intent(in) :: hlm_harvest_catnames(:) ! names of hlm harvest categories
       integer, intent(in) :: patch_anthro_disturbance_label    ! patch level anthro_disturbance_label
-      real(r8), intent(in) :: secondary_age     ! patch level age_since_anthro_disturbance
+      real(r8), intent(in) :: patch_age     ! patch level age [JStenzel redefine]
       real(r8), intent(in) :: frac_site_primary
       real(r8), intent(out) :: harvest_rate
 
@@ -359,8 +360,9 @@ contains
 ! (planted with non-starting pft) harvest rotation will not be reached in current scenarios
      harvest_rate = 0._r8
      do h_index = 1,hlm_num_lu_harvest_cats
-       if (patch_anthro_disturbance_label .eq. primaryforest .or. &
-            patch_anthro_disturbance_label .eq. secondaryforest) then
+       if ( ( patch_anthro_disturbance_label .eq. primaryforest .or. &
+            patch_anthro_disturbance_label .eq. secondaryforest ) .and. &
+            patch_age .ge. 6.0_r8) then                                    ![JStenzel add] Only harvest patches >20 years old
           !if(hlm_harvest_catnames(h_index) .eq. "HARVEST_VH1" .or. &
             !    hlm_harvest_catnames(h_index) .eq. "HARVEST_VH2" .or. &
             !    hlm_harvest_catnames(h_index) .eq. "HARVEST_SH1" .or. &

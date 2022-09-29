@@ -230,6 +230,7 @@ contains
                 bc_in%hlm_harvest_units, &
                 currentPatch%anthro_disturbance_label, &
                 currentPatch%age_since_anthro_disturbance, &
+                currentPatch%age, & ! currentPatch%age_since_anthro_disturbance, & [!Jstenzel edit]  to use patch age, not age since antrho disturbance
                 frac_site_primary)
 
           currentCohort%lmort_direct     = lmort_direct
@@ -316,7 +317,7 @@ contains
           ! The canopy is NOT closed.
 
           call get_harvest_rate_area (currentPatch%anthro_disturbance_label, bc_in%hlm_harvest_catnames, &
-               bc_in%hlm_harvest_rates, frac_site_primary, currentPatch%age_since_anthro_disturbance, harvest_rate)
+               bc_in%hlm_harvest_rates, frac_site_primary, currentPatch%age, harvest_rate)  ![JStenzel edit] Replaced age-since-anthro w/ patch age
 
           currentPatch%disturbance_rates(dtype_ilog) = currentPatch%disturbance_rates(dtype_ilog) + &
                (currentPatch%area - currentPatch%total_canopy_area) * harvest_rate / currentPatch%area
