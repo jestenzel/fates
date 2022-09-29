@@ -362,7 +362,7 @@ contains
      do h_index = 1,hlm_num_lu_harvest_cats
        if ( ( patch_anthro_disturbance_label .eq. primaryforest .or. &
             patch_anthro_disturbance_label .eq. secondaryforest ) .and. &
-            patch_age .ge. 6.0_r8) then                                    ![JStenzel add] Only harvest patches >20 years old
+            patch_age .ge. 6.0_r8) then                                    ![JStenzel add] Only harvest patches > X years old
           !if(hlm_harvest_catnames(h_index) .eq. "HARVEST_VH1" .or. &
             !    hlm_harvest_catnames(h_index) .eq. "HARVEST_VH2" .or. &
             !    hlm_harvest_catnames(h_index) .eq. "HARVEST_SH1" .or. &

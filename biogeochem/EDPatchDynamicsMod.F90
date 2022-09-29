@@ -229,7 +229,6 @@ contains
                 bc_in%hlm_harvest_catnames, &
                 bc_in%hlm_harvest_units, &
                 currentPatch%anthro_disturbance_label, &
-                currentPatch%age_since_anthro_disturbance, &
                 currentPatch%age, & ! currentPatch%age_since_anthro_disturbance, & [!Jstenzel edit]  to use patch age, not age since antrho disturbance
                 frac_site_primary)
 
