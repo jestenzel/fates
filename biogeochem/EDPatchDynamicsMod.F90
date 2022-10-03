@@ -191,13 +191,15 @@ contains
     real(r8) :: frac_site_primary
     real(r8) :: harvest_rate
 
+
+    real(r8) :: frac_site_harvest_pot ![JStenzel added] fraction of site that is primary AND available for harvest due to meeting age min
     !----------------------------------------------------------------------------------------------
     ! Calculate Mortality Rates (these were previously calculated during growth derivatives)
     ! And the same rates in understory plants have already been applied to %dndt
     !----------------------------------------------------------------------------------------------
 
     ! first calculate the fractino of the site that is primary land
-    call get_frac_site_primary(site_in, frac_site_primary)
+    call get_frac_site_primary(site_in, frac_site_primary, frac_site_harvest_pot)
 
     site_in%harvest_carbon_flux = 0._r8
 
@@ -229,8 +231,9 @@ contains
                 bc_in%hlm_harvest_catnames, &
                 bc_in%hlm_harvest_units, &
                 currentPatch%anthro_disturbance_label, &
-                currentPatch%age, & ! currentPatch%age_since_anthro_disturbance, & [!Jstenzel edit]  to use patch age, not age since antrho disturbance
-                frac_site_primary)
+                currentPatch%age, & ! currentPatch%age_since_anthro_disturbance, & [!Jstenzel edit]  to use patch age, not age since anthro disturbance
+                frac_site_primary, &
+                frac_site_harvest_pot)  ![JStenzel added]
 
           currentCohort%lmort_direct     = lmort_direct
           currentCohort%lmort_collateral = lmort_collateral
@@ -316,7 +319,8 @@ contains
           ! The canopy is NOT closed.
 
           call get_harvest_rate_area (currentPatch%anthro_disturbance_label, bc_in%hlm_harvest_catnames, &
-               bc_in%hlm_harvest_rates, frac_site_primary, currentPatch%age, harvest_rate)  ![JStenzel edit] Replaced age-since-anthro w/ patch age
+               bc_in%hlm_harvest_rates, frac_site_primary, currentPatch%age, harvest_rate, frac_site_harvest_pot)  ![JStenzel edit] Replaced age-since-anthro w/ patch age
+                                                                                                                   ! [Jstenzel added] "frac_site_harvest_pot"
 
           currentPatch%disturbance_rates(dtype_ilog) = currentPatch%disturbance_rates(dtype_ilog) + &
                (currentPatch%area - currentPatch%total_canopy_area) * harvest_rate / currentPatch%area
@@ -3537,7 +3541,7 @@ contains
 
   ! =====================================================================================
 
- subroutine get_frac_site_primary(site_in, frac_site_primary)
+ subroutine get_frac_site_primary(site_in, frac_site_primary, frac_site_harvest_pot)
 
     !
     ! !DESCRIPTION:
@@ -3545,21 +3549,30 @@ contains
     !
     ! !USES:
     use EDTypesMod , only : ed_site_type
+    use EDParamsMod       , only : logging_patch_agemin
+
     !
     ! !ARGUMENTS:
     type(ed_site_type) , intent(in), target :: site_in
     real(r8)           , intent(out)        :: frac_site_primary
+    real(r8)           , intent(out)        :: frac_site_harvest_pot ![JStenzel added] fraction of site that is primary AND available for harvest due to meeting age min
 
     ! !LOCAL VARIABLES:
     type (ed_patch_type), pointer :: currentPatch
 
    frac_site_primary = 0._r8
+   frac_site_harvest_pot = 0._r8        ![Jstenzel added]
    currentPatch => site_in%oldest_patch
    do while (associated(currentPatch))
       ![JStenzel] redefine 'frac_site_primary' to mean fraction of the site w/ natural pfts
       if (currentPatch%anthro_disturbance_label .eq. primaryforest .or. &
            currentPatch%anthro_disturbance_label .eq. secondaryforest ) then
          frac_site_primary = frac_site_primary + currentPatch%area * AREA_INV
+
+         if ( currentPatch%age .ge. logging_patch_agemin) then    ![JStenzel added] site "primary" harvestable fraction calc
+            frac_site_harvest_pot = frac_site_harvest_pot + currentPatch%area * AREA_INV
+         end if
+
       endif
       currentPatch => currentPatch%younger
    end do

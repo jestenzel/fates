@@ -193,7 +193,7 @@ contains
                                      hlm_harvest_rates, hlm_harvest_catnames, &
                                      hlm_harvest_units, &
                                      patch_anthro_disturbance_label, patch_age, &
-                                     frac_site_primary)
+                                     frac_site_primary, frac_site_harvest_pot)
 
       ! Arguments
       integer,  intent(in)  :: pft_i            ! pft index
@@ -213,6 +213,7 @@ contains
                                                 ! are moved to newly-anthro-disturbed secondary
                                                 ! forest patch)
       real(r8), intent(in) :: frac_site_primary
+      real(r8), intent(in) :: frac_site_harvest_pot ![JStenzel added]
 
       ! Local variables
       real(r8) :: harvest_rate ! the final harvest rate to apply to this cohort today
@@ -250,7 +251,7 @@ contains
 
             ! Get the area-based harvest rates based on info passed to FATES from the boundary condition
             call get_harvest_rate_area (patch_anthro_disturbance_label, hlm_harvest_catnames, &
-                 hlm_harvest_rates, frac_site_primary, patch_age, harvest_rate)
+                 hlm_harvest_rates, frac_site_primary, patch_age, harvest_rate, frac_site_harvest_pot) ![Jstenzel added] "patch_age";"frac_site_harvest_pot"
 
          else if (hlm_use_lu_harvest == itrue .and. hlm_harvest_units == hlm_harvest_carbon) then
             ! 2=use carbon from hlm
@@ -315,7 +316,7 @@ contains
    ! ============================================================================
 
    subroutine get_harvest_rate_area (patch_anthro_disturbance_label, hlm_harvest_catnames, hlm_harvest_rates, &
-                 frac_site_primary, patch_age, harvest_rate)
+                 frac_site_primary, patch_age, harvest_rate, frac_site_harvest_pot)   ![Jstenzel added] "patch_age";"frac_site_harvest_pot"
 
 
      ! -------------------------------------------------------------------------------------------
@@ -330,6 +331,7 @@ contains
       integer, intent(in) :: patch_anthro_disturbance_label    ! patch level anthro_disturbance_label
       real(r8), intent(in) :: patch_age     ! patch level age [JStenzel redefine]
       real(r8), intent(in) :: frac_site_primary
+      real(r8), intent(in) :: frac_site_harvest_pot ![JStenzel added]
       real(r8), intent(out) :: harvest_rate
 
       ! Local Variables
@@ -388,9 +390,12 @@ contains
      ! also need to put a cap so as not to harvest more primary or secondary area than there is in a gridcell
      if (patch_anthro_disturbance_label .eq. primaryforest .or. &      ! [JStenzel redefine] Sums frac_site_primary redefined to mean "natural pft"
           patch_anthro_disturbance_label .eq. secondaryforest) then
-        if (frac_site_primary .gt. fates_tiny) then
+        !if (frac_site_primary .gt. fates_tiny) then
+        if (frac_site_harvest_pot .gt. fates_tiny) then   ![JStenzel modify]
            !harvest_rate = min((harvest_rate / frac_site_primary),frac_site_primary)
-           harvest_rate = min((harvest_rate / frac_site_primary), 1._r8)  ![JStenzel added] Redefine to allow prescribed absolute potion of gridcell harvested,
+
+            harvest_rate = min((harvest_rate / frac_site_harvest_pot), 1._r8)  ![b) JStenzel modified] Adjust patch harvest rate based on site harvestable primary forest area.
+           !harvest_rate = min((harvest_rate / frac_site_primary), 1._r8)  ![a) JStenzel added] Redefine to allow prescribed absolute potion of gridcell harvested,
                                                                         ! rather than a fraction of the selected anthro_dist_type patches
         else
            harvest_rate = 0._r8

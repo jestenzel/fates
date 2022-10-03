@@ -293,7 +293,8 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
 
  ! ============================================================================
 
- subroutine Mortality_Derivative( currentSite, currentCohort, bc_in, frac_site_primary)
+ subroutine Mortality_Derivative( currentSite, currentCohort, bc_in, frac_site_primary, &
+    frac_site_harvest_pot) ![JStenzel added]
 
     !
     ! !DESCRIPTION:
@@ -310,6 +311,7 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     type(ed_cohort_type),intent(inout), target :: currentCohort
     type(bc_in_type), intent(in)               :: bc_in
     real(r8), intent(in)                       :: frac_site_primary
+    real(r8), intent(in)                       :: frac_site_harvest_pot ![JStenzel added]
     !
     ! !LOCAL VARIABLES:
     real(r8) :: cmort    ! starvation mortality rate (fraction per year)
@@ -338,7 +340,7 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
                                bc_in%hlm_harvest_units, &
                                currentCohort%patchptr%anthro_disturbance_label, &
                                currentCohort%patchptr%age, & ! currentCohort%patchptr%age_since_anthro_disturbance, & [!Jstenzel edit]  to use patch age, not age since antrho disturbance
-                               frac_site_primary)
+                               frac_site_primary, frac_site_harvest_pot)  ![JStenzel added] "frac_site_harvest_pot"
 
 
 

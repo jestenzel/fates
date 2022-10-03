@@ -342,9 +342,10 @@ contains
     real(r8) :: current_npp           ! place holder for calculating npp each year in prescribed physiology mode
     !-----------------------------------------------------------------------
     real(r8) :: frac_site_primary
+    real(r8) :: frac_site_harvest_pot ![JStenzel added] fraction of site that is primary AND available for harvest due to meeting age min
 
 
-    call get_frac_site_primary(currentSite, frac_site_primary)
+    call get_frac_site_primary(currentSite, frac_site_primary, frac_site_harvest_pot)
 
     ! Set a pointer to this sites carbon12 mass balance
     site_cmass => currentSite%mass_balance(element_pos(carbon12_element))
@@ -378,7 +379,8 @@ contains
           ft = currentCohort%pft
 
           ! Calculate the mortality derivatives
-          call Mortality_Derivative( currentSite, currentCohort, bc_in, frac_site_primary )
+          call Mortality_Derivative( currentSite, currentCohort, bc_in, frac_site_primary, &
+            frac_site_harvest_pot ) ![jStenzel added]
 
           ! -----------------------------------------------------------------------------
           ! Apply Plant Allocation and Reactive Transport
