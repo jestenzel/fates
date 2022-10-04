@@ -363,9 +363,9 @@ contains
        ! ------------------------------------------------------------------------------------------
 
        ! DISTURBANCE IS LOGGING
-       if (currentPatch%disturbance_rates(dtype_ilog) > currentPatch%disturbance_rates(dtype_ifall) .and. &
-             currentPatch%disturbance_rates(dtype_ilog) > currentPatch%disturbance_rates(dtype_ifire) ) then
-
+       !if (currentPatch%disturbance_rates(dtype_ilog) > currentPatch%disturbance_rates(dtype_ifall) .and. &
+         !    currentPatch%disturbance_rates(dtype_ilog) > currentPatch%disturbance_rates(dtype_ifire) ) then
+        if ( logging_time ) then
           currentPatch%disturbance_rate = currentPatch%disturbance_rates(dtype_ilog)
           currentPatch%disturbance_mode = dtype_ilog
 
@@ -386,8 +386,8 @@ contains
           enddo !currentCohort
 
        ! DISTURBANCE IS FIRE
-       elseif (currentPatch%disturbance_rates(dtype_ifire) > currentPatch%disturbance_rates(dtype_ifall) .and. &
-             currentPatch%disturbance_rates(dtype_ifire) > currentPatch%disturbance_rates(dtype_ilog) ) then
+    elseif (.not. logging_time .and. &
+             currentPatch%disturbance_rates(dtype_ifire) > currentPatch%disturbance_rates(dtype_ifall)) then
 
           currentPatch%disturbance_rate = currentPatch%disturbance_rates(dtype_ifire)
           currentPatch%disturbance_mode = dtype_ifire
