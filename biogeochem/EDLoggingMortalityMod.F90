@@ -389,7 +389,8 @@ contains
      !  since harvest_rate is specified as a fraction of the gridcell
      ! also need to put a cap so as not to harvest more primary or secondary area than there is in a gridcell
      if (patch_anthro_disturbance_label .eq. primaryforest .or. &      ! [JStenzel redefine] Sums frac_site_primary redefined to mean "natural pft"
-          patch_anthro_disturbance_label .eq. secondaryforest) then
+          (patch_anthro_disturbance_label .eq. secondaryforest .and. &
+          patch_age .ge. logging_patch_agemin ) ) then
         !if (frac_site_primary .gt. fates_tiny) then
         if (frac_site_harvest_pot .gt. fates_tiny) then   ![JStenzel modify]
            !harvest_rate = min((harvest_rate / frac_site_primary),frac_site_primary)
