@@ -201,9 +201,10 @@ contains
     !----------------------------------------------------------------------------------------------
 
     ! first calculate the fractino of the site that is primary land
+    call patch_oldest_cohort(site_in) ![Jstenzel added] TEST: harvest patch based on max cohort age, rather than patch age
     call get_frac_site_primary(site_in, frac_site_primary, frac_site_harvest_pot)
 
-    call patch_oldest_cohort(site_in) ![Jstenzel added] TEST: harvest patch based on max cohort age, rather than patch age
+
 
     site_in%harvest_carbon_flux = 0._r8
 
@@ -3573,12 +3574,12 @@ contains
            currentPatch%anthro_disturbance_label .eq. secondaryforest ) then
          frac_site_primary = frac_site_primary + currentPatch%area * AREA_INV
 
-         if ( currentPatch%age .ge. logging_patch_agemin) then    ![JStenzel added] site "primary" harvestable fraction calc
+         if ( currentPatch%coage_max .ge. logging_patch_agemin) then    ![JStenzel added] site "primary" harvestable fraction calc
             frac_site_harvest_pot = frac_site_harvest_pot + currentPatch%area * AREA_INV
          end if
 
       endif
-      currentPatch => currentPatch%younger
+      currentPatch => currentPatch%yosunger
    end do
 
  end subroutine get_frac_site_primary
