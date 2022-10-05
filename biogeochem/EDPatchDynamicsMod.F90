@@ -3579,7 +3579,7 @@ contains
          end if
 
       endif
-      currentPatch => currentPatch%yosunger
+      currentPatch => currentPatch%younger
    end do
 
  end subroutine get_frac_site_primary
