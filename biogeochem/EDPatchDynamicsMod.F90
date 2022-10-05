@@ -3595,6 +3595,8 @@ contains
         type(ed_site_type) , intent(in), target :: site_in
 
         ! !LOCAL VARIABLES:
+        type (ed_patch_type) , pointer :: currentPatch
+        type (ed_cohort_type), pointer :: currentCohort
         real(r8) :: coage_max
 
 
