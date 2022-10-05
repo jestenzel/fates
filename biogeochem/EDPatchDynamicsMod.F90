@@ -193,6 +193,8 @@ contains
 
 
     real(r8) :: frac_site_harvest_pot ![JStenzel added] fraction of site that is primary AND available for harvest due to meeting age min
+
+
     !----------------------------------------------------------------------------------------------
     ! Calculate Mortality Rates (these were previously calculated during growth derivatives)
     ! And the same rates in understory plants have already been applied to %dndt
@@ -200,6 +202,8 @@ contains
 
     ! first calculate the fractino of the site that is primary land
     call get_frac_site_primary(site_in, frac_site_primary, frac_site_harvest_pot)
+
+    call patch_oldest_cohort(site_in) ![Jstenzel added] TEST: harvest patch based on max cohort age, rather than patch age
 
     site_in%harvest_carbon_flux = 0._r8
 
@@ -231,7 +235,7 @@ contains
                 bc_in%hlm_harvest_catnames, &
                 bc_in%hlm_harvest_units, &
                 currentPatch%anthro_disturbance_label, &
-                currentPatch%age, & ! currentPatch%age_since_anthro_disturbance, & [!Jstenzel edit]  to use patch age, not age since anthro disturbance
+                currentPatch%coage_max, & ! currentPatch%age_since_anthro_disturbance, & [!Jstenzel edit]  to use patch age, not age since anthro disturbance
                 frac_site_primary, &
                 frac_site_harvest_pot)  ![JStenzel added]
 
@@ -319,7 +323,7 @@ contains
           ! The canopy is NOT closed.
 
           call get_harvest_rate_area (currentPatch%anthro_disturbance_label, bc_in%hlm_harvest_catnames, &
-               bc_in%hlm_harvest_rates, frac_site_primary, currentPatch%age, harvest_rate, frac_site_harvest_pot)  ![JStenzel edit] Replaced age-since-anthro w/ patch age
+               bc_in%hlm_harvest_rates, frac_site_primary, currentPatch%coage_max, harvest_rate, frac_site_harvest_pot)  ![JStenzel edit] Replaced age-since-anthro w/ patch age
                                                                                                                    ! [Jstenzel added] "frac_site_harvest_pot"
 
           currentPatch%disturbance_rates(dtype_ilog) = currentPatch%disturbance_rates(dtype_ilog) + &
@@ -3578,5 +3582,40 @@ contains
    end do
 
  end subroutine get_frac_site_primary
+
+ ! =====================================================================================  !! [JStenzel added subroutine]
+
+ subroutine patch_oldest_cohort(site_in)
+
+        !
+        ! !DESCRIPTION:
+        !  Calculate patch max cohort age
+
+        ! !ARGUMENTS:
+        type(ed_site_type) , intent(in), target :: site_in
+
+        ! !LOCAL VARIABLES:
+        real(r8) :: coage_max
+
+
+        currentPatch => site_in%oldest_patch
+        do while (associated(currentPatch))
+
+           coage_max = 1.0_r8
+
+           currentCohort => currentPatch%shortest
+           do while(associated(currentCohort))
+             coage_max = max( currentCohort%coage, coage_max)
+
+             currentCohort => currentCohort%taller
+           end do ! cohort loop
+
+           currentPatch%coage_max = coage_max
+
+           currentPatch => currentPatch%younger
+
+        end do !end patch loop
+
+ end subroutine patch_oldest_cohort
 
  end module EDPatchDynamicsMod

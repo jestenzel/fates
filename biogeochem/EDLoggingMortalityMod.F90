@@ -363,9 +363,9 @@ contains
 ! (planted with non-starting pft) harvest rotation will not be reached in current scenarios
      harvest_rate = 0._r8
      do h_index = 1,hlm_num_lu_harvest_cats
-       if ( ( patch_anthro_disturbance_label .eq. primaryforest .or. &
-            patch_anthro_disturbance_label .eq. secondaryforest ) .and. &
-            patch_age .ge. logging_patch_agemin ) then                                    ![JStenzel add] Only harvest patches > X years old
+       if ( ( patch_anthro_disturbance_label .eq. primaryforest ) .or. &
+            (patch_anthro_disturbance_label .eq. secondaryforest .and. &
+            patch_age .ge. logging_patch_agemin ) ) then                         ![JStenzel add] Only harvest secondary patches > X years old
           !if(hlm_harvest_catnames(h_index) .eq. "HARVEST_VH1" .or. &
             !    hlm_harvest_catnames(h_index) .eq. "HARVEST_VH2" .or. &
             !    hlm_harvest_catnames(h_index) .eq. "HARVEST_SH1" .or. &

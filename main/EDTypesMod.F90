@@ -427,6 +427,8 @@ module EDTypesMod
      real(r8) ::  age_since_anthro_disturbance                     ! average age for secondary forest since last anthropogenic disturbance
      real(r8) ::  spread                                           ![JStenzel added] Returning to patch-level spread. Especially fine since if disturb_frac == 0
 
+     real(r8) ::  coage_max  ! [JStenzel added] Max patch cohort age
+
      ! Running means
      !class(rmean_type), pointer :: t2m                          ! Place-holder for 2m air temperature (variable window-size)
      class(rmean_type), pointer :: tveg24                        ! 24-hour mean vegetation temperature (K)
