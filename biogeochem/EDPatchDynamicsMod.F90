@@ -202,10 +202,9 @@ contains
     !----------------------------------------------------------------------------------------------
 
     ! first calculate the fractino of the site that is primary land
-    call patch_oldest_cohort(site_in) ![Jstenzel added] TEST: harvest patch based on max cohort age, rather than patch age
+    !!call patch_oldest_cohort(site_in) ![Jstenzel added] TEST: harvest patch based on max cohort age, rather than patch age
+    call get_patch_dbh_tallest(site_in) ![Jstenzel added]
     call get_frac_site_primary(site_in, frac_site_primary, frac_site_harvest_pot)
-
-
 
     site_in%harvest_carbon_flux = 0._r8
 
@@ -231,13 +230,14 @@ contains
           currentCohort%smort = smort
           currentCohort%asmort = asmort
 
+          ![!Jstenzel edit]  to use patch age, not age since anthro disturbance
           call LoggingMortality_frac(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_layer, &
                 lmort_direct,lmort_collateral,lmort_infra,l_degrad,&
                 bc_in%hlm_harvest_rates, &
                 bc_in%hlm_harvest_catnames, &
                 bc_in%hlm_harvest_units, &
                 currentPatch%anthro_disturbance_label, &
-                currentPatch%coage_max, & ! currentPatch%age_since_anthro_disturbance, & [!Jstenzel edit]  to use patch age, not age since anthro disturbance
+                currentPatch%dbh_tall, & ! currentPatch%age_since_anthro_disturbance, &
                 frac_site_primary, &
                 frac_site_harvest_pot)  ![JStenzel added]
 
@@ -325,7 +325,7 @@ contains
           ! The canopy is NOT closed.
 
           call get_harvest_rate_area (currentPatch%anthro_disturbance_label, bc_in%hlm_harvest_catnames, &
-               bc_in%hlm_harvest_rates, frac_site_primary, currentPatch%coage_max, harvest_rate, frac_site_harvest_pot)  ![JStenzel edit] Replaced age-since-anthro w/ patch age
+               bc_in%hlm_harvest_rates, frac_site_primary, currentPatch%dbh_tall, harvest_rate, frac_site_harvest_pot)  ![JStenzel edit] Replaced age-since-anthro w/ patch age
                                                                                                                    ! [Jstenzel added] "frac_site_harvest_pot"
 
           currentPatch%disturbance_rates(dtype_ilog) = currentPatch%disturbance_rates(dtype_ilog) + &
@@ -3575,7 +3575,7 @@ contains
            currentPatch%anthro_disturbance_label .eq. secondaryforest ) then
          frac_site_primary = frac_site_primary + currentPatch%area * AREA_INV
 
-         if ( currentPatch%coage_max .ge. logging_patch_agemin) then    ![JStenzel added] site "primary" harvestable fraction calc
+         if ( currentPatch%dbh_tall .ge. logging_patch_agemin) then    ![JStenzel added] site "primary" harvestable fraction calc
             frac_site_harvest_pot = frac_site_harvest_pot + currentPatch%area * AREA_INV
          end if
 
@@ -3621,5 +3621,38 @@ contains
         end do !end patch loop
 
  end subroutine patch_oldest_cohort
+
+ ! =====================================================================================  !! [JStenzel added subroutine]
+
+ subroutine get_patch_dbh_tallest(site_in)
+
+    !
+   ! !DESCRIPTION:
+   !  Calculate patch max cohort age
+
+   ! !ARGUMENTS:
+   type(ed_site_type) , intent(inout), target :: site_in
+
+   ! !LOCAL VARIABLES:
+   type (ed_patch_type) , pointer :: currentPatch
+   type (ed_cohort_type), pointer :: currentCohort
+
+   currentPatch => site_in%oldest_patch
+   do while (associated(currentPatch))
+
+      currentCohort => currentPatch%tallest
+      if(associated(currentCohort)) then
+          currentPatch%dbh_tall = max(0.1_r8,currentCohort%dbh)
+      else
+          currentPatch%dbh_tall = 0.1_r8
+      end if
+
+
+      currentPatch => currentPatch%younger
+
+   end do
+
+ end subroutine get_patch_dbh_tallest
+
 
 end module EDPatchDynamicsMod
