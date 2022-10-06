@@ -3594,7 +3594,7 @@ contains
         !  Calculate patch max cohort age
 
         ! !ARGUMENTS:
-        type(ed_site_type) , intent(in), target :: site_in
+        type(ed_site_type) , intent(inout), target :: site_in
 
         ! !LOCAL VARIABLES:
         type (ed_patch_type) , pointer :: currentPatch
@@ -3609,7 +3609,7 @@ contains
 
            currentCohort => currentPatch%shortest
            do while(associated(currentCohort))
-             coage_max = max( currentCohort%coage, coage_max)
+             coage_max = max(coage_max,currentCohort%coage)
 
              currentCohort => currentCohort%taller
            end do ! cohort loop
@@ -3622,4 +3622,4 @@ contains
 
  end subroutine patch_oldest_cohort
 
- end module EDPatchDynamicsMod
+end module EDPatchDynamicsMod
