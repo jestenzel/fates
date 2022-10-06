@@ -114,6 +114,7 @@ module EDPatchDynamicsMod
   public :: set_patchno
   private:: fuse_2_patches
   public :: get_frac_site_primary
+  public :: patch_oldest_cohort ![JStenzel added]
 
   character(len=*), parameter, private :: sourcefile = &
         __FILE__
