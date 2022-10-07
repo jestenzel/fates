@@ -114,7 +114,7 @@ module EDPatchDynamicsMod
   public :: set_patchno
   private:: fuse_2_patches
   public :: get_frac_site_primary
-  public :: patch_oldest_cohort ![JStenzel added]
+  public :: get_patch_dbh_tallest ![JStenzel added]
 
   character(len=*), parameter, private :: sourcefile = &
         __FILE__
@@ -3585,42 +3585,7 @@ contains
 
  end subroutine get_frac_site_primary
 
- ! =====================================================================================  !! [JStenzel added subroutine]
 
- subroutine patch_oldest_cohort(site_in)
-
-        !
-        ! !DESCRIPTION:
-        !  Calculate patch max cohort age
-
-        ! !ARGUMENTS:
-        type(ed_site_type) , intent(inout), target :: site_in
-
-        ! !LOCAL VARIABLES:
-        type (ed_patch_type) , pointer :: currentPatch
-        type (ed_cohort_type), pointer :: currentCohort
-        real(r8) :: coage_max
-
-
-        currentPatch => site_in%oldest_patch
-        do while (associated(currentPatch))
-
-           coage_max = 1.0_r8
-
-           currentCohort => currentPatch%shortest
-           do while(associated(currentCohort))
-             coage_max = max(coage_max,currentCohort%coage)
-
-             currentCohort => currentCohort%taller
-           end do ! cohort loop
-
-           currentPatch%coage_max = coage_max
-
-           currentPatch => currentPatch%younger
-
-        end do !end patch loop
-
- end subroutine patch_oldest_cohort
 
  ! =====================================================================================  !! [JStenzel added subroutine]
 
