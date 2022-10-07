@@ -3555,7 +3555,7 @@ contains
     !
     ! !USES:
     use EDTypesMod , only : ed_site_type
-    use EDParamsMod       , only : logging_patch_agemin
+    use EDParamsMod       , only : logging_patch_dbhmin
 
     !
     ! !ARGUMENTS:
@@ -3575,7 +3575,7 @@ contains
            currentPatch%anthro_disturbance_label .eq. secondaryforest ) then
          frac_site_primary = frac_site_primary + currentPatch%area * AREA_INV
 
-         if ( currentPatch%dbh_tall .ge. logging_patch_agemin) then    ![JStenzel added] site "primary" harvestable fraction calc
+         if ( currentPatch%dbh_tall .ge. logging_patch_dbhmin) then    ![JStenzel added] site "primary" harvestable fraction calc
             frac_site_harvest_pot = frac_site_harvest_pot + currentPatch%area * AREA_INV
          end if
 

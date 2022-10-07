@@ -40,7 +40,7 @@ module EDLoggingMortalityMod
    use EDParamsMod       , only : logging_mechanical_frac
    use EDParamsMod       , only : logging_coll_under_frac
    use EDParamsMod       , only : logging_dbhmax_infra
-   use EDParamsMod       , only : logging_patch_agemin
+   use EDParamsMod       , only : logging_patch_dbhmin
    use FatesInterfaceTypesMod , only : bc_in_type
    use FatesInterfaceTypesMod , only : hlm_current_year
    use FatesInterfaceTypesMod , only : hlm_current_month
@@ -369,7 +369,7 @@ contains
      do h_index = 1,hlm_num_lu_harvest_cats
        if ( ( patch_anthro_disturbance_label .eq. primaryforest .or. &
             patch_anthro_disturbance_label .eq. secondaryforest) .and. &
-            dbh_tall .ge. logging_patch_agemin ) then                         ![JStenzel add] b) "dbh_tall" instead a) Only harvest secondary patches > X years old
+            dbh_tall .ge. logging_patch_dbhmin ) then                         ![JStenzel add] b) "dbh_tall" instead a) Only harvest secondary patches > X years old
           !if(hlm_harvest_catnames(h_index) .eq. "HARVEST_VH1" .or. &
             !    hlm_harvest_catnames(h_index) .eq. "HARVEST_VH2" .or. &
             !    hlm_harvest_catnames(h_index) .eq. "HARVEST_SH1" .or. &

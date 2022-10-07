@@ -188,8 +188,8 @@ module EDParamsMod
                                                     ! leftovers will be left onsite as large CWD
    character(len=param_string_length),parameter,public :: logging_name_export_frac ="fates_logging_export_frac"
 
-   real(r8),protected,public :: logging_patch_agemin       ![JStenzel added] ! "Minimum patch age for a harvest to go into effect"
-   character(len=param_string_length),parameter,public :: logging_name_patch_agemin ="fates_logging_patch_agemin"
+   real(r8),protected,public :: logging_patch_dbhmin       ![JStenzel added] ! "Minimum patch age for a harvest to go into effect"
+   character(len=param_string_length),parameter,public :: logging_name_patch_dbhmin ="fates_logging_patch_dbhmin"
 
    real(r8),protected,public :: eca_plant_escalar  ! scaling factor for plant fine root biomass to
                                                ! calculate nutrient carrier enzyme abundance (ECA)
@@ -255,7 +255,7 @@ contains
     logging_event_code                    = nan
     logging_dbhmax_infra                  = nan
     logging_export_frac                   = nan
-    logging_patch_agemin                  = nan ![JStenzel added]
+    logging_patch_dbhmin                  = nan ![JStenzel added]
     eca_plant_escalar                     = nan
     q10_mr                                = nan
     q10_froz                              = nan
@@ -603,8 +603,8 @@ contains
     call fates_params%RetreiveParameter(name=logging_name_export_frac, &
           data=logging_export_frac)
 
-    call fates_params%RetreiveParameter(name=logging_name_patch_agemin, &
-          data=logging_patch_agemin)
+    call fates_params%RetreiveParameter(name=logging_name_patch_dbhmin, &
+          data=logging_patch_dbhmin)
 
     call fates_params%RetreiveParameter(name=eca_name_plant_escalar, &
           data=eca_plant_escalar)
