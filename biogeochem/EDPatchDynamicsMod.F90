@@ -553,61 +553,66 @@ contains
 
     ! [JStenzel Start]
 
-    planting_rate = 0.0_r8
-    planting_rate_VH2 = 0.0_r8
-    planting_rate_SH1 = 0.0_r8
-    planting_rate_SH2 = 0.0_r8
-    planting_rate_SH3 = 0.0_r8
+
 
     planting_time = 0
     planting_type = 0
 
-    do h_index = 1, hlm_num_lu_harvest_cats
+    if( logging_time ) then
 
-      !if ( bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_VH2" .or. &
-      !   bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_SH1".or. &
-      !   bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2") then       !!!!! need to make sure this works
-      !      planting_rate = planting_rate + bc_in%hlm_harvest_rates(h_index)
-      !end if
-      if ( bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_VH2" ) then
-         planting_rate_VH2 = planting_rate_VH2 + bc_in%hlm_harvest_rates(h_index)
-      end if
+          planting_rate = 0.0_r8
+          planting_rate_VH2 = 0.0_r8
+          planting_rate_SH1 = 0.0_r8
+          planting_rate_SH2 = 0.0_r8
+          planting_rate_SH3 = 0.0_r8
 
-      if ( bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_SH1" ) then
-         planting_rate_SH1 = planting_rate_SH1 + bc_in%hlm_harvest_rates(h_index)
-      end if
+          do h_index = 1, hlm_num_lu_harvest_cats
 
-      if ( bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2" ) then
-         planting_rate_SH2 = planting_rate_SH2 + bc_in%hlm_harvest_rates(h_index)
-      end if
+            !if ( bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_VH2" .or. &
+            !   bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_SH1".or. &
+            !   bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2") then       !!!!! need to make sure this works
+            !      planting_rate = planting_rate + bc_in%hlm_harvest_rates(h_index)
+            !end if
+            if ( bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_VH2" ) then
+               planting_rate_VH2 = planting_rate_VH2 + bc_in%hlm_harvest_rates(h_index)
+            end if
 
-      if ( bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_SH3" ) then
-         planting_rate_SH3 = planting_rate_SH3 + bc_in%hlm_harvest_rates(h_index)
-      end if
+            if ( bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_SH1" ) then
+               planting_rate_SH1 = planting_rate_SH1 + bc_in%hlm_harvest_rates(h_index)
+            end if
 
-    end do
+            if ( bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2" ) then
+               planting_rate_SH2 = planting_rate_SH2 + bc_in%hlm_harvest_rates(h_index)
+            end if
 
-    planting_rate = planting_rate + planting_rate_VH2 + planting_rate_SH1 + planting_rate_SH2 + planting_rate_SH3
+            if ( bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_SH3" ) then
+               planting_rate_SH3 = planting_rate_SH3 + bc_in%hlm_harvest_rates(h_index)
+            end if
 
-    if ( planting_rate .gt. 0.0_r8) then
+          end do
 
-      planting_time = 1
+          planting_rate = planting_rate + planting_rate_VH2 + planting_rate_SH1 + planting_rate_SH2 + planting_rate_SH3
 
-      if ( planting_rate_VH2 .gt. planting_rate_SH1 .and. &
-        planting_rate_VH2 .gt. planting_rate_SH2 .and. &
-         planting_rate_VH2 .gt. planting_rate_SH3 ) then
-           planting_type = 1
-      elseif ( planting_rate_SH1 .gt. planting_rate_VH2 .and. &
-        planting_rate_SH1 .gt. planting_rate_SH2 .and. &
-        planting_rate_SH1 .gt. planting_rate_SH3 ) then
-           planting_type = 2
-      elseif ( planting_rate_SH2 .gt. planting_rate_VH2 .and. &
-        planting_rate_SH2 .gt. planting_rate_SH1 .and. &
-        planting_rate_SH2 .gt. planting_rate_SH3 ) then
-           planting_type = 3
-      else
-           planting_type = 4
-      end if
+          if ( planting_rate .gt. 0.0_r8) then
+
+            planting_time = 1
+
+            if ( planting_rate_VH2 .gt. planting_rate_SH1 .and. &
+              planting_rate_VH2 .gt. planting_rate_SH2 .and. &
+               planting_rate_VH2 .gt. planting_rate_SH3 ) then
+                 planting_type = 1
+            elseif ( planting_rate_SH1 .gt. planting_rate_VH2 .and. &
+              planting_rate_SH1 .gt. planting_rate_SH2 .and. &
+              planting_rate_SH1 .gt. planting_rate_SH3 ) then
+                 planting_type = 2
+            elseif ( planting_rate_SH2 .gt. planting_rate_VH2 .and. &
+              planting_rate_SH2 .gt. planting_rate_SH1 .and. &
+              planting_rate_SH2 .gt. planting_rate_SH3 ) then
+                 planting_type = 3
+            else
+                 planting_type = 4
+            end if
+          end if
     end if
 
 
