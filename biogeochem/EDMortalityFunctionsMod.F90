@@ -65,6 +65,7 @@ contains
     real(r8),intent(out) :: asmort ! age dependent senescence term
 
     real(r8) :: frac  ! relativised stored carbohydrate
+    real(r8) :: frac_bmort  ! [JStenzel added] relativised stored carbohydrate for variable bmort calc
     real(r8) :: leaf_c_target      ! target leaf biomass kgC
     real(r8) :: store_c
     real(r8) :: hf_sm_threshold    ! hydraulic failure soil moisture threshold
@@ -190,18 +191,24 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
        call bleaf(cohort_in%dbh,cohort_in%pft,cohort_in%canopy_trim,leaf_c_target)
        store_c = cohort_in%prt%GetState(store_organ,all_carbon_elements)
 
-       call storage_fraction_of_target(leaf_c_target, store_c, frac)
+       call storage_fraction_of_target(leaf_c_target, store_c, frac,cohort_in%pft,frac_bmort)
     ! [JStenzel 1.27.2022] Added cstarvetol parameter in place of "1" to allow mortality threshold to vary.
-    ![JStenzel 4.2022] Added background mortality stress scalar.
+
        if( frac .lt. EDPftvarcon_inst%cstarvetol(cohort_in%pft) ) then
           cmort = max(0.0_r8,EDPftvarcon_inst%mort_scalar_cstarvation(cohort_in%pft) * &
                (1.0_r8 - (frac / EDPftvarcon_inst%cstarvetol(cohort_in%pft)) ))
-          !bmort = bmort + &
-            !   max(0, bmort * (1.0_r8 - (frac/ EDPftvarcon_inst%cstarvetol(cohort_in%pft)) ) * &
-            !   max(0.0_r8, (EDPftvarcon_inst%bmort_stress_multiplier(cohort_in%pft) - 1.0_r8) )
        else
           cmort = 0.0_r8
        endif
+
+       ![JStenzel 10.2022] Added background mortality stress scalar.
+       if( frac_bmort .lt. 1.0_r8 ) then
+          bmort = bmort + &
+              max(0, bmort * (1.0_r8 - frac_bmort) * &
+                max(0.0_r8, (EDPftvarcon_inst%bmort_stress_multiplier(cohort_in%pft) - 1.0_r8) )
+       end if
+
+
 
     else
        write(fates_log(),*) 'dbh problem in mortality_rates', &
