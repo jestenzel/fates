@@ -204,7 +204,7 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
        ![JStenzel 10.2022] Added background mortality stress scalar.
        if( frac_bmort .lt. 1.0_r8 ) then
           bmort = bmort + &
-              max(0, bmort * (1.0_r8 - frac_bmort) * &
+              max(0.0_r8, bmort * (1.0_r8 - frac_bmort) * &
                 max(0.0_r8, (EDPftvarcon_inst%bmort_stress_multiplier(cohort_in%pft) - 1.0_r8) ) )
        end if
 
