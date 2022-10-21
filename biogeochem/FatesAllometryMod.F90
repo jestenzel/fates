@@ -564,8 +564,8 @@ contains
     real(r8),intent(in)    :: leaf_c_target  ! target LEAF carbon [kg] !!!
     real(r8),intent(in)    :: c_store         ! storage carbon [kg]
     real(r8),intent(out)   :: frac          ![JStenzel note] min( c_store/leaf_c , 1) . Not changing this because it's also used to scale respiration
-    integer(i4),intent(in) :: ipft          ! PFT index   ![Jstenzel added]
-    real(r8),intent(out)   :: frac_bmort    ![Jstenzel added] (c_store/leaf_c_target). storec/target_storage cushion c fraction used for calculating variable bmort.
+    integer(i4),intent(in),optional  :: ipft          ! PFT index   ![Jstenzel added]
+    real(r8),intent(out),optional    :: frac_bmort    ![Jstenzel added] (c_store/leaf_c_target). storec/target_storage cushion c fraction used for calculating variable bmort.
 
 
     if( leaf_c_target > 0._r8 .and. c_store <= leaf_c_target )then
@@ -574,11 +574,13 @@ contains
        frac = 1._r8
     endif
 
-    if( leaf_c_target > 0._r8) then
-      !frac_bmort = min( c_store / leaf_c_target, prt_params%cushion)
-      frac_bmort = min( c_store / ( leaf_c_target * prt_params%cushion(ipft)), 1._r8  )
-    else
-      frac_bmort = 1._r8 !prt_params%cushion
+    if(present(ipft))then
+          if( leaf_c_target > 0._r8) then
+            !frac_bmort = min( c_store / leaf_c_target, prt_params%cushion)
+            frac_bmort = min( c_store / ( leaf_c_target * prt_params%cushion(ipft)), 1._r8  )
+          else
+            frac_bmort = 1._r8 !prt_params%cushion
+          end if
     end if
 
   end subroutine storage_fraction_of_target
