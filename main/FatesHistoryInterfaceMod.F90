@@ -396,8 +396,8 @@ module FatesHistoryInterfaceMod
   integer :: ih_ar_understory_si_scpf
 
 
-  integer :: ih_btransum_si_scpf ![JStenzel add]
-  integer :: ih_ncohort_si_scpf !
+  !integer :: ih_btransum_si_scpf ![JStenzel add]
+  !integer :: ih_ncohort_si_scpf !
 
   integer :: ih_ddbh_si_scpf
   integer :: ih_growthflux_si_scpf
@@ -1945,8 +1945,8 @@ end subroutine flush_hvars
                hio_nplant_si_capf      => this%hvars(ih_nplant_si_capf)%r82d, &
 
                ![JStenzel add]
-               hio_btransum_si_scpf   => this%hvars(ih_btransum_si_scpf)%r82d, &
-               hio_ncohort_si_scpf    => this%hvars(ih_ncohort_si_scpf)%r82d, &
+               !hio_btransum_si_scpf   => this%hvars(ih_btransum_si_scpf)%r82d, &
+               !hio_ncohort_si_scpf    => this%hvars(ih_ncohort_si_scpf)%r82d, &
 
                hio_m1_si_scpf          => this%hvars(ih_m1_si_scpf)%r82d, &
                hio_m2_si_scpf          => this%hvars(ih_m2_si_scpf)%r82d, &
@@ -2215,7 +2215,7 @@ end subroutine flush_hvars
 
       ! harvest carbon flux in [kgC/m2/d] -> [kgC/m2/yr]
       hio_harvest_carbonflux_si(io_si) = sites(s)%harvest_carbon_flux *      &
-         days_per_year
+         days_per_year / m2_per_ha     ![JStenzel edit] divide by 10^4, as harvest carbon flux should be in kg / ha (from calc w/ cohort N x prt kg/tree), NOT kg/m2
 
       ! Loop through patches to sum up diagonistics
       ipa = 0
@@ -2595,9 +2595,9 @@ end subroutine flush_hvars
 
                end if
                ! [JStenzel add ] BTRAN sums and scpf ncohort for non-weighted averaging
-               hio_ncohort_si_scpf(io_si,scpf) = hio_ncohort_si_scpf(io_si,scpf) + 1._r8
-               hio_btransum_si_scpf(io_si,scpf) = hio_btransum_si_scpf(io_si,scpf) + &
-                     ccohort%btran_coh
+               !hio_ncohort_si_scpf(io_si,scpf) = hio_ncohort_si_scpf(io_si,scpf) + 1._r8
+               !hio_btransum_si_scpf(io_si,scpf) = hio_btransum_si_scpf(io_si,scpf) + &
+               !      ccohort%btran_coh
 
                ! mortality sums [#/m2]
                hio_m1_si_scpf(io_si,scpf) = hio_m1_si_scpf(io_si,scpf) +       &
@@ -2609,8 +2609,8 @@ end subroutine flush_hvars
 
                hio_m7_si_scpf(io_si,scpf) = hio_m7_si_scpf(io_si,scpf) +       &
                   (ccohort%lmort_direct + ccohort%lmort_collateral +           &
-                  ccohort%lmort_infra) * ccohort%n / m2_per_ha
-
+                  ccohort%lmort_infra) * ccohort%n / m2_per_ha * days_per_year     ![JStenzel edit] Treefall mortality calcs are averaging yearly rates from each day, which will later be divided by 365
+                                                                                    ! Logging was therefore being underrepresented by a factor of 365!!!
                hio_m8_si_scpf(io_si,scpf) = hio_m8_si_scpf(io_si,scpf) +       &
                   ccohort%frmort*ccohort%n / m2_per_ha
 	       hio_m11_si_scpf(io_si,scpf) = hio_m11_si_scpf(io_si,scpf) +       &
@@ -2724,7 +2724,8 @@ end subroutine flush_hvars
                      (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%frmort + &
                   ccohort%heatmort +ccohort%smort + ccohort%asmort) * ccohort%n / m2_per_ha + &
                      (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * &
-                     ccohort%n * sec_per_day * days_per_year / m2_per_ha
+                     ccohort%n * days_per_year / m2_per_ha                    ![JStenzel edit ] Not sure why sec_per_day was here. This made the logging contribution MASSIVE.
+                     !ccohort%n * sec_per_day * days_per_year / m2_per_ha
 
                   hio_nplant_canopy_si_scpf(io_si,scpf) = hio_nplant_canopy_si_scpf(io_si,scpf) + ccohort%n / m2_per_ha
                   hio_nplant_canopy_si_scls(io_si,scls) = hio_nplant_canopy_si_scls(io_si,scls) + ccohort%n / m2_per_ha
@@ -2758,7 +2759,7 @@ end subroutine flush_hvars
                      ccohort%frmort + ccohort%heatmort + ccohort%smort + ccohort%asmort) * &
                   total_m * ccohort%n * days_per_sec * years_per_day * ha_per_m2 + &
                      (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * total_m * &
-                     ccohort%n * ha_per_m2
+                     ccohort%n * ha_per_m2 * days_per_sec    ![JStenzel Edit] /365 / 86400 (year_to_sec) , * 365 (because this will be averaged)
 
 
                   hio_carbon_balance_canopy_si_scls(io_si,scls) = hio_carbon_balance_canopy_si_scls(io_si,scls) + &
@@ -3150,10 +3151,10 @@ end subroutine flush_hvars
             i_scpf = (i_pft-1)*nlevsclass + i_scls
 
             ! [JStenzel added] divide cohort sum of btran by number of cohorts per scpf
-            if ( hio_ncohort_si_scpf(io_si,i_scpf) .gt. 0.0_r8) then
-               hio_btransum_si_scpf(io_si,i_scpf) = hio_btransum_si_scpf(io_si,i_scpf) / &
-                  hio_ncohort_si_scpf(io_si,i_scpf)
-            end if
+            !if ( hio_ncohort_si_scpf(io_si,i_scpf) .gt. 0.0_r8) then
+            !   hio_btransum_si_scpf(io_si,i_scpf) = hio_btransum_si_scpf(io_si,i_scpf) / &
+            !      hio_ncohort_si_scpf(io_si,i_scpf)
+            !end if
 
             hio_mortality_si_pft(io_si,i_pft) = hio_mortality_si_pft(io_si,i_pft) + &
                hio_m1_si_scpf(io_si,i_scpf) + &
@@ -5897,12 +5898,12 @@ end subroutine update_history_hifrq
           initialize=initialize_variables, index = ih_mortality_canopy_si_scpf)
 
     ![JStenzel added] BTRAN sum and scpf ncohorts (for averaging)
-    call this%set_history_var(vname='FATES_BTRAN_SUM_SZPF',            &
-          units = 'fraction of BTRAN=1 (unstressed)',                           &
-          long='Sum of BTRAN by pft/size', &
-          use_default='inactive',           &
-          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', upfreq=1,       &
-          ivar=ivar, initialize=initialize_variables, index = ih_btransum_si_scpf)
+    !call this%set_history_var(vname='FATES_BTRAN_SUM_SZPF',            &
+      !    units = 'fraction of BTRAN=1 (unstressed)',                           &
+      !    long='Sum of BTRAN by pft/size', &
+      !    use_default='inactive',           &
+      !    avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', upfreq=1,       &
+      !    ivar=ivar, initialize=initialize_variables, index = ih_btransum_si_scpf)
 
     call this%set_history_var(vname='FATES_NCOHORT_SZPF',            &
           units = 'Cohort count',                                              &
