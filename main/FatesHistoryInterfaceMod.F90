@@ -5905,12 +5905,12 @@ end subroutine update_history_hifrq
       !    avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', upfreq=1,       &
       !    ivar=ivar, initialize=initialize_variables, index = ih_btransum_si_scpf)
 
-    call this%set_history_var(vname='FATES_NCOHORT_SZPF',            &
-          units = 'Cohort count',                                              &
-          long='Number of chohorts by pft/size ', &
-          use_default='inactive',           &
-          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', upfreq=1,       &
-          ivar=ivar, initialize=initialize_variables, index = ih_ncohort_si_scpf)
+    !call this%set_history_var(vname='FATES_NCOHORT_SZPF',            &
+      !    units = 'Cohort count',                                              &
+      !    long='Number of chohorts by pft/size ', &
+      !    use_default='inactive',           &
+      !    avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', upfreq=1,       &
+      !    ivar=ivar, initialize=initialize_variables, index = ih_ncohort_si_scpf)
 
     call this%set_history_var(vname='FATES_C13DISC_SZPF', units = 'per mil',   &
          long='C13 discrimination by pft/size',use_default='inactive',         &
