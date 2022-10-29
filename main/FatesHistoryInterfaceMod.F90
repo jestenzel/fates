@@ -4653,7 +4653,7 @@ end subroutine update_history_hifrq
     call this%set_history_var(vname='FATES_MORTALITY_BACKGROUND_PF',         &
           units = 'm-2 yr-1',                                                  &
           long='PFT-level background mortality in number of plants per m2 per year', &
-          use_default='inactive', avgflag='A', vtype=site_size_pft_r8,         &
+          use_default='inactive', avgflag='A', vtype=site_pft_r8,         &
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_m1_si_pft)
 
