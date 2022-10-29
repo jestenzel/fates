@@ -2215,7 +2215,7 @@ end subroutine flush_hvars
 
       ! harvest carbon flux in [kgC/m2/d] -> [kgC/m2/yr]
       hio_harvest_carbonflux_si(io_si) = sites(s)%harvest_carbon_flux *      &
-         days_per_year / m2_per_ha     ![JStenzel edit] divide by 10^4, as harvest carbon flux should be in kg / ha (from calc w/ cohort N x prt kg/tree), NOT kg/m2
+         days_per_year / m2_per_ha     ![JStenzel edit] divide by 10^4, as the input site%harvest carbon flux should be in kg / ha (from calc w/ cohort N x prt kg/tree), NOT kg/m2
 
       ! Loop through patches to sum up diagonistics
       ipa = 0
@@ -2613,7 +2613,7 @@ end subroutine flush_hvars
                                                                                     ! Logging was therefore being underrepresented by a factor of 365!!!
                hio_m8_si_scpf(io_si,scpf) = hio_m8_si_scpf(io_si,scpf) +       &
                   ccohort%frmort*ccohort%n / m2_per_ha
-	       hio_m11_si_scpf(io_si,scpf) = hio_m11_si_scpf(io_si,scpf) +       &
+	            hio_m11_si_scpf(io_si,scpf) = hio_m11_si_scpf(io_si,scpf) +       &
                   ccohort%heatmort*ccohort%n / m2_per_ha
                hio_m9_si_scpf(io_si,scpf) = hio_m9_si_scpf(io_si,scpf) +       &
                   ccohort%smort*ccohort%n / m2_per_ha
