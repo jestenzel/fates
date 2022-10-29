@@ -520,7 +520,12 @@ module FatesHistoryInterfaceMod
   integer :: ih_nindivs_si_pft
   integer :: ih_recruitment_si_pft
   integer :: ih_mortality_si_pft
+  integer :: ih_m1_si_pft ![JStenzel add]
   integer :: ih_m2_si_pft                  ![JStenzel add]
+  integer :: ih_m3_si_pft ![JStenzel add]
+  integer :: ih_m5_si_pft ![JStenzel add]
+  integer :: ih_m7_si_pft ![JStenzel add]
+  integer :: ih_m8_si_pft ![JStenzel add]
   integer :: ih_crownarea_si_pft
   integer :: ih_canopycrownarea_si_pft
   integer :: ih_gpp_si_pft
@@ -1861,7 +1866,12 @@ end subroutine flush_hvars
                hio_nindivs_si_pft      => this%hvars(ih_nindivs_si_pft)%r82d, &
                hio_recruitment_si_pft  => this%hvars(ih_recruitment_si_pft)%r82d, &
                hio_mortality_si_pft    => this%hvars(ih_mortality_si_pft)%r82d, &
+               hio_m1_si_pft           => this%hvars(ih_m1_si_pft)%r82d, & ![JStenzel add]
                hio_m2_si_pft           => this%hvars(ih_m2_si_pft)%r82d, & ![JStenzel add]
+               hio_m3_si_pft           => this%hvars(ih_m3_si_pft)%r82d, & ![JStenzel add]
+               hio_m5_si_pft           => this%hvars(ih_m5_si_pft)%r82d, & ![JStenzel add]
+               hio_m7_si_pft           => this%hvars(ih_m7_si_pft)%r82d, & ![JStenzel add]
+               hio_m8_si_pft           => this%hvars(ih_m8_si_pft)%r82d, & ![JStenzel add]
                hio_crownarea_si_pft    => this%hvars(ih_crownarea_si_pft)%r82d, &
                hio_canopycrownarea_si_pft  => this%hvars(ih_canopycrownarea_si_pft)%r82d, &
                hio_gpp_si_pft  => this%hvars(ih_gpp_si_pft)%r82d, &
@@ -3157,8 +3167,22 @@ end subroutine flush_hvars
             !   hio_btransum_si_scpf(io_si,i_scpf) = hio_btransum_si_scpf(io_si,i_scpf) / &
             !      hio_ncohort_si_scpf(io_si,i_scpf)
             !end if
+
+            ! [JStenzel add m1 - m8 si_pft mortality]
+            hio_m1_si_pft(io_si,i_pft) = hio_m1_si_pft(io_si,i_pft) + &
+               hio_m1_si_scpf(io_si,i_scpf)
             hio_m2_si_pft(io_si,i_pft) = hio_m2_si_pft(io_si,i_pft) + &
                hio_m2_si_scpf(io_si,i_scpf)
+            hio_m3_si_pft(io_si,i_pft) = hio_m3_si_pft(io_si,i_pft) + &
+               hio_m3_si_scpf(io_si,i_scpf)
+            hio_m5_si_pft(io_si,i_pft) = hio_m5_si_pft(io_si,i_pft) + &
+               hio_m5_si_scpf(io_si,i_scpf)
+            hio_m7_si_pft(io_si,i_pft) = hio_m7_si_pft(io_si,i_pft) + &
+               hio_m7_si_scpf(io_si,i_scpf)
+            hio_m8_si_pft(io_si,i_pft) = hio_m8_si_pft(io_si,i_pft) + &
+               hio_m8_si_scpf(io_si,i_scpf)
+
+
 
             hio_mortality_si_pft(io_si,i_pft) = hio_mortality_si_pft(io_si,i_pft) + &
                hio_m1_si_scpf(io_si,i_scpf) + &
@@ -4626,12 +4650,42 @@ end subroutine update_history_hifrq
 
     !!!! [JStenzel add PF mortality-type VARIABLES]
 
+    call this%set_history_var(vname='FATES_MORTALITY_BACKGROUND_PF',         &
+          units = 'm-2 yr-1',                                                  &
+          long='PFT-level background mortality in number of plants per m2 per year', &
+          use_default='inactive', avgflag='A', vtype=site_size_pft_r8,         &
+          hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
+          initialize=initialize_variables, index = ih_m1_si_pft)
+
     call this%set_history_var(vname='FATES_MORTALITY_HYDRAULIC_PF', units='m-2 yr-1',    &
          long='PFT-level hydraulic mortality in number of plants per m2 per year', &
          use_default='inactive', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index=ih_m2_si_pft)
 
+    call this%set_history_var(vname='FATES_MORTALITY_CSTARV_PF', units='m-2 yr-1',    &
+        long='PFT-level cstarv mortality mortality in number of plants per m2 per year', &
+        use_default='inactive', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', &
+        upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
+        index=ih_m3_si_pft)
+
+    call this%set_history_var(vname='FATES_MORTALITY_FIRE_PF', units='m-2 yr-1',    &
+         long='PFT-level fire mortality in number of plants per m2 per year', &
+         use_default='inactive', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', &
+         upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
+         index=ih_m5_si_pft)
+
+    call this%set_history_var(vname='FATES_MORTALITY_LOGGING_PF', units='m-2 yr-1',    &
+         long='PFT-level logging mortality in number of plants per m2 per year', &
+         use_default='inactive', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', &
+         upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
+         index=ih_m7_si_pft)
+
+    call this%set_history_var(vname='FATES_MORTALITY_FREEZING_PF', units='m-2 yr-1',    &
+         long='PFT-level freezing mortality in number of plants per m2 per year', &
+         use_default='inactive', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', &
+         upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
+         index=ih_m8_si_pft)
     !!!! [JStenzel add var add]
 
     ! patch age class variables
