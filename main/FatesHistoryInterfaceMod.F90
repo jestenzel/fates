@@ -2910,7 +2910,8 @@ end subroutine flush_hvars
                      ccohort%frmort + ccohort%heatmort + ccohort%smort + ccohort%asmort) * &
                   total_m * ccohort%n * days_per_sec * years_per_day * ha_per_m2 + &
                      (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * total_m * &
-                     ccohort%n * ha_per_m2
+                     ccohort%n * ha_per_m2 * days_per_sec    ![JStenzel Edit] /365 / 86400 (year_to_sec) , * 365 (because this will be averaged)
+
                   !!!![JStenzel add] Understory mortality cflux variables
                   hio_understory_m1_carbonflux_si(io_si) = hio_understory_m1_carbonflux_si(io_si) + &
                      ccohort%bmort * total_m * ccohort%n * days_per_sec * years_per_day * ha_per_m2
