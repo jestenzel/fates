@@ -332,6 +332,13 @@ module FatesHistoryInterfaceMod
   integer :: ih_canopy_m7_carbonflux_si
   integer :: ih_canopy_m8_carbonflux_si
   !
+  integer :: ih_understory_m1_carbonflux_si
+  integer :: ih_understory_m2_carbonflux_si
+  integer :: ih_understory_m3_carbonflux_si
+  integer :: ih_understory_m5_carbonflux_si
+  integer :: ih_understory_m7_carbonflux_si
+  integer :: ih_understory_m8_carbonflux_si
+  !
   integer :: ih_canopy_spread_si
   integer :: ih_npp_leaf_si
   integer :: ih_npp_seed_si
@@ -2037,6 +2044,13 @@ end subroutine flush_hvars
                hio_canopy_m7_carbonflux_si     => this%hvars(ih_canopy_m7_carbonflux_si)%r81d, &
                hio_canopy_m8_carbonflux_si     => this%hvars(ih_canopy_m8_carbonflux_si)%r81d, &
                !
+               hio_understory_m1_carbonflux_si     => this%hvars(ih_understory_m1_carbonflux_si)%r81d, &
+               hio_understory_m2_carbonflux_si     => this%hvars(ih_understory_m2_carbonflux_si)%r81d, &
+               hio_understory_m3_carbonflux_si     => this%hvars(ih_understory_m3_carbonflux_si)%r81d, &
+               hio_understory_m5_carbonflux_si     => this%hvars(ih_understory_m5_carbonflux_si)%r81d, &
+               hio_understory_m7_carbonflux_si     => this%hvars(ih_understory_m7_carbonflux_si)%r81d, &
+               hio_understory_m8_carbonflux_si     => this%hvars(ih_understory_m8_carbonflux_si)%r81d, &
+               !
                hio_understory_mortality_carbonflux_si => this%hvars(ih_understory_mortality_carbonflux_si)%r81d, &
                hio_leaf_md_canopy_si_scls           => this%hvars(ih_leaf_md_canopy_si_scls)%r82d, &
                hio_root_md_canopy_si_scls           => this%hvars(ih_root_md_canopy_si_scls)%r82d, &
@@ -2897,6 +2911,23 @@ end subroutine flush_hvars
                   total_m * ccohort%n * days_per_sec * years_per_day * ha_per_m2 + &
                      (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * total_m * &
                      ccohort%n * ha_per_m2
+                  !!!![JStenzel add] Understory mortality cflux variables
+                  hio_understory_m1_carbonflux_si(io_si) = hio_understory_m1_carbonflux_si(io_si) + &
+                     ccohort%bmort * total_m * ccohort%n * days_per_sec * years_per_day * ha_per_m2
+
+                  hio_understory_m2_carbonflux_si(io_si) = hio_understory_m2_carbonflux_si(io_si) + &
+                     ccohort%hmort * total_m * ccohort%n * days_per_sec * years_per_day * ha_per_m2
+
+                  hio_understory_m3_carbonflux_si(io_si) = hio_understory_m3_carbonflux_si(io_si) + &
+                     ccohort%cmort * total_m * ccohort%n * days_per_sec * years_per_day * ha_per_m2
+
+                  hio_understory_m7_carbonflux_si(io_si) = hio_understory_m7_carbonflux_si(io_si) + &
+                     (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * &
+                     total_m * ccohort%n * ha_per_m2 * days_per_sec               !/365 / 86400 (year_to_sec) , * 365 (because this will be averaged)
+
+                  hio_understory_m8_carbonflux_si(io_si) = hio_understory_m8_carbonflux_si(io_si) + &
+                     ccohort%frmort * total_m * ccohort%n * days_per_sec * years_per_day * ha_per_m2
+                  !!!!
 
                   hio_carbon_balance_understory_si_scls(io_si,scls) = hio_carbon_balance_understory_si_scls(io_si,scls) + &
                      ccohort%npp_acc_hold * ccohort%n / m2_per_ha / days_per_year / sec_per_day
@@ -3156,6 +3187,8 @@ end subroutine flush_hvars
             ![JStenzel added]
             hio_canopy_m5_carbonflux_si(io_si) = hio_canopy_m5_carbonflux_si(io_si) + &
                sites(s)%fmort_carbonflux_canopy / g_per_kg
+            hio_understory_m5_carbonflux_si(io_si) = hio_understory_m5_carbonflux_si(io_si) + &
+               sites(s)%fmort_carbonflux_ustory / g_per_kg
             !!!!
 
             !
@@ -5708,6 +5741,49 @@ end subroutine update_history_hifrq
         use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
         upfreq=1, ivar=ivar, initialize=initialize_variables,                &
         index = ih_canopy_m8_carbonflux_si)
+   !!!
+   call this%set_history_var(vname='FATES_M1_CFLUX_UNDERSTORY',            &
+        units = 'kg m-2 s-1',                                                &
+        long='flux of biomass carbon from live to dead pools from backkround mortality of understory plants in kg carbon per m2 per second', &
+        use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
+        upfreq=1, ivar=ivar, initialize=initialize_variables,                &
+        index = ih_understory_m1_carbonflux_si)
+
+   call this%set_history_var(vname='FATES_M2_CFLUX_UNDERSTORY',            &
+        units = 'kg m-2 s-1',                                                &
+        long='flux of biomass carbon from live to dead pools from hydr mortality of understory plants in kg carbon per m2 per second', &
+        use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
+        upfreq=1, ivar=ivar, initialize=initialize_variables,                &
+        index = ih_understory_m2_carbonflux_si)
+
+   call this%set_history_var(vname='FATES_M3_CFLUX_UNDERSTORY',            &
+           units = 'kg m-2 s-1',                                                &
+           long='flux of biomass carbon from live to dead pools from cstarv mortality of understory plants in kg carbon per m2 per second', &
+           use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
+           upfreq=1, ivar=ivar, initialize=initialize_variables,                &
+           index = ih_understory_m3_carbonflux_si)
+
+   call this%set_history_var(vname='FATES_M5_CFLUX_UNDERSTORY',            &
+        units = 'kg m-2 s-1',                                                &
+        long='flux of biomass carbon from live to dead pools from fire mortality of understory plants in kg carbon per m2 per second', &
+        use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
+        upfreq=1, ivar=ivar, initialize=initialize_variables,                &
+        index = ih_understory_m5_carbonflux_si)
+
+ call this%set_history_var(vname='FATES_M7_CFLUX_UNDERSTORY',            &
+      units = 'kg m-2 s-1',                                                &
+      long='flux of biomass carbon from live to dead pools from logging mortality of understory plants in kg carbon per m2 per second', &
+      use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
+      upfreq=1, ivar=ivar, initialize=initialize_variables,                &
+      index = ih_understory_m7_carbonflux_si)
+
+ call this%set_history_var(vname='FATES_M8_CFLUX_UNDERSTORY',            &
+      units = 'kg m-2 s-1',                                                &
+      long='flux of biomass carbon from live to dead pools from frz mortality of understory plants in kg carbon per m2 per second', &
+      use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
+      upfreq=1, ivar=ivar, initialize=initialize_variables,                &
+      index = ih_understory_m8_carbonflux_si)
+   !!!
 
     ! size class by age dimensioned variables
 
