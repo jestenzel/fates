@@ -324,6 +324,14 @@ module FatesHistoryInterfaceMod
   integer :: ih_promotion_carbonflux_si
   integer :: ih_canopy_mortality_carbonflux_si
   integer :: ih_understory_mortality_carbonflux_si
+  ![Jstenzel add] Mort-type cfluxes
+  integer :: ih_canopy_m1_carbonflux_si
+  integer :: ih_canopy_m2_carbonflux_si
+  integer :: ih_canopy_m3_carbonflux_si
+  integer :: ih_canopy_m5_carbonflux_si
+  integer :: ih_canopy_m7_carbonflux_si
+  integer :: ih_canopy_m8_carbonflux_si
+  !
   integer :: ih_canopy_spread_si
   integer :: ih_npp_leaf_si
   integer :: ih_npp_seed_si
@@ -2021,6 +2029,14 @@ end subroutine flush_hvars
                hio_crown_area_understory_si_scls     => this%hvars(ih_crown_area_understory_si_scls)%r82d, &
                hio_promotion_carbonflux_si       => this%hvars(ih_promotion_carbonflux_si)%r81d, &
                hio_canopy_mortality_carbonflux_si     => this%hvars(ih_canopy_mortality_carbonflux_si)%r81d, &
+               ![JStenzel add]
+               hio_canopy_m1_carbonflux_si     => this%hvars(ih_canopy_m1_carbonflux_si)%r81d, &
+               hio_canopy_m2_carbonflux_si     => this%hvars(ih_canopy_m2_carbonflux_si)%r81d, &
+               hio_canopy_m3_carbonflux_si     => this%hvars(ih_canopy_m3_carbonflux_si)%r81d, &
+               hio_canopy_m5_carbonflux_si     => this%hvars(ih_canopy_m5_carbonflux_si)%r81d, &
+               hio_canopy_m7_carbonflux_si     => this%hvars(ih_canopy_m7_carbonflux_si)%r81d, &
+               hio_canopy_m8_carbonflux_si     => this%hvars(ih_canopy_m8_carbonflux_si)%r81d, &
+               !
                hio_understory_mortality_carbonflux_si => this%hvars(ih_understory_mortality_carbonflux_si)%r81d, &
                hio_leaf_md_canopy_si_scls           => this%hvars(ih_leaf_md_canopy_si_scls)%r82d, &
                hio_root_md_canopy_si_scls           => this%hvars(ih_root_md_canopy_si_scls)%r82d, &
@@ -2773,6 +2789,23 @@ end subroutine flush_hvars
                      (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * total_m * &
                      ccohort%n * ha_per_m2 * days_per_sec    ![JStenzel Edit] /365 / 86400 (year_to_sec) , * 365 (because this will be averaged)
 
+                  !!!! [Jstenzel add] Mortality-type cflux variables
+                  hio_canopy_m1_carbonflux_si(io_si) = hio_canopy_m1_carbonflux_si(io_si) + &
+                     ccohort%bmort * total_m * ccohort%n * days_per_sec * years_per_day * ha_per_m2
+
+                  hio_canopy_m2_carbonflux_si(io_si) = hio_canopy_m2_carbonflux_si(io_si) + &
+                     ccohort%hmort * total_m * ccohort%n * days_per_sec * years_per_day * ha_per_m2
+
+                  hio_canopy_m3_carbonflux_si(io_si) = hio_canopy_m3_carbonflux_si(io_si) + &
+                     ccohort%cmort * total_m * ccohort%n * days_per_sec * years_per_day * ha_per_m2
+
+                  hio_canopy_m7_carbonflux_si(io_si) = hio_canopy_m7_carbonflux_si(io_si) + &
+                     (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * &
+                     total_m * ccohort%n * ha_per_m2 * days_per_sec               !/365 / 86400 (year_to_sec) , * 365 (because this will be averaged)
+
+                  hio_canopy_m8_carbonflux_si(io_si) = hio_canopy_m8_carbonflux_si(io_si) + &
+                     ccohort%frmort * total_m * ccohort%n * days_per_sec * years_per_day * ha_per_m2
+                  !!!!
 
                   hio_carbon_balance_canopy_si_scls(io_si,scls) = hio_carbon_balance_canopy_si_scls(io_si,scls) + &
                      ccohort%n * ccohort%npp_acc_hold / m2_per_ha / days_per_year / sec_per_day
@@ -3119,6 +3152,11 @@ end subroutine flush_hvars
 
             hio_understory_mortality_carbonflux_si(io_si) = hio_understory_mortality_carbonflux_si(io_si) + &
                sites(s)%fmort_carbonflux_ustory / g_per_kg
+
+            ![JStenzel added]
+            hio_canopy_m5_carbonflux_si(io_si) = hio_canopy_m5_carbonflux_si(io_si) + &
+               sites(s)%fmort_carbonflux_canopy / g_per_kg
+            !!!!
 
             !
             ! for scag variables, also treat as happening in the newly-disurbed patch
@@ -5627,6 +5665,49 @@ end subroutine update_history_hifrq
           use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
           upfreq=1, ivar=ivar, initialize=initialize_variables,                &
           index = ih_understory_mortality_carbonflux_si)
+
+    ![JStenzel add] Mortality carbon fluxes from each mortality type
+    call this%set_history_var(vname='FATES_M1_CFLUX_CANOPY',            &
+          units = 'kg m-2 s-1',                                                &
+          long='flux of biomass carbon from live to dead pools from bacgkround mortality of canopy plants in kg carbon per m2 per second', &
+          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables,                &
+          index = ih_canopy_m1_carbonflux_si)
+
+    call this%set_history_var(vname='FATES_M2_CFLUX_CANOPY',            &
+          units = 'kg m-2 s-1',                                                &
+          long='flux of biomass carbon from live to dead pools from hydr mortality of canopy plants in kg carbon per m2 per second', &
+          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables,                &
+          index = ih_canopy_m2_carbonflux_si)
+
+    call this%set_history_var(vname='FATES_M3_CFLUX_CANOPY',            &
+            units = 'kg m-2 s-1',                                                &
+            long='flux of biomass carbon from live to dead pools from cstarv mortality of canopy plants in kg carbon per m2 per second', &
+            use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
+            upfreq=1, ivar=ivar, initialize=initialize_variables,                &
+            index = ih_canopy_m3_carbonflux_si)
+
+    call this%set_history_var(vname='FATES_M5_CFLUX_CANOPY',            &
+         units = 'kg m-2 s-1',                                                &
+         long='flux of biomass carbon from live to dead pools from fire mortality of canopy plants in kg carbon per m2 per second', &
+         use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
+         upfreq=1, ivar=ivar, initialize=initialize_variables,                &
+         index = ih_canopy_m5_carbonflux_si)
+
+   call this%set_history_var(vname='FATES_M7_CFLUX_CANOPY',            &
+        units = 'kg m-2 s-1',                                                &
+        long='flux of biomass carbon from live to dead pools from logging mortality of canopy plants in kg carbon per m2 per second', &
+        use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
+        upfreq=1, ivar=ivar, initialize=initialize_variables,                &
+        index = ih_canopy_m7_carbonflux_si)
+
+   call this%set_history_var(vname='FATES_M8_CFLUX_CANOPY',            &
+        units = 'kg m-2 s-1',                                                &
+        long='flux of biomass carbon from live to dead pools from frz mortality of canopy plants in kg carbon per m2 per second', &
+        use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
+        upfreq=1, ivar=ivar, initialize=initialize_variables,                &
+        index = ih_canopy_m8_carbonflux_si)
 
     ! size class by age dimensioned variables
 
