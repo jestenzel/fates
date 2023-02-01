@@ -819,6 +819,7 @@ contains
          call litt%InitConditions(init_leaf_fines=0._r8, &
               init_root_fines=0._r8, &
               init_ag_cwd=0._r8,     &
+              init_snag=0._r8,     &
               init_bg_cwd=0._r8,     &
               init_seed=0._r8,   &
               init_seed_germ=0._r8)
@@ -1072,7 +1073,7 @@ contains
          ! Allocate running mean functions
          !allocate(temp_cohort%tveg_lpa)
          !call temp_cohort%tveg_lpa%InitRMean(ema_lpa,init_value=cpatch%tveg_lpa%GetMean())
-         
+
          do el = 1,num_elements
 
             element_id = element_list(el)

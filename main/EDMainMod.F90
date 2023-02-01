@@ -86,7 +86,7 @@ module EDMainMod
   use FatesPlantHydraulicsMod  , only : UpdateSizeDepRhizHydProps
   use FatesPlantHydraulicsMod  , only : AccumulateMortalityWaterStorage
   use FatesAllometryMod        , only : h_allom,tree_sai,tree_lai
-  use EDLoggingMortalityMod    , only : IsItLoggingTime
+  use EDLoggingMortalityMod    , only : IsItLoggingTime, logging_time
   use DamageMainMod            , only : IsItDamageTime
   use EDPatchDynamicsMod       , only : get_frac_site_primary
   use FatesGlobals             , only : endrun => fates_endrun
@@ -116,7 +116,7 @@ module EDMainMod
   ! !PUBLIC MEMBER FUNCTIONS:
   public  :: ed_ecosystem_dynamics
   public  :: ed_update_site
-    
+
   !
   ! !PRIVATE MEMBER FUNCTIONS:
 
@@ -150,7 +150,7 @@ contains
     !
     ! !LOCAL VARIABLES:
     type(ed_patch_type), pointer :: currentPatch
-    integer :: el                ! Loop counter for variables 
+    integer :: el                ! Loop counter for variables
     integer :: do_patch_dynamics ! for some modes, we turn off patch dynamics
 
     !-----------------------------------------------------------------------
@@ -178,7 +178,7 @@ contains
 
     ! Call a routine that identifies if damage should occur
     call IsItDamageTime(hlm_masterproc, currentSite)
- 
+
     !**************************************************************************
     ! Fire, growth, biogeochemistry.
     !**************************************************************************
@@ -232,15 +232,19 @@ contains
     ! Reproduction, Recruitment and Cohort Dynamics : controls cohort organization
     !******************************************************************************
 
-    if(hlm_use_ed_st3.eq.ifalse.and.hlm_use_sp.eq.ifalse) then
-       currentPatch => currentSite%oldest_patch
-       do while (associated(currentPatch))
+    if(hlm_use_ed_st3.eq.ifalse.and.hlm_use_sp.eq.ifalse ) then
 
-          ! adds small cohort of each PFT
-          call recruitment(currentSite, currentPatch, bc_in)
+       if( .not. logging_time ) then     ![JStenzel added] Don't allow recruitment on logging time steps to ensure no probs with eliminated patches and fusion
+             currentPatch => currentSite%oldest_patch
+             do while (associated(currentPatch))
 
-          currentPatch => currentPatch%younger
-       enddo
+                ! adds small cohort of each PFT
+
+                   call recruitment(currentSite, currentPatch, bc_in)
+
+                currentPatch => currentPatch%younger
+             enddo
+       end if                            ![JStenzel added] End logging_time recruit prevention statement
 
        call TotalBalanceCheck(currentSite,1)
 
@@ -303,7 +307,7 @@ contains
     end if
 
     call TotalBalanceCheck(currentSite,5)
-    
+
   end subroutine ed_ecosystem_dynamics
 
   !-------------------------------------------------------------------------------!
@@ -335,7 +339,7 @@ contains
     use PRTLossFluxesMod      , only : PRTDamageRecoveryFluxes
     use PRTGenericMod         , only : max_nleafage
     use PRTGenericMod         , only : prt_global
-    
+
     ! !ARGUMENTS:
 
     type(ed_site_type)     , intent(inout) :: currentSite
@@ -350,9 +354,9 @@ contains
     type(ed_cohort_type) , pointer :: nc
     type(ed_cohort_type) , pointer :: storesmallcohort
     type(ed_cohort_type) , pointer :: storebigcohort
-    
+
     integer :: snull
-    integer :: tnull 
+    integer :: tnull
 
     integer  :: c                     ! Counter for litter size class
     integer  :: ft                    ! Counter for PFT
@@ -372,6 +376,7 @@ contains
                                       ! because it inherited them (such as daily carbon balance)
     real(r8) :: target_leaf_c
     real(r8) :: frac_site_primary
+    real(r8) :: frac_site_harvest_pot ![JStenzel added] fraction of site that is primary AND available for harvest due to meeting age min
 
     real(r8) :: n_old
     real(r8) :: n_recover
@@ -389,7 +394,7 @@ contains
     real(r8) :: cc_repro_c
     real(r8) :: cc_store_c
     real(r8) :: cc_sapw_c
-    
+
     real(r8) :: sapw_c0
     real(r8) :: leaf_c0
     real(r8) :: fnrt_c0
@@ -399,12 +404,12 @@ contains
     real(r8) :: total_c0
     real(r8) :: nc_carbon
     real(r8) :: cc_carbon
-    
+
     integer,parameter :: leaf_c_id = 1
-    
+
     !-----------------------------------------------------------------------
 
-    call get_frac_site_primary(currentSite, frac_site_primary)
+    call get_frac_site_primary(currentSite, frac_site_primary, frac_site_harvest_pot)
 
     ! Set a pointer to this sites carbon12 mass balance
     site_cmass => currentSite%mass_balance(element_pos(carbon12_element))
@@ -443,22 +448,23 @@ contains
        ! this loop (such as calculation of npp, etc) because they
        ! are derived from the donor and have been modified accordingly
        newly_recovered = .false.
-       
+
        currentCohort => currentPatch%shortest
        do while(associated(currentCohort))
 
           ft = currentCohort%pft
-          
+
           ! Some cohorts are created and inserted to the list while
           ! the loop is going. These are pointed to the "taller" position
           ! of current, and then inherit properties of their donor (current)
           ! we don't need to repeat things before allocation for these
           ! newly_recovered cohorts
-          
+
           if_not_newlyrecovered: if(.not.newly_recovered) then
 
-             ! Calculate the mortality derivatives
-             call Mortality_Derivative( currentSite, currentCohort, bc_in, frac_site_primary )
+          ! Calculate the mortality derivatives
+          call Mortality_Derivative( currentSite, currentCohort, bc_in, frac_site_primary, &
+            frac_site_harvest_pot ) ![JStenzel added]
 
              ! -----------------------------------------------------------------------------
              ! Apply Plant Allocation and Reactive Transport
@@ -477,14 +483,14 @@ contains
                    currentCohort%npp_acc = EDPftvarcon_inst%prescribed_npp_understory(ft) &
                         * currentCohort%c_area / currentCohort%n / hlm_days_per_year
                 endif
-                
+
                 ! We don't explicitly define a respiration rate for prescribe phys
                 ! but we do need to pass mass balance. So we say it is zero respiration
                 currentCohort%gpp_acc  = currentCohort%npp_acc
                 currentCohort%resp_acc = 0._r8
-                
+
              end if
-             
+
              ! -----------------------------------------------------------------------------
              ! Save NPP/GPP/R in these "hold" style variables. These variables
              ! persist after this routine is complete, and used in I/O diagnostics.
@@ -496,11 +502,11 @@ contains
              ! <x>_acc will be reset soon and will be accumulated on the next leaf
              !         photosynthesis step
              ! -----------------------------------------------------------------------------
-             
+
              currentCohort%npp_acc_hold  = currentCohort%npp_acc  * real(hlm_days_per_year,r8)
              currentCohort%gpp_acc_hold  = currentCohort%gpp_acc  * real(hlm_days_per_year,r8)
              currentCohort%resp_acc_hold = currentCohort%resp_acc * real(hlm_days_per_year,r8)
-             
+
              ! Conduct Maintenance Turnover (parteh)
              if(debug) call currentCohort%prt%CheckMassConservation(ft,3)
              if(any(currentSite%dstatus == [phen_dstat_moiston,phen_dstat_timeon])) then
@@ -508,7 +514,7 @@ contains
              else
                 is_drought = .true.
              end if
-             
+
              call PRTMaintTurnover(currentCohort%prt,ft,is_drought)
 
              ! -----------------------------------------------------------------------------------
@@ -523,19 +529,19 @@ contains
              ! the source doesn't affect how its allocated (yet), so they
              ! are combined into daily_n_gain, which is the value used in the following
              ! allocation scheme
-             
+
              currentCohort%daily_n_gain = currentCohort%daily_nh4_uptake + &
                   currentCohort%daily_no3_uptake + currentCohort%sym_nfix_daily
 
              currentCohort%resp_excess = 0._r8
-             
+
           end if if_not_newlyrecovered
-             
+
           ! If the current diameter of a plant is somehow less than what is consistent
           ! with what is allometrically consistent with the stuctural biomass, then
           ! correct the dbh to match.
           call EvaluateAndCorrectDBH(currentCohort,delta_dbh,delta_hite)
-          
+
           ! We want to save these values for the newly recovered cohort as well
           hite_old = currentCohort%hite
           dbh_old  = currentCohort%dbh
@@ -543,7 +549,7 @@ contains
           ! -----------------------------------------------------------------------------
           ! Growth and Allocation (PARTEH)
           ! -----------------------------------------------------------------------------
-          
+
 
           ! We split the allocation into phases (currently for all hypotheses)
           ! In phase 1, allocation, we address prioritized allocation that should
@@ -554,18 +560,18 @@ contains
           ! will have new allocation targets that need to be updated after they change status.
           ! In Phase 3, we assume that the plant has reached its targets, and any
           ! left-over resources are used to grow the stature of the plant
-          
+
           if(.not.newly_recovered)then
              call currentCohort%prt%DailyPRT(phase=1)
           end if
 
           call currentCohort%prt%DailyPRT(phase=2)
-          
+
           if((.not.newly_recovered) .and. (hlm_use_tree_damage .eq. itrue) ) then
              ! The loop order is shortest to tallest
              ! The recovered cohort (ie one with larger targets)
              ! is newly created in DamageRecovery(), and
-             ! is inserted into the next position, following the 
+             ! is inserted into the next position, following the
              ! original and current (unrecovered) cohort.
              ! we pass it back here in case the pointer is
              ! needed for diagnostics
@@ -576,12 +582,12 @@ contains
           end if
 
           call currentCohort%prt%DailyPRT(phase=3)
-          
+
           ! Update the mass balance tracking for the daily nutrient uptake flux
           ! Then zero out the daily uptakes, they have been used
 
           ! -----------------------------------------------------------------------------
-          
+
           call EffluxIntoLitterPools(currentSite, currentPatch, currentCohort, bc_in )
 
           if(element_pos(nitrogen_element)>0) then
@@ -596,12 +602,12 @@ contains
                   currentSite%mass_balance(element_pos(phosphorus_element))%net_root_uptake + &
                   (currentCohort%daily_p_gain-currentCohort%daily_p_efflux)*currentCohort%n
           end if
-          
+
           ! mass balance for C efflux (if any)
           currentSite%mass_balance(element_pos(carbon12_element))%net_root_uptake = &
                currentSite%mass_balance(element_pos(carbon12_element))%net_root_uptake - &
                currentCohort%daily_c_efflux*currentCohort%n
-          
+
           ! And simultaneously add the input fluxes to mass balance accounting
           site_cmass%gpp_acc   = site_cmass%gpp_acc + &
                 currentCohort%gpp_acc * currentCohort%n
@@ -654,18 +660,18 @@ contains
              call coagetype_class_index(currentCohort%coage, currentCohort%pft, &
                   currentCohort%coage_class,currentCohort%coage_by_pft_class)
           end if
-        
+
           currentCohort => currentCohort%taller
        end do
 
        currentPatch => currentPatch%younger
    end do
-          
+
    ! We keep a record of the L2FRs of plants
    ! that are near the recruit size, for different
    ! pfts and canopy layer. We use this mean to
    ! set the L2FRs of newly recruited plants
-   
+
    call UpdateRecruitL2FR(currentSite)
 
    ! Update history diagnostics related to Nutrients (if any)
@@ -674,7 +680,7 @@ contains
    case (prt_cnp_flex_allom_hyp)
       call fates_hist%update_history_nutrflux(currentSite)
    end select
-   
+
    ! When plants die, the water goes with them.  This effects
 
    ! the water balance.
@@ -704,7 +710,7 @@ contains
 
     currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch))
-       
+
        call GenerateDamageAndLitterFluxes( currentSite, currentPatch, bc_in)
 
        call PreDisturbanceLitterFluxes( currentSite, currentPatch, bc_in)
@@ -776,9 +782,9 @@ contains
 
     ! Update recruit L2FRs based on new canopy position
     call SetRecruitL2FR(currentSite)
-    
+
     currentSite%area_by_age(:) = 0._r8
-    
+
     currentPatch => currentSite%oldest_patch
     do while(associated(currentPatch))
 
@@ -790,10 +796,10 @@ contains
         ! This cohort count is used in the photosynthesis loop
         call count_cohorts(currentPatch)
 
-        ! Update the total area of by patch age class array 
+        ! Update the total area of by patch age class array
         currentSite%area_by_age(currentPatch%age_class) = &
              currentSite%area_by_age(currentPatch%age_class) + currentPatch%area
-        
+
         currentPatch => currentPatch%younger
 
     enddo
@@ -1041,6 +1047,7 @@ contains
           currentCohort%hmort = 0.0_r8
           currentCohort%cmort = 0.0_r8
           currentCohort%frmort = 0.0_r8
+	  currentCohort%heatmort = 0.0_r8
           currentCohort%smort = 0.0_r8
           currentCohort%asmort = 0.0_r8
           currentCohort%dgmort = 0.0_r8

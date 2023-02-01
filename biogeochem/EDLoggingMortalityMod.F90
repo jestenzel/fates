@@ -1,11 +1,11 @@
 module EDLoggingMortalityMod
 
    ! ====================================================================================
-   !  Purpose: 1. create logging mortalities: 
+   !  Purpose: 1. create logging mortalities:
    !           (a) direct logging mortality (cohort level)
    !           (b) collateral mortality (cohort level)
    !           (c) infrastructure mortality (cohort level)
-   !           2. move the logged trunk fluxes from live into product pool 
+   !           2. move the logged trunk fluxes from live into product pool
    !           3. move logging-associated mortality fluxes from live to CWD
    !           4. keep carbon balance (in ed_total_balance_check)
    !
@@ -35,24 +35,25 @@ module EDLoggingMortalityMod
    use EDParamsMod       , only : logging_event_code
    use EDParamsMod       , only : logging_dbhmin
    use EDParamsMod       , only : logging_dbhmax
-   use EDParamsMod       , only : logging_collateral_frac 
+   use EDParamsMod       , only : logging_collateral_frac
    use EDParamsMod       , only : logging_direct_frac
-   use EDParamsMod       , only : logging_mechanical_frac 
-   use EDParamsMod       , only : logging_coll_under_frac 
+   use EDParamsMod       , only : logging_mechanical_frac
+   use EDParamsMod       , only : logging_coll_under_frac
    use EDParamsMod       , only : logging_dbhmax_infra
+   use EDParamsMod       , only : logging_patch_dbhmin
    use FatesInterfaceTypesMod , only : bc_in_type
    use FatesInterfaceTypesMod , only : hlm_current_year
    use FatesInterfaceTypesMod , only : hlm_current_month
    use FatesInterfaceTypesMod , only : hlm_current_day
    use FatesInterfaceTypesMod , only : hlm_model_day
-   use FatesInterfaceTypesMod , only : hlm_day_of_year 
+   use FatesInterfaceTypesMod , only : hlm_day_of_year
    use FatesInterfaceTypesMod , only : hlm_days_per_year
    use FatesInterfaceTypesMod , only : hlm_use_lu_harvest
    use FatesInterfaceTypesMod , only : hlm_num_lu_harvest_cats
-   use FatesInterfaceTypesMod , only : hlm_use_logging 
+   use FatesInterfaceTypesMod , only : hlm_use_logging
    use FatesInterfaceTypesMod , only : hlm_use_planthydro
    use FatesConstantsMod , only : itrue,ifalse
-   use FatesGlobals      , only : endrun => fates_endrun 
+   use FatesGlobals      , only : endrun => fates_endrun
    use FatesGlobals      , only : fates_log
    use FatesGlobals      , only : fates_global_verbose
    use shr_log_mod       , only : errMsg => shr_log_errMsg
@@ -62,6 +63,7 @@ module EDLoggingMortalityMod
    use PRTGenericMod     , only : fnrt_organ, store_organ, repro_organ
    use FatesAllometryMod , only : set_root_fraction
    use FatesConstantsMod , only : primaryforest, secondaryforest, secondary_age_threshold
+   use FatesConstantsMod , only : tertiaryforest
    use FatesConstantsMod , only : fates_tiny
    use FatesConstantsMod , only : months_per_year, days_per_sec, years_per_day, g_per_kg
    use FatesConstantsMod , only : hlm_harvest_area_fraction
@@ -71,20 +73,20 @@ module EDLoggingMortalityMod
    implicit none
    private
 
-   logical, protected :: logging_time   ! If true, logging should be 
+   logical, protected :: logging_time   ! If true, logging should be
                                         ! performed during the current time-step
 
    logical, parameter :: debug = .false.
-   
+
    ! harvest litter localization specifies how much of the litter from a falling
-   ! tree lands within the newly generated patch, and how much lands outside of 
+   ! tree lands within the newly generated patch, and how much lands outside of
    ! the new patch, and thus in the original patch.  By setting this to zero,
    ! it is assumed that there is no preference, and thus the mass is distributed
    ! equally.  If this is set to 1, then all of the mass lands in the new
    ! patch, and is thus "completely local".
 
 
-   real(r8), parameter :: harvest_litter_localization = 0.0_r8
+   real(r8), parameter :: harvest_litter_localization = 1.0_r8   ![JStenzel change]
 
    ! ! transfer factor from kg biomass (dry matter) to kg carbon
    ! ! now we applied a simple fraction of 50% based on the IPCC
@@ -93,7 +95,7 @@ module EDLoggingMortalityMod
 
    character(len=*), parameter, private :: sourcefile = &
          __FILE__
-   
+
    public :: LoggingMortality_frac
    public :: logging_litter_fluxes
    public :: logging_time
@@ -111,7 +113,7 @@ contains
       ! This is done by comparing the current model time to the logging event
       ! ids.  If there is a match, it is logging time.
       ! -------------------------------------------------------------------------------
-     
+
       integer, intent(in) :: is_master
       type(ed_site_type), intent(inout), target :: currentSite     ! site structure
 
@@ -170,7 +172,7 @@ contains
                hlm_current_year.eq.log_year ) then
             logging_time = .true.
          end if
-      else 
+      else
          ! Bad logging event flag
          write(fates_log(),*) 'An invalid logging code was specified in fates_params'
          write(fates_log(),*) 'Check EDLoggingMortalityMod.F90:IsItLoggingTime()'
@@ -198,18 +200,20 @@ contains
                                      lmort_collateral,lmort_infra, l_degrad, &
                                      hlm_harvest_rates, hlm_harvest_catnames, &
                                      hlm_harvest_units, &
-                                     patch_anthro_disturbance_label, secondary_age, &
-                                     frac_site_primary)
+                                     patch_anthro_disturbance_label, dbh_tall, &   !Using dbh of the tallest cohort as a threshold for whether (clearcut) harvest occurs.
+                                     frac_site_primary, frac_site_harvest_pot)
 
       ! Arguments
-      integer,  intent(in)  :: pft_i            ! pft index 
+      integer,  intent(in)  :: pft_i            ! pft index
       real(r8), intent(in)  :: dbh              ! diameter at breast height (cm)
       integer,  intent(in)  :: canopy_layer     ! canopy layer of this cohort
       real(r8), intent(in) :: hlm_harvest_rates(:) ! annual harvest rate per hlm category
       character(len=64), intent(in) :: hlm_harvest_catnames(:) ! names of hlm harvest categories
       integer, intent(in) :: hlm_harvest_units     ! unit type of hlm harvest rates: [area vs. mass]
       integer, intent(in) :: patch_anthro_disturbance_label    ! patch level anthro_disturbance_label
-      real(r8), intent(in) :: secondary_age     ! patch level age_since_anthro_disturbance
+      !real(r8), intent(in) :: patch_age     ! patch level age  ![JStenzel redefine ] from "secondary age", which seems to have
+                                             ! problematically include non-anthro disturbance area to existing secondary lands
+      real(r8), intent(in) :: dbh_tall  ![Jstenzel added] dbh of tallest cohort on patch; used to determine if patch reaches a parameter-defined threshold for clearcut
       real(r8), intent(out) :: lmort_direct     ! direct (harvestable) mortality fraction
       real(r8), intent(out) :: lmort_collateral ! collateral damage mortality fraction
       real(r8), intent(out) :: lmort_infra      ! infrastructure mortality fraction
@@ -218,6 +222,7 @@ contains
                                                 ! are moved to newly-anthro-disturbed secondary
                                                 ! forest patch)
       real(r8), intent(in) :: frac_site_primary
+      real(r8), intent(in) :: frac_site_harvest_pot ![JStenzel added]
 
       ! Local variables
       real(r8) :: harvest_rate ! the final harvest rate to apply to this cohort today
@@ -228,22 +233,22 @@ contains
       ! todo: check outputs against the LUH2 carbon data
       ! todo: eventually set up distinct harvest practices, each with a set of input paramaeters
       ! todo: implement harvested carbon inputs
-      
-      if (logging_time) then 
 
-         ! Pass logging rates to cohort level 
-         
+      if (logging_time) then
+
+         ! Pass logging rates to cohort level
+
          if (hlm_use_lu_harvest == ifalse) then
             ! 0=use fates logging parameters directly when logging_time == .true.
             ! this means harvest the whole cohort area
             harvest_rate = 1._r8
-            
+
          else if (hlm_use_lu_harvest == itrue .and. hlm_harvest_units == hlm_harvest_area_fraction) then
-            ! We are harvesting based on areal fraction, not carbon/biomass terms. 
+            ! We are harvesting based on areal fraction, not carbon/biomass terms.
             ! 1=use area fraction from hlm
             ! combine forest and non-forest fracs and then apply:
             ! primary and secondary area fractions to the logging rates, which are fates parameters
-            
+
             ! Definitions of the underlying harvest land category variables
             ! these are hardcoded to match the LUH input data via landuse.timseries file (see dynHarvestMod)
             ! these are fractions of vegetated area harvested, split into five land category variables
@@ -254,8 +259,9 @@ contains
             ! HARVEST_SH3 = harvest from secondary non-forest (assume this is young for biomass)
 
             ! Get the area-based harvest rates based on info passed to FATES from the boundary condition
+            !![Jstenzel added] b) +"dbh_tall", -"patch age" a)"patch_age";"frac_site_harvest_pot"
             call get_harvest_rate_area (patch_anthro_disturbance_label, hlm_harvest_catnames, &
-                 hlm_harvest_rates, frac_site_primary, secondary_age, harvest_rate)
+                 hlm_harvest_rates, frac_site_primary, dbh_tall, harvest_rate, frac_site_harvest_pot)
 
             if (fates_global_verbose()) then
                write(fates_log(), *) 'Successfully Read Harvest Rate from HLM.'
@@ -271,23 +277,23 @@ contains
             !       hlm_harvest_rates, frac_site_primary, secondary_age, harvest_rate)
 
             ! if (fates_global_verbose()) then
-            !    write(fates_log(), *) 'Successfully Read Harvest Rate from HLM.', hlm_harvest_rates(:), harvest_rate 
+            !    write(fates_log(), *) 'Successfully Read Harvest Rate from HLM.', hlm_harvest_rates(:), harvest_rate
             ! end if
-            
+
             write(fates_log(),*) 'HLM harvest carbon data not implemented yet. Exiting.'
             call endrun(msg=errMsg(sourcefile, __LINE__))
-            
+
          endif
 
          ! transfer of area to secondary land is based on overall area affected, not just logged crown area
          ! l_degrad accounts for the affected area between logged crowns
          if(prt_params%woody(pft_i) == itrue)then ! only set logging rates for trees
-            
+
             ! direct logging rates, based on dbh min and max criteria
             if (dbh >= logging_dbhmin .and. .not. &
                  ((logging_dbhmax < fates_check_param_set) .and. (dbh >= logging_dbhmax )) ) then
                ! the logic of the above line is a bit unintuitive but allows turning off the dbhmax comparison entirely.
-               ! since there is an .and. .not. after the first conditional, the dbh:dbhmax comparison needs to be 
+               ! since there is an .and. .not. after the first conditional, the dbh:dbhmax comparison needs to be
                ! the opposite of what would otherwise be expected...
                lmort_direct = harvest_rate * logging_direct_frac
 
@@ -322,8 +328,8 @@ contains
          else
             l_degrad = 0._r8
          endif
-         
-      else 
+
+      else
          lmort_direct    = 0.0_r8
          lmort_collateral = 0.0_r8
          lmort_infra      = 0.0_r8
@@ -335,7 +341,8 @@ contains
    ! ============================================================================
 
    subroutine get_harvest_rate_area (patch_anthro_disturbance_label, hlm_harvest_catnames, hlm_harvest_rates, &
-                 frac_site_primary, secondary_age, harvest_rate)
+                 frac_site_primary, dbh_tall, harvest_rate, frac_site_harvest_pot)
+                 ![Jstenzel added] b) +"dbh_tall", -"patch_age" a)"patch_age";"frac_site_harvest_pot"
 
 
      ! -------------------------------------------------------------------------------------------
@@ -348,8 +355,10 @@ contains
       real(r8), intent(in) :: hlm_harvest_rates(:) ! annual harvest rate per hlm category
       character(len=64), intent(in) :: hlm_harvest_catnames(:) ! names of hlm harvest categories
       integer, intent(in) :: patch_anthro_disturbance_label    ! patch level anthro_disturbance_label
-      real(r8), intent(in) :: secondary_age     ! patch level age_since_anthro_disturbance
+      !real(r8), intent(in) :: patch_age     ! patch level age [JStenzel redefine]
+      real(r8), intent(in) :: dbh_tall     ! [JStenzel add ]dbh of tallest cohort on patch
       real(r8), intent(in) :: frac_site_primary
+      real(r8), intent(in) :: frac_site_harvest_pot ![JStenzel added]
       real(r8), intent(out) :: harvest_rate
 
       ! Local Variables
@@ -357,43 +366,79 @@ contains
       integer :: icode   ! Integer equivalent of the event code (parameter file only allows reals)
 
      !  Loop around harvest categories to determine the annual hlm harvest rate for the current cohort based on patch history info
+     !harvest_rate = 0._r8
+     !do h_index = 1,hlm_num_lu_harvest_cats
+      !  if (patch_anthro_disturbance_label .eq. primaryforest) then
+      !     if(hlm_harvest_catnames(h_index) .eq. "HARVEST_VH1" .or. &
+      !          hlm_harvest_catnames(h_index) .eq. "HARVEST_VH2") then
+      !        harvest_rate = harvest_rate + hlm_harvest_rates(h_index)
+      !     endif
+       ! else if (patch_anthro_disturbance_label .eq. secondaryforest .and. &
+         !    secondary_age >= secondary_age_threshold) then
+          ! if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH1") then
+            !  harvest_rate = harvest_rate + hlm_harvest_rates(h_index)
+         !  endif
+        !else if (patch_anthro_disturbance_label .eq. secondaryforest .and. &
+         !    secondary_age < secondary_age_threshold) then
+          ! if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2" .or. &
+            !    hlm_harvest_catnames(h_index) .eq. "HARVEST_SH3") then
+            !  harvest_rate = harvest_rate + hlm_harvest_rates(h_index)
+          ! endif
+      !  endif
+     !end do
+! [JStenzel edits] All harvests will now only apply to primary and secondary forest, as tertiary forest
+! (planted with non-starting pft) harvest rotation will not be reached in current scenarios
      harvest_rate = 0._r8
      do h_index = 1,hlm_num_lu_harvest_cats
-        if (patch_anthro_disturbance_label .eq. primaryforest) then
-           if(hlm_harvest_catnames(h_index) .eq. "HARVEST_VH1" .or. &
-                hlm_harvest_catnames(h_index) .eq. "HARVEST_VH2") then
-              harvest_rate = harvest_rate + hlm_harvest_rates(h_index)
-           endif
-        else if (patch_anthro_disturbance_label .eq. secondaryforest .and. &
-             secondary_age >= secondary_age_threshold) then
-           if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH1") then
-              harvest_rate = harvest_rate + hlm_harvest_rates(h_index)
-           endif
-        else if (patch_anthro_disturbance_label .eq. secondaryforest .and. &
-             secondary_age < secondary_age_threshold) then
-           if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2" .or. &
-                hlm_harvest_catnames(h_index) .eq. "HARVEST_SH3") then
-              harvest_rate = harvest_rate + hlm_harvest_rates(h_index)
-           endif
-        endif
+       if ( ( patch_anthro_disturbance_label .eq. primaryforest .or. &
+            patch_anthro_disturbance_label .eq. secondaryforest) .and. &
+            dbh_tall .ge. logging_patch_dbhmin ) then                         ![JStenzel add] b) "dbh_tall" instead a) Only harvest secondary patches > X years old
+          !if(hlm_harvest_catnames(h_index) .eq. "HARVEST_VH1" .or. &
+            !    hlm_harvest_catnames(h_index) .eq. "HARVEST_VH2" .or. &
+            !    hlm_harvest_catnames(h_index) .eq. "HARVEST_SH1" .or. &
+            !    hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2" ) then
+               harvest_rate = harvest_rate + hlm_harvest_rates(h_index)
+          !endif
+       !else if (patch_anthro_disturbance_label .eq. tertiaryforest ) then
+         ! if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH3") then
+         !    harvest_rate = harvest_rate + hlm_harvest_rates(h_index)
+          !endif
+       !else if (patch_anthro_disturbance_label .eq. secondaryforest .and. &
+         !    secondary_age < secondary_age_threshold) then
+          !if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2" .or. &
+         !       hlm_harvest_catnames(h_index) .eq. "HARVEST_SH3") then
+         !    harvest_rate = harvest_rate + hlm_harvest_rates(h_index)
+         ! endif
+       endif
      end do
 
      !  Normalize by site-level primary or secondary forest fraction
      !  since harvest_rate is specified as a fraction of the gridcell
      !  also need to put a cap so as not to harvest more primary or secondary area than there is in a gridcell
-     if (patch_anthro_disturbance_label .eq. primaryforest) then
-        if (frac_site_primary .gt. fates_tiny) then
-           harvest_rate = min((harvest_rate / frac_site_primary),frac_site_primary)
+
+    !! if (patch_anthro_disturbance_label .eq. primaryforest) then
+      !!  if (frac_site_primary .gt. fates_tiny) then
+         !!  harvest_rate = min((harvest_rate / frac_site_primary),frac_site_primary)
+
+     if (patch_anthro_disturbance_label .eq. primaryforest .or. &      ! [JStenzel redefine] Sums frac_site_primary redefined to mean "natural pft"
+          patch_anthro_disturbance_label .eq. secondaryforest) then
+        !if (frac_site_primary .gt. fates_tiny) then
+        if (frac_site_harvest_pot .gt. fates_tiny) then   ![JStenzel modify]
+           !harvest_rate = min((harvest_rate / frac_site_primary),frac_site_primary)
+
+            harvest_rate = min((harvest_rate / frac_site_harvest_pot), 1._r8)  ![b) JStenzel modified] Adjust patch harvest rate based on site harvestable primary forest area.
+           !harvest_rate = min((harvest_rate / frac_site_primary), 1._r8)  ![a) JStenzel added] Redefine to allow prescribed absolute potion of gridcell harvested,
+                                                                        ! rather than a fraction of the selected anthro_dist_type patches
         else
            harvest_rate = 0._r8
         endif
      else
-        if ((1._r8-frac_site_primary) .gt. fates_tiny) then
-           harvest_rate = min((harvest_rate / (1._r8-frac_site_primary)),&
-                (1._r8-frac_site_primary))
-        else
+        !if ((1._r8-frac_site_primary) .gt. fates_tiny) then
+         !  harvest_rate = min((harvest_rate / (1._r8-frac_site_primary)),&
+         !       (1._r8-frac_site_primary))
+        !else
            harvest_rate = 0._r8
-        endif
+        !endif
      endif
 
      ! calculate today's harvest rate
@@ -423,16 +468,16 @@ contains
       ! -------------------------------------------------------------------------------------------
       !
       !  DESCRIPTION:
-      !  Carbon going from ongoing mortality into CWD pools. 
+      !  Carbon going from ongoing mortality into CWD pools.
       !  This module includes only those fluxes associated with a disturbance generated by logging.
-      !  Purpose: 
+      !  Purpose:
       !	  1) move logging-associated carbon to CWD and litter pool
-      !   2) move the logging trunk from live into product pool 
+      !   2) move the logging trunk from live into product pool
       !   3) generate fluxes used in carbon balance checking
       !  E.g,:
       !  Remove trunk of logged trees from litter/CWD
-      !  Add other parts of logged trees and all parts of collaterally and mechanically 
-      !  damaged trees into CWD/litter  
+      !  Add other parts of logged trees and all parts of collaterally and mechanically
+      !  damaged trees into CWD/litter
       !
       !  This routine is only called if logging disturbance is the dominant disturbance.
       !
@@ -440,27 +485,28 @@ contains
       !  Note: The litter losses due to disturbance in the logging case is almost
       !        exactly like the natural tree-fall case.  The big differences are that
       !        the mortality rates governing the fluxes, follow a different rule set.
-      !        We also compute an export flux (product) that does not go to litter.  
+      !        We also compute an export flux (product) that does not go to litter.
       !
-      !  Trunk Product Flux: Only usable wood is exported from a site, substracted by a 
+      !  Trunk Product Flux: Only usable wood is exported from a site, substracted by a
       !        transportation loss fraction. This is the above-ground portion of the bole,
       !        and only boles associated with direct-logging, not inftrastructure or
       !        collateral damage mortality.
-      !        
+      !
       ! -------------------------------------------------------------------------------------------
 
 
       !USES:
-      use SFParamsMod,  only : SF_val_cwd_frac
+      use SFParamsMod,  only : SF_val_cwd_frac, SF_val_live_slash_burn
       use EDtypesMod,   only : area
       use EDtypesMod,   only : ed_site_type
       use EDtypesMod,   only : ed_patch_type
       use EDtypesMod,   only : ed_cohort_type
       use FatesAllometryMod , only : carea_allom
+      use EDTypesMod        , only : dl_sf   ![JStenzel added]
 
 
       ! !ARGUMENTS:
-      type(ed_site_type)  , intent(inout), target  :: currentSite 
+      type(ed_site_type)  , intent(inout), target  :: currentSite
       type(ed_patch_type) , intent(inout), target  :: currentPatch
       type(ed_patch_type) , intent(inout), target  :: newPatch
       real(r8)            , intent(in)             :: patch_site_areadis
@@ -476,7 +522,7 @@ contains
 
       real(r8) :: direct_dead         ! Mortality count through direct logging
       real(r8) :: indirect_dead       ! Mortality count through: impacts, infrastructure and collateral damage
-      real(r8) :: trunk_product_site  ! flux of carbon in trunk products exported off site      [ kgC/site ] 
+      real(r8) :: trunk_product_site  ! flux of carbon in trunk products exported off site      [ kgC/site ]
                                       ! (note we are accumulating over the patch, but scale is site level)
       real(r8) :: delta_litter_stock  ! flux of carbon in total litter flux                     [ kgC/site ]
       real(r8) :: delta_biomass_stock ! total flux of carbon through mortality (litter+product) [ kgC/site ]
@@ -502,33 +548,35 @@ contains
       integer  :: nlevsoil            ! number of soil layers
       integer  :: ilyr                ! soil layer loop index
       integer  :: el                  ! elemend loop index
-      
+      real(r8) :: donatable_mass      ! [JStenzel added] Mass available for transfer after combustion losses
+      real(r8) :: burned_mass         ! [JStenzel added] Mass lost to recently living-tree slash combustion
+
 
       nlevsoil = currentSite%nlevsoil
 
-      ! If/when sending litter fluxes to the old patch, we divide the total 
+      ! If/when sending litter fluxes to the old patch, we divide the total
       ! mass sent to that patch, by the area it will have remaining
       ! after it donates area.
       ! i.e. subtract the area it is donating.
-      
+
       remainder_area = currentPatch%area - patch_site_areadis
 
 
       ! Calculate the fraction of litter to be retained versus donated
       ! vis-a-vis the new and donor patch
-      
+
       retain_frac = (1.0_r8-harvest_litter_localization) * &
             remainder_area/(newPatch%area+remainder_area)
       donate_frac = 1.0_r8-retain_frac
 
       do el = 1,num_elements
-         
+
          element_id = element_list(el)
          site_mass => currentSite%mass_balance(el)
          flux_diags=> currentSite%flux_diags(el)
          cur_litt  => currentPatch%litter(el)   ! Litter pool of "current" patch
          new_litt  => newPatch%litter(el)       ! Litter pool of "new" patch
-         
+
 
          ! Zero some site level accumulator diagnsotics
          trunk_product_site  = 0.0_r8
@@ -539,9 +587,9 @@ contains
          ! -----------------------------------------------------------------------------
          ! Part 1: Send parts of dying plants to the litter pool.
          ! -----------------------------------------------------------------------------
-         
+
          currentCohort => currentPatch%shortest
-         do while(associated(currentCohort))       
+         do while(associated(currentCohort))
             pft = currentCohort%pft
 
             sapw_m   = currentCohort%prt%GetState(sapw_organ, element_id)
@@ -550,16 +598,16 @@ contains
             fnrt_m   = currentCohort%prt%GetState(fnrt_organ, element_id)
             store_m  = currentCohort%prt%GetState(store_organ, element_id)
             repro_m  = currentCohort%prt%GetState(repro_organ, element_id)
-         
+
             if(currentCohort%canopy_layer == 1)then
                direct_dead   = currentCohort%n * currentCohort%lmort_direct
                indirect_dead = currentCohort%n * &
                      (currentCohort%lmort_collateral + currentCohort%lmort_infra)
-               
+
             else
 
                ! This routine is only called during disturbance.  The litter
-               ! fluxes from non-disturbance generating mortality are 
+               ! fluxes from non-disturbance generating mortality are
                ! handled in EDPhysiology.  Disturbance generating mortality
                ! are those cohorts in the top canopy layer, or those
                ! plants that were impacted. Thus, no direct dead can occur
@@ -577,7 +625,7 @@ contains
                   indirect_dead = 0.0_r8
                end if
             end if
-            
+
             if( (element_id .eq. carbon12_element) .and. &
                hlm_use_planthydro == itrue ) then
                call AccumulateMortalityWaterStorage(currentSite, &
@@ -589,45 +637,84 @@ contains
             ! This litter is distributed between the current and new patches, &
             ! not to any other patches. This is really the eventually area of the current patch &
             ! (currentPatch%area-patch_site_areadis) +patch_site_areadis...
-            ! For the new patch, only some fraction of its land area (patch_areadis/np%area) is 
+            ! For the new patch, only some fraction of its land area (patch_areadis/np%area) is
             ! derived from the current patch, so we need to multiply by patch_areadis/np%area
             ! ----------------------------------------------------------------------------------------
 
             call set_root_fraction(currentSite%rootfrac_scr, pft, &
                  currentSite%zi_soil, &
                  bc_in%max_rooting_depth_index_col)
-         
+
             ag_wood = (direct_dead+indirect_dead) * (struct_m + sapw_m ) * &
                   prt_params%allom_agb_frac(currentCohort%pft)
             bg_wood = (direct_dead+indirect_dead) * (struct_m + sapw_m ) * &
                   (1._r8 - prt_params%allom_agb_frac(currentCohort%pft))
-         
+
             do c = 1,ncwd-1
-               
-               new_litt%ag_cwd(c)     = new_litt%ag_cwd(c) + &
-                     ag_wood * SF_val_CWD_frac(c) * donate_frac/newPatch%area
-               cur_litt%ag_cwd(c)     = cur_litt%ag_cwd(c) + &
-                     ag_wood * SF_val_CWD_frac(c) * retain_frac/remainder_area
+
+               ! [JStenzel added start] Burn some slash from living trees and distribute the rest
+               ! to CWD classes 1-3
+               donatable_mass = ag_wood * SF_val_CWD_frac(c) * (1._r8- SF_val_live_slash_burn(c) ) ![kg]
+               burned_mass = ag_wood * SF_val_CWD_frac(c) * SF_val_live_slash_burn(c)         ![kg]
+
+
+
+
+               if ( remainder_area .gt. fates_tiny ) then    ![JStenzel modified] Prevent div 0
+
+                  new_litt%ag_cwd(c)     = new_litt%ag_cwd(c) + donatable_mass * &
+                       donate_frac /  newPatch%area
+
+                  cur_litt%ag_cwd(c)  = cur_litt%ag_cwd(c) + donatable_mass * &
+                  retain_frac / remainder_area
+
+               else
+                  new_litt%ag_cwd(c)  = new_litt%ag_cwd(c) + donatable_mass  /  newPatch%area !* & donate_frac /  newPatch%area
+                  !cur_litt%ag_cwd(c)  = cur_litt%ag_cwd(c) + donatable_mass * &
+                  !retain_frac / remainder_area
+               end if
+
+
+               site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass ! mass combustion flux
+               ![JStenzel added end]
+               !new_litt%ag_cwd(c)     = new_litt%ag_cwd(c) + &
+               !      ag_wood * SF_val_CWD_frac(c) * donate_frac/newPatch%area
+               !cur_litt%ag_cwd(c)     = cur_litt%ag_cwd(c) + &
+               !      ag_wood * SF_val_CWD_frac(c) * retain_frac/remainder_area
 
                do ilyr = 1,nlevsoil
-                  
-                  new_litt%bg_cwd(c,ilyr) = new_litt%bg_cwd(c,ilyr) + &
-                        bg_wood * currentSite%rootfrac_scr(ilyr) * &
-                        SF_val_CWD_frac(c) * donate_frac/newPatch%area
-                  
-                  cur_litt%bg_cwd(c,ilyr) = cur_litt%bg_cwd(c,ilyr) + &
-                        bg_wood * currentSite%rootfrac_scr(ilyr) * &
-                        SF_val_CWD_frac(c) * retain_frac/remainder_area
+                  if ( remainder_area .gt. fates_tiny ) then          ![JStenzel modified] Prevent div 0
+
+                     new_litt%bg_cwd(c,ilyr) = new_litt%bg_cwd(c,ilyr) + &
+                           bg_wood * currentSite%rootfrac_scr(ilyr) * &
+                           SF_val_CWD_frac(c) * donate_frac/newPatch%area
+
+                     cur_litt%bg_cwd(c,ilyr) = cur_litt%bg_cwd(c,ilyr) + &
+                           bg_wood * currentSite%rootfrac_scr(ilyr) * &
+                           SF_val_CWD_frac(c) * retain_frac/remainder_area
+
+                  else
+
+                     new_litt%bg_cwd(c,ilyr) = new_litt%bg_cwd(c,ilyr) + &
+                           bg_wood * currentSite%rootfrac_scr(ilyr) * &
+                           SF_val_CWD_frac(c) / newPatch%area !* donate_frac/newPatch%area
+
+                  end if
+
+
                end do
 
-               
+
                ! Diagnostics on fluxes into the AG and BG CWD pools
-               flux_diags%cwd_ag_input(c) = flux_diags%cwd_ag_input(c) + & 
-                    SF_val_CWD_frac(c) * ag_wood
-               
-               flux_diags%cwd_bg_input(c) = flux_diags%cwd_bg_input(c) + & 
+               flux_diags%cwd_ag_input(c) = flux_diags%cwd_ag_input(c) + & ![JStenzel edit]    !ag mass flux minus combustion
+                    SF_val_CWD_frac(c) * donatable_mass
+
+               !flux_diags%cwd_ag_input(c) = flux_diags%cwd_ag_input(c) + &
+               !     SF_val_CWD_frac(c) * ag_wood
+
+               flux_diags%cwd_bg_input(c) = flux_diags%cwd_bg_input(c) + &
                     SF_val_CWD_frac(c) * bg_wood
-            
+
                ! Diagnostic specific to resource management code
                if( element_id .eq. carbon12_element) then
                    delta_litter_stock  = delta_litter_stock  + &
@@ -635,38 +722,63 @@ contains
                end if
 
             enddo
-            
+
             ! ----------------------------------------------------------------------------------------
             ! Handle litter flux for the trunk wood of infrastucture and collateral damage mort
             ! ----------------------------------------------------------------------------------------
-            
+
             ag_wood = indirect_dead * (struct_m + sapw_m ) * &
                   prt_params%allom_agb_frac(currentCohort%pft)
             bg_wood = indirect_dead * (struct_m + sapw_m ) * &
                   (1._r8 - prt_params%allom_agb_frac(currentCohort%pft))
 
-            new_litt%ag_cwd(ncwd) = new_litt%ag_cwd(ncwd) + ag_wood * &
-                  SF_val_CWD_frac(ncwd) * donate_frac/newPatch%area
 
-            cur_litt%ag_cwd(ncwd) = cur_litt%ag_cwd(ncwd) + ag_wood * &
-                  SF_val_CWD_frac(ncwd) * retain_frac/remainder_area
-            
+            ! [JStenzel added start] Burn some slash from indirect harvest living trees and
+            ! distribute the rest to CWD class 4 (boles)
+            donatable_mass = ag_wood * SF_val_CWD_frac(ncwd) * (1._r8 - SF_val_live_slash_burn(ncwd)) ![kg]
+            burned_mass = ag_wood * SF_val_CWD_frac(ncwd) * SF_val_live_slash_burn(ncwd)        ![kg]
+
+            if ( remainder_area .gt. fates_tiny ) then                ![JStenzel modified] Prevent div 0
+               new_litt%ag_cwd(ncwd)     = new_litt%ag_cwd(ncwd) + donatable_mass * &
+                    donate_frac /  newPatch%area
+               cur_litt%ag_cwd(ncwd)     = cur_litt%ag_cwd(ncwd) + donatable_mass * &
+                    retain_frac / remainder_area
+            else
+               new_litt%ag_cwd(ncwd)     = new_litt%ag_cwd(ncwd) + donatable_mass / &
+                    newPatch%area     !donate_frac /  newPatch%area
+            end if
+
+            site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass ! mass combustion flux
+            !new_litt%ag_cwd(ncwd) = new_litt%ag_cwd(ncwd) + ag_wood * &
+            !      SF_val_CWD_frac(ncwd) * donate_frac/newPatch%area
+
+            !cur_litt%ag_cwd(ncwd) = cur_litt%ag_cwd(ncwd) + ag_wood * &
+            !      SF_val_CWD_frac(ncwd) * retain_frac/remainder_area
+
             do ilyr = 1,nlevsoil
-               
-               new_litt%bg_cwd(ncwd,ilyr) = new_litt%bg_cwd(ncwd,ilyr) + &
-                     bg_wood * currentSite%rootfrac_scr(ilyr) * &
-                     SF_val_CWD_frac(ncwd) * donate_frac/newPatch%area
-               
-               cur_litt%bg_cwd(ncwd,ilyr) = cur_litt%bg_cwd(ncwd,ilyr) + &
-                     bg_wood * currentSite%rootfrac_scr(ilyr) * &
-                     SF_val_CWD_frac(ncwd) * retain_frac/remainder_area
+               if ( remainder_area .gt. fates_tiny ) then                ![JStenzel modified] Prevent div 0
+
+                  new_litt%bg_cwd(ncwd,ilyr) = new_litt%bg_cwd(ncwd,ilyr) + &
+                        bg_wood * currentSite%rootfrac_scr(ilyr) * &
+                        SF_val_CWD_frac(ncwd) * donate_frac/newPatch%area
+
+                  cur_litt%bg_cwd(ncwd,ilyr) = cur_litt%bg_cwd(ncwd,ilyr) + &
+                        bg_wood * currentSite%rootfrac_scr(ilyr) * &
+                        SF_val_CWD_frac(ncwd) * retain_frac/remainder_area
+               else
+                  new_litt%bg_cwd(ncwd,ilyr) = new_litt%bg_cwd(ncwd,ilyr) + &
+                        bg_wood * currentSite%rootfrac_scr(ilyr) * &
+                        SF_val_CWD_frac(ncwd) / newPatch%area  !* donate_frac/newPatch%area
+               end if
 
             end do
 
-            flux_diags%cwd_ag_input(ncwd) = flux_diags%cwd_ag_input(ncwd) + & 
-                 SF_val_CWD_frac(ncwd) * ag_wood
-            
-            flux_diags%cwd_bg_input(ncwd) = flux_diags%cwd_bg_input(ncwd) + & 
+            flux_diags%cwd_ag_input(ncwd) = flux_diags%cwd_ag_input(ncwd) + & ![JStenzel edit]    !ag mass flux minus combustion
+                 SF_val_CWD_frac(ncwd) * donatable_mass
+
+            !flux_diags%cwd_ag_input(ncwd) = flux_diags%cwd_ag_input(ncwd) + &
+            !     SF_val_CWD_frac(ncwd) * ag_wood
+            flux_diags%cwd_bg_input(ncwd) = flux_diags%cwd_bg_input(ncwd) + &
                  SF_val_CWD_frac(ncwd) * bg_wood
 
             if( element_id .eq. carbon12_element) then
@@ -677,28 +789,34 @@ contains
             ! ---------------------------------------------------------------------------------------
             ! Handle below-ground trunk flux for directly logged trees (c = ncwd)
             ! ----------------------------------------------------------------------------------------
-            
+
             bg_wood = direct_dead * (struct_m + sapw_m ) * SF_val_CWD_frac(ncwd) * &
                   (1._r8 - prt_params%allom_agb_frac(currentCohort%pft))
 
             do ilyr = 1,nlevsoil
-                new_litt%bg_cwd(ncwd,ilyr) = new_litt%bg_cwd(ncwd,ilyr) + &
-                      bg_wood * currentSite%rootfrac_scr(ilyr) * &
-                      donate_frac/newPatch%area
-                
-                cur_litt%bg_cwd(ncwd,ilyr) = cur_litt%bg_cwd(ncwd,ilyr) + &
-                      bg_wood * currentSite%rootfrac_scr(ilyr) * &
-                      retain_frac/remainder_area
+                if ( remainder_area .gt. fates_tiny ) then                ![JStenzel modified] Prevent div 0
+                   new_litt%bg_cwd(ncwd,ilyr) = new_litt%bg_cwd(ncwd,ilyr) + &
+                         bg_wood * currentSite%rootfrac_scr(ilyr) * &
+                         donate_frac/newPatch%area
+
+                   cur_litt%bg_cwd(ncwd,ilyr) = cur_litt%bg_cwd(ncwd,ilyr) + &
+                         bg_wood * currentSite%rootfrac_scr(ilyr) * &
+                         retain_frac/remainder_area
+                else
+                   new_litt%bg_cwd(ncwd,ilyr) = new_litt%bg_cwd(ncwd,ilyr) + &
+                        bg_wood * currentSite%rootfrac_scr(ilyr) / newPatch%area !* &
+                        !donate_frac/newPatch%area
+                end if
             end do
-            
+
             flux_diags%cwd_bg_input(ncwd) = flux_diags%cwd_bg_input(ncwd) + &
                   bg_wood
-            
+
             ! ----------------------------------------------------------------------------------------
-            ! Handle harvest (export, flux-out) flux for the above ground boles 
-            ! In this case a fraction (export_frac) of the boles from direct logging are 
+            ! Handle harvest (export, flux-out) flux for the above ground boles
+            ! In this case a fraction (export_frac) of the boles from direct logging are
             ! exported off-site, while the remainder (1-export_frac) is added to the litter pools.
-            ! 
+            !
             ! Losses to the system as a whole, for C-balancing (kGC/site/day)
             ! Site level product, (kgC/site, accumulated over simulation)
             ! ----------------------------------------------------------------------------------------
@@ -710,68 +828,117 @@ contains
             trunk_product_site = trunk_product_site + &
                   ag_wood * logging_export_frac
 
+            ! [JStenzel added start] Burn some slash from direct harvest living trees and distribute
+            !  the rest to CWD class 4 (boles)
+            donatable_mass = ag_wood * (1._r8 - SF_val_live_slash_burn(ncwd)) * & ![kg]
+                 (1._r8-logging_export_frac)
+            burned_mass = ag_wood * SF_val_live_slash_burn(ncwd) * &       ![kg]
+                 (1._r8-logging_export_frac)
+
+            if ( remainder_area .gt. fates_tiny ) then                ![JStenzel modified] Prevent div 0
+               new_litt%ag_cwd(ncwd)     = new_litt%ag_cwd(ncwd) + donatable_mass * &
+                    donate_frac /  newPatch%area
+               cur_litt%ag_cwd(ncwd)     = cur_litt%ag_cwd(ncwd) + donatable_mass * &
+                    retain_frac / remainder_area
+            else
+               new_litt%ag_cwd(ncwd)     = new_litt%ag_cwd(ncwd) + donatable_mass / & !* &
+                    newPatch%area !donate_frac /  newPatch%area
+            end if
+
+            site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass ! mass combustion flux
+
+            !!!! [JStenzel question] Missing ag cwd flux_diag for non-wood product component of direct logging mortality? !!!!
+
             ! This is for checking the total mass balance [kg/site/day]
             site_mass%wood_product = site_mass%wood_product + &
                   ag_wood * logging_export_frac
 
-            new_litt%ag_cwd(ncwd) = new_litt%ag_cwd(ncwd) + ag_wood * &
-                  (1._r8-logging_export_frac)*donate_frac/newPatch%area
-            
-            cur_litt%ag_cwd(ncwd) = cur_litt%ag_cwd(ncwd) + ag_wood * &
-                  (1._r8-logging_export_frac)*retain_frac/remainder_area
+            !new_litt%ag_cwd(ncwd) = new_litt%ag_cwd(ncwd) + ag_wood * &
+            !      (1._r8-logging_export_frac)*donate_frac/newPatch%area
+
+            !cur_litt%ag_cwd(ncwd) = cur_litt%ag_cwd(ncwd) + ag_wood * &
+            !      (1._r8-logging_export_frac)*retain_frac/remainder_area
 
             ! ---------------------------------------------------------------------------
-            ! Handle fluxes of leaf, root and storage carbon into litter pools. 
+            ! Handle fluxes of leaf, root and storage carbon into litter pools.
             !  (none of these are exported)
             ! ---------------------------------------------------------------------------
-            
+
             leaf_litter = (direct_dead+indirect_dead)*(leaf_m + repro_m)
             root_litter = (direct_dead+indirect_dead)*(fnrt_m + store_m)
 
+            ![JStenzel add]
+            donatable_mass = leaf_litter * (1._r8 - SF_val_live_slash_burn(dl_sf))   ![kg]
+            burned_mass = leaf_litter * SF_val_live_slash_burn(dl_sf)                ![kg]
 
             do dcmpy=1,ndcmpy
 
                dcmpy_frac = GetDecompyFrac(pft,leaf_organ,dcmpy)
 
-               new_litt%leaf_fines(dcmpy) = new_litt%leaf_fines(dcmpy) + &
-                    leaf_litter * donate_frac/newPatch%area * dcmpy_frac
-               
-               cur_litt%leaf_fines(dcmpy) = cur_litt%leaf_fines(dcmpy) + &
-                    leaf_litter * retain_frac/remainder_area * dcmpy_frac
+               if ( remainder_area .gt. fates_tiny ) then                ![JStenzel modified] Prevent div 0
+
+                  new_litt%leaf_fines(dcmpy) = new_litt%leaf_fines(dcmpy) + & ![JStenzel edit]
+                       donatable_mass * donate_frac/newPatch%area * dcmpy_frac
+                  !new_litt%leaf_fines(dcmpy) = new_litt%leaf_fines(dcmpy) + &
+                  !     leaf_litter * donate_frac/newPatch%area * dcmpy_fra
+
+                  cur_litt%leaf_fines(dcmpy) = cur_litt%leaf_fines(dcmpy) + & ![JStenzel edit]
+                       donatable_mass * retain_frac/remainder_area * dcmpy_frac
+                  !cur_litt%leaf_fines(dcmpy) = cur_litt%leaf_fines(dcmpy) + &
+                  !     leaf_litter * retain_frac/remainder_area * dcmpy_frac
+               else
+                  new_litt%leaf_fines(dcmpy) = new_litt%leaf_fines(dcmpy) + & !
+                       donatable_mass / newPatch%area * dcmpy_frac
+                       !* donate_frac/newPatch%area * dcmpy_frac
+               end if
 
                dcmpy_frac = GetDecompyFrac(pft,fnrt_organ,dcmpy)
                do ilyr = 1,nlevsoil
-                  new_litt%root_fines(dcmpy,ilyr) = new_litt%root_fines(dcmpy,ilyr) + &
-                       root_litter * currentSite%rootfrac_scr(ilyr) * dcmpy_frac * &
-                       donate_frac/newPatch%area
-                  
-                  cur_litt%root_fines(dcmpy,ilyr) = cur_litt%root_fines(dcmpy,ilyr) + &
-                       root_litter * currentSite%rootfrac_scr(ilyr) * dcmpy_frac * &
-                       retain_frac/remainder_area
+
+                  if ( remainder_area .gt. fates_tiny ) then                ![JStenzel modified] Prevent div 0
+
+                     new_litt%root_fines(dcmpy,ilyr) = new_litt%root_fines(dcmpy,ilyr) + &
+                          root_litter * currentSite%rootfrac_scr(ilyr) * dcmpy_frac * &
+                          donate_frac/newPatch%area
+
+                     cur_litt%root_fines(dcmpy,ilyr) = cur_litt%root_fines(dcmpy,ilyr) + &
+                          root_litter * currentSite%rootfrac_scr(ilyr) * dcmpy_frac * &
+                          retain_frac/remainder_area
+                 else
+                    new_litt%root_fines(dcmpy,ilyr) = new_litt%root_fines(dcmpy,ilyr) + &
+                         root_litter * currentSite%rootfrac_scr(ilyr) * dcmpy_frac / &
+                         newPatch%area !donate_frac/newPatch%area
+                 end if
                end do
             end do
-               
+
             ! track as diagnostic fluxes
-            flux_diags%leaf_litter_input(pft) = flux_diags%leaf_litter_input(pft) + & 
-                 leaf_litter
-            
-            flux_diags%root_litter_input(pft) = flux_diags%root_litter_input(pft) + & 
+            ![JStenzel added]
+            site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass ! mass combustion flux
+            flux_diags%leaf_litter_input(pft) = flux_diags%leaf_litter_input(pft) + &  ! mass distribution flux
+                 donatable_mass
+            !flux_diags%leaf_litter_input(pft) = flux_diags%leaf_litter_input(pft) + &
+            !     leaf_litter
+
+            flux_diags%root_litter_input(pft) = flux_diags%root_litter_input(pft) + &
                  root_litter
-            
+
             ! Logging specific diagnostics
             ! ----------------------------------------------------------------------------------------
-            
+
             ! Note that litter stock also has terms above in the CWD loop
             if( element_id .eq. carbon12_element) then
                 delta_litter_stock  = delta_litter_stock  + &
                       leaf_litter         + &
+                      !donatable_mass + & ![JStenzel reverted]
                       root_litter
-                
+
                 delta_biomass_stock = delta_biomass_stock + &
                       leaf_litter         + &
+                      !donatable_mass + & ![JStenzel reverted]
                       root_litter         + &
                       (direct_dead+indirect_dead) * (struct_m + sapw_m)
-                
+
                 delta_individual    = delta_individual    + &
                       direct_dead         + &
                       indirect_dead
@@ -784,20 +951,20 @@ contains
          ! operations.  Currently we assume only above-ground portion
          ! of the tree bole that experienced "direct" logging is exported
          ! This portion is known as "trunk_product_site
-         
+
          if(element_id .eq. carbon12_element) then
             currentSite%resources_management%trunk_product_site  = &
                   currentSite%resources_management%trunk_product_site + &
                   trunk_product_site
-            
+
             currentSite%resources_management%delta_litter_stock  = &
                   currentSite%resources_management%delta_litter_stock + &
                   delta_litter_stock
-            
+
             currentSite%resources_management%delta_biomass_stock = &
                   currentSite%resources_management%delta_biomass_stock + &
                   delta_biomass_stock
-            
+
             currentSite%resources_management%delta_individual    = &
                   currentSite%resources_management%delta_individual + &
                   delta_individual
@@ -811,11 +978,11 @@ contains
 
       currentCohort => newPatch%shortest
       do while(associated(currentCohort))
-         call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread, &
+         call carea_allom(currentCohort%dbh,currentCohort%n,currentPatch%spread, &
                currentCohort%pft,currentCohort%crowndamage,currentCohort%c_area)
          currentCohort => currentCohort%taller
       enddo
-      
+
       return
    end subroutine logging_litter_fluxes
 
@@ -825,7 +992,7 @@ contains
 
       ! ----------------------------------------------------------------------------------
       ! Added by Shijie Shu.
-      ! This subroutine is called when logging is completed and need to update 
+      ! This subroutine is called when logging is completed and need to update
       ! Harvested C flux in HLM.
       ! ----------------------------------------------------------------------------------
       use EDtypesMod             , only : ed_site_type
@@ -834,19 +1001,19 @@ contains
       use PRTGenericMod          , only : carbon12_element
       use FatesInterfaceTypesMod , only : bc_out_type
       use EDParamsMod            , only : pprodharv10_forest_mean
-  
+
       ! Arguments
       type(ed_site_type), intent(inout), target :: currentSite     ! site structure
       type(bc_out_type), intent(inout)          :: bc_out
-  
+
       integer :: icode
       real(r8) :: unit_trans_factor
-  
+
 
       ! Flush the older value before update
       bc_out%hrv_deadstemc_to_prod10c = 0._r8
       bc_out%hrv_deadstemc_to_prod100c = 0._r8
-  
+
       ! Calculate the unit transfer factor (from kgC m-2 day-1 to gC m-2 s-1)
       unit_trans_factor = g_per_kg * days_per_sec
 
@@ -855,8 +1022,8 @@ contains
           AREA_INV * pprodharv10_forest_mean * unit_trans_factor
       bc_out%hrv_deadstemc_to_prod100c = bc_out%hrv_deadstemc_to_prod100c + &
           currentSite%mass_balance(element_pos(carbon12_element))%wood_product * &
-          AREA_INV * (1._r8 - pprodharv10_forest_mean) * unit_trans_factor  
-  
+          AREA_INV * (1._r8 - pprodharv10_forest_mean) * unit_trans_factor
+
       return
    end subroutine UpdateHarvestC
 

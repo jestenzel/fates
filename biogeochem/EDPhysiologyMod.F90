@@ -119,7 +119,9 @@ module EDPhysiologyMod
   use FatesParameterDerivedMod, only : param_derived
   use FatesPlantHydraulicsMod, only : InitHydrCohort
   use PRTInitParamsFatesMod, only : NewRecruitTotalStoichiometry
-  
+
+  use FatesConstantsMod, only : primaryforest, secondaryforest, tertiaryforest ! [JStenzel]
+
   implicit none
   private
 
@@ -138,7 +140,7 @@ module EDPhysiologyMod
   public :: UpdateRecruitL2FR
   public :: UpdateRecruitStoicH
   public :: SetRecruitL2FR
-  
+
   logical, parameter :: debug  = .false. ! local debug flag
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
@@ -203,14 +205,14 @@ contains
   end subroutine ZeroAllocationRates
 
   ! ============================================================================
-  
+
   subroutine GenerateDamageAndLitterFluxes( csite, cpatch, bc_in )
 
     ! Arguments
     type(ed_site_type)  :: csite
     type(ed_patch_type) :: cpatch
     type(bc_in_type), intent(in) :: bc_in
-    
+
 
     ! Locals
     type(ed_cohort_type), pointer :: ccohort    ! Current cohort
@@ -230,10 +232,10 @@ contains
     real(r8) :: repro_loss       ! "" [kg]
     real(r8) :: sapw_loss        ! "" [kg]
     real(r8) :: store_loss       ! "" [kg]
-    real(r8) :: struct_loss      ! "" [kg]       
+    real(r8) :: struct_loss      ! "" [kg]
     real(r8) :: dcmpy_frac       ! fraction of mass going to each decomposition pool
 
-    
+
     if(hlm_use_tree_damage .ne. itrue) return
 
     if(.not.damage_time) return
@@ -245,12 +247,12 @@ contains
        if(prt_params%woody(ccohort%pft)==ifalse  ) cycle
        if(ccohort%isnew ) cycle
 
-       associate( ipft     => ccohort%pft, & 
+       associate( ipft     => ccohort%pft, &
                   agb_frac => prt_params%allom_agb_frac(ccohort%pft), &
                   branch_frac => param_derived%branch_frac(ccohort%pft))
-         
+
        do_dclass: do cd = ccohort%crowndamage+1, nlevdamage
-          
+
           call GetDamageFrac(ccohort%crowndamage, cd, ipft, cd_frac)
 
           ! now to get the number of damaged trees we multiply by damage frac
@@ -262,7 +264,7 @@ contains
              ! Create a new damaged cohort
              allocate(ndcohort)  ! new cohort surviving but damaged
              if(hlm_use_planthydro.eq.itrue) call InitHydrCohort(csite,ndcohort)
-             
+
              ! Initialize the PARTEH object and point to the
              ! correct boundary condition fields
              ndcohort%prt => null()
@@ -270,37 +272,37 @@ contains
              call InitPRTObject(ndcohort%prt)
              call InitPRTBoundaryConditions(ndcohort)
              call zero_cohort(ndcohort)
-             
-             ! nc_canopy_d is the new cohort that gets damaged 
+
+             ! nc_canopy_d is the new cohort that gets damaged
              call copy_cohort(ccohort, ndcohort)
-             
+
              ! new number densities - we just do damaged cohort here -
              ! undamaged at the end of the cohort loop once we know how many damaged to
              ! subtract
-             
+
              ndcohort%n = num_trees_cd
              ndcohort%crowndamage = cd
 
              ! Remove these trees from the donor cohort
              ccohort%n = ccohort%n - num_trees_cd
-             
-             ! update crown area here - for cohort fusion and canopy organisation below 
-             call carea_allom(ndcohort%dbh, ndcohort%n, csite%spread, &
+
+             ! update crown area here - for cohort fusion and canopy organisation below
+             call carea_allom(ndcohort%dbh, ndcohort%n, cpatch%spread, &       ![JStenzel edit] !+ spread from site -> patch
                   ipft, ndcohort%crowndamage, ndcohort%c_area)
-             
+
              call GetCrownReduction(cd-ccohort%crowndamage, crown_loss_frac)
 
              do_element: do el = 1, num_elements
-                
+
                 litt => cpatch%litter(el)
                 flux_diags => csite%flux_diags(el)
-                
+
                 ! Reduce the mass of the newly damaged cohort
                 ! Fine-roots are not damaged as of yet
                 ! only above-ground sapwood,structure and storage in
                 ! branches is damaged/removed
                 branch_loss_frac = crown_loss_frac * branch_frac * agb_frac
-                
+
                 leaf_loss = ndcohort%prt%GetState(leaf_organ,element_list(el))*crown_loss_frac
                 repro_loss = ndcohort%prt%GetState(repro_organ,element_list(el))*crown_loss_frac
                 sapw_loss = ndcohort%prt%GetState(sapw_organ,element_list(el))*branch_loss_frac
@@ -311,7 +313,7 @@ contains
                 ! Transfer the biomass from the cohort's
                 ! damage to the litter input fluxes
                 ! ------------------------------------------------------
-    
+
                 do dcmpy=1,ndcmpy
                    dcmpy_frac = GetDecompyFrac(ipft,leaf_organ,dcmpy)
                    litt%leaf_fines_in(dcmpy) = litt%leaf_fines_in(dcmpy) + &
@@ -328,12 +330,12 @@ contains
                         (sapw_loss + struct_loss) * &
                         SF_val_CWD_frac(c) * ndcohort%n / &
                         cpatch%area
-                   
+
                    flux_diags%cwd_ag_input(c)  = flux_diags%cwd_ag_input(c) + &
                         (struct_loss + sapw_loss) * &
                         SF_val_CWD_frac(c) * ndcohort%n
                 end do
-                
+
              end do do_element
 
              ! Applying the damage to the cohort, does not need to happen
@@ -343,14 +345,14 @@ contains
              call PRTDamageLosses(ndcohort%prt, sapw_organ, branch_loss_frac)
              call PRTDamageLosses(ndcohort%prt, store_organ, branch_loss_frac)
              call PRTDamageLosses(ndcohort%prt, struct_organ, branch_loss_frac)
-                                
-             
+
+
              !----------- Insert new cohort into the linked list
              ! This list is going tall to short, lets add this new
              ! cohort into a taller position so we don't hit it again
              ! as the loop traverses
              ! --------------------------------------------------------------!
-             
+
              ndcohort%shorter => ccohort
              if(associated(ccohort%taller))then
                 ndcohort%taller => ccohort%taller
@@ -360,7 +362,7 @@ contains
                 ndcohort%taller => null()
              endif
              ccohort%taller => ndcohort
-             
+
           end if if_numtrees
 
        end do do_dclass
@@ -368,7 +370,7 @@ contains
        end associate
        ccohort => ccohort%shorter
     enddo
-    
+
     return
   end subroutine GenerateDamageAndLitterFluxes
 
@@ -392,6 +394,8 @@ contains
     !
     ! -----------------------------------------------------------------------------------
 
+    ! !USES:
+    use FatesConstantsMod , only : tfrz => t_water_freeze_k_1atm ![JStenzel]
 
     ! !ARGUMENTS
     type(ed_site_type), intent(inout)  :: currentSite
@@ -405,34 +409,42 @@ contains
     ! the different element types
     integer :: el                          ! Litter element loop index
     integer :: nlev_eff_decomp             ! Number of active layers over which
+    real(r8) :: temp_in_min_C      ! Daily minimum temperature in Celcius [JStenzel]
     ! fragmentation fluxes are transfered
     !------------------------------------------------------------------------------------
 
     ! Calculate the fragmentation rates
     call fragmentation_scaler(currentPatch, bc_in)
 
+    temp_in_min_C = currentPatch%tveg24_min%GetMean() - tfrz   ! 24 hr tmin [Jstenzel]
+
     do el = 1, num_elements
 
        litt => currentPatch%litter(el)
 
        ! Calculate loss rate of viable seeds to litter
-       call SeedDecay(litt)
+       call SeedDecay(litt, temp_in_min_C)
 
        ! Calculate seed germination rate, the status flags prevent
        ! germination from occuring when the site is in a drought
        ! (for drought deciduous) or too cold (for cold deciduous)
-       call SeedGermination(litt, currentSite%cstatus, currentSite%dstatus)
+       call SeedGermination(litt, currentSite%cstatus, currentSite%dstatus, temp_in_min_C)
 
+       !1
        ! Send fluxes from newly created litter into the litter pools
        ! This litter flux is from non-disturbance inducing mortality, as well
        ! as litter fluxes from live trees
        call CWDInput(currentSite, currentPatch, litt,bc_in)
 
+       !2       ![JStenzel change] call CWDOUT before CWDInput
        ! Only calculate fragmentation flux over layers that are active
        ! (RGK-Mar2019) SHOULD WE MAX THIS AT 1? DONT HAVE TO
 
        nlev_eff_decomp = max(bc_in%max_rooting_depth_index_col, 1)
-       call CWDOut(litt,currentPatch%fragmentation_scaler,nlev_eff_decomp)
+       ![JStenzel edit] Now need to adjust flux diags here. I'm not sure of the most efficient
+       !    way to do this
+       call CWDOut(litt,currentPatch%fragmentation_scaler,nlev_eff_decomp) !? [JStenzel reverted] Removed currrentSite argument
+
 
        site_mass => currentSite%mass_balance(el)
 
@@ -440,7 +452,8 @@ contains
        site_mass%frag_out = site_mass%frag_out + currentPatch%area * &
             ( sum(litt%ag_cwd_frag) + sum(litt%bg_cwd_frag) + &
             sum(litt%leaf_fines_frag) + sum(litt%root_fines_frag) + &
-            sum(litt%seed_decay) + sum(litt%seed_germ_decay))
+            sum(litt%seed_decay) + sum(litt%seed_germ_decay) )
+
 
     end do
 
@@ -483,6 +496,7 @@ contains
     integer :: nlevsoil    ! number of soil layers
     integer :: ilyr        ! soil layer loop counter
     integer :: dcmpy       ! decomposability index
+    real(r8) :: dcmpy_frac_b  ![JStenzel added]
 
     do el = 1, num_elements
 
@@ -496,22 +510,35 @@ contains
                litt%seed_in_local(pft) +   &
                litt%seed_in_extern(pft) -  &
                litt%seed_decay(pft) -      &
-               litt%seed_germ_in(pft)
+               litt%seed_germ_in(pft) !- &
+               ![JStenzel] harvest kill. Commented out because kill is added to seed_decay
+               !litt%seed_kill(pft)
 
           ! Note that the recruitment scheme will use seed_germ
           ! for its construction costs.
           litt%seed_germ(pft) = litt%seed_germ(pft) + &
                litt%seed_germ_in(pft) - &
-               litt%seed_germ_decay(pft)
+               litt%seed_germ_decay(pft) + &
+               ![JStenzel] Harvest seedling planting
+               litt%seed_in_planted(pft) ! -&
+               ![JStenzel] harvest kill. Commented out because kill is added to seed_germ_decay
+               !litt%seed_germ_kill(pft)
 
 
+               ! [JStenzel] Zero harvest seed Fluxes  !!! keep this here?
+               litt%seed_kill(pft) = 0.0_r8
+               litt%seed_germ_kill(pft) = 0.0_r8
+               litt%seed_in_planted(pft) = 0.0_r8
        enddo
 
        ! Update the Coarse Woody Debris pools (above and below)
        ! -----------------------------------------------------------------------------------
        nlevsoil = size(litt%bg_cwd,dim=2)
        do c = 1,ncwd
-          litt%ag_cwd(c) = litt%ag_cwd(c)  + litt%ag_cwd_in(c) - litt%ag_cwd_frag(c)
+
+          litt%snag(c) = litt%snag(c) + litt%snag_in(c) - litt%snag_frag(c)   ![JStenzel]
+          litt%ag_cwd(c) = litt%ag_cwd(c)  + litt%ag_cwd_in(c) + litt%snag_frag(c) - & ![JStenzel]
+                litt%ag_cwd_frag(c)
           do ilyr=1,nlevsoil
              litt%bg_cwd(c,ilyr) = litt%bg_cwd(c,ilyr) &
                   + litt%bg_cwd_in(c,ilyr) &
@@ -522,11 +549,18 @@ contains
        ! Update the fine litter pools from leaves and fine-roots
        ! -----------------------------------------------------------------------------------
 
+       ![JStenzel add] Update snag leaf pool
+       litt%snag(dl_sf) = litt%snag(dl_sf) + litt%snag_in(dl_sf) - litt%snag_frag(dl_sf)
+
        do dcmpy = 1,ndcmpy
+
+          ![JStenzel add] Need this fraction for adding snag leaf fall to 'litt%leaf_fines(dcmpy)'
+          dcmpy_frac_b = GetDecompyFrac(1,leaf_organ,dcmpy)   !Hardcoded pft #1 for now.
 
           litt%leaf_fines(dcmpy) = litt%leaf_fines(dcmpy) &
                + litt%leaf_fines_in(dcmpy)              &
-               - litt%leaf_fines_frag(dcmpy)
+               - litt%leaf_fines_frag(dcmpy)            &
+               + ( dcmpy_frac_b * litt%snag_frag(dl_sf) )   ![JStenzel added]
           do ilyr=1,nlevsoil
              litt%root_fines(dcmpy,ilyr) = litt%root_fines(dcmpy,ilyr) &
                   + litt%root_fines_in(dcmpy,ilyr)      &
@@ -641,10 +675,10 @@ contains
 
           trimmed = .false.
           ipft = currentCohort%pft
-          call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread,currentCohort%pft,&
+          call carea_allom(currentCohort%dbh,currentCohort%n,currentPatch%spread,currentCohort%pft,&
                currentCohort%crowndamage, currentCohort%c_area)
 
-          
+
           leaf_c   = currentCohort%prt%GetState(leaf_organ, carbon12_element)
 
           currentCohort%treelai = tree_lai(leaf_c, currentCohort%pft, currentCohort%c_area, &
@@ -655,9 +689,9 @@ contains
           currentCohort%treesai = tree_sai(currentCohort%pft, &
                currentCohort%dbh, currentCohort%crowndamage,  &
                currentCohort%canopy_trim, &
-               currentCohort%c_area, currentCohort%n,currentCohort%canopy_layer,& 
+               currentCohort%c_area, currentCohort%n,currentCohort%canopy_layer,&
                currentPatch%canopy_layer_tlai, currentCohort%treelai, &
-               currentCohort%vcmax25top,0 )  
+               currentCohort%vcmax25top,0 )
 
           currentCohort%nv      = count((currentCohort%treelai+currentCohort%treesai) .gt. dlower_vai(:)) + 1
 
@@ -693,7 +727,7 @@ contains
              ! Calculate the cumulative total vegetation area index (no snow occlusion, stems and leaves)
              leaf_inc    = dinc_vai(z) * &
                   currentCohort%treelai/(currentCohort%treelai+currentCohort%treesai)
-             
+
              ! Now calculate the cumulative top-down lai of the current layer's midpoint within the current cohort
              lai_layers_above      = (dlower_vai(z) - dinc_vai(z)) * &
                   currentCohort%treelai/(currentCohort%treelai+currentCohort%treesai)
@@ -1316,7 +1350,7 @@ contains
                    else
                       deficit_c = target_leaf_c
                    end if
-                   
+
                    if(store_c>nearzero) then
 
                       ! flush either the amount to get to the target, or -most- of the storage pool
@@ -1334,21 +1368,21 @@ contains
                    ! Check that the stem drop fraction is set to non-zero amount
                    ! otherwise flush all carbon store to leaves
                    if (stem_drop_fraction .gt. 0.0_r8) then
-                      
+
                       call PRTPhenologyFlush(currentCohort%prt, ipft, leaf_organ, &
                            store_c_transfer_frac*target_leaf_c/deficit_c)
-                      
+
                       call PRTPhenologyFlush(currentCohort%prt, ipft, sapw_organ, &
                            store_c_transfer_frac*(target_sapw_c-sapw_c)/deficit_c)
-                      
+
                       call PRTPhenologyFlush(currentCohort%prt, ipft, struct_organ, &
                            store_c_transfer_frac*(target_struct_c-struct_c)/deficit_c)
-                      
+
                    else
-                      
+
                       call PRTPhenologyFlush(currentCohort%prt, ipft, leaf_organ, &
                            store_c_transfer_frac)
-                      
+
                    end if
 
                 endif if_leaves_off
@@ -1357,9 +1391,9 @@ contains
              !COLD LEAF OFF
              if_cold:  if (currentSite%cstatus == phen_cstat_nevercold .or. &
                   currentSite%cstatus == phen_cstat_iscold) then ! past leaf drop day? Leaves still on tree?
-                
+
                 if_leaves_on: if (currentCohort%status_coh == leaves_on) then ! leaves have not dropped
-                   
+
                    ! leaf off occur on individuals bigger than specific size for grass
                    if (currentCohort%dbh > EDPftvarcon_inst%phen_cold_size_threshold(ipft) &
                         .or. prt_params%woody(ipft)==itrue) then
@@ -1422,9 +1456,9 @@ contains
                    else
                       deficit_c = target_leaf_c
                    end if
-                   
+
                    if(store_c>nearzero) then
-                      
+
                       store_c_transfer_frac = &
                            min((EDPftvarcon_inst%phenflush_fraction(ipft)*deficit_c)/store_c, &
                            (1.0_r8-carbon_store_buffer))
@@ -1436,21 +1470,21 @@ contains
                    ! This call will request that storage carbon will be transferred to
                    ! leaf tissues. It is specified as a fraction of the available storage
                    if (stem_drop_fraction .gt. 0.0_r8) then
-                      
+
                       call PRTPhenologyFlush(currentCohort%prt, ipft, leaf_organ, &
                            store_c_transfer_frac*target_leaf_c/deficit_c)
-                      
+
                       call PRTPhenologyFlush(currentCohort%prt, ipft, sapw_organ, &
                            store_c_transfer_frac*(target_sapw_c-sapw_c)/deficit_c)
-                      
+
                       call PRTPhenologyFlush(currentCohort%prt, ipft, struct_organ, &
                            store_c_transfer_frac*(target_struct_c-struct_c)/deficit_c)
-                      
+
                    else
-                      
+
                       call PRTPhenologyFlush(currentCohort%prt, ipft, leaf_organ, &
                            store_c_transfer_frac)
-                      
+
                    end if
 
                 endif !currentCohort status again?
@@ -1625,7 +1659,7 @@ contains
     ! translates them into a FATES structure with one patch and one cohort per PFT
     ! The leaf area of the cohort is modified each day to match that asserted by the HLM
     ! -----------------------------------------------------------------------------------!
-   
+
 
     type(ed_cohort_type), intent(inout), target :: currentCohort
 
@@ -1765,7 +1799,13 @@ contains
 
     integer  :: pft
     real(r8) :: store_m_to_repro       ! mass sent from storage to reproduction upon death [kg/plant]
-    real(r8) :: site_seed_rain(maxpft) ! This is the sum of seed-rain for the site [kg/site/day]
+    real(r8) :: site_seed_rain(maxpft) ! This is the sum of seed-rain for the site, unplanted patches [kg/site/day]
+    real(r8) :: site_seed_rain_managed(maxpft) ! This is the sum of seed-rain for the site, planted patches [kg/site/day] [JStenzel]
+
+    real(r8) :: site_area_primary ! Sum of site primary (area), m2  [JStenzel]
+    real(r8) :: site_area_secondary ! Sum of site secondary (area), m2 [JStenzel]
+    real(r8) :: site_area_tertiary ! Sum of site secondary (area), m2 [JStenzel]
+
     real(r8) :: seed_in_external       ! Mass of externally generated seeds [kg/m2/day]
     real(r8) :: seed_stoich            ! Mass ratio of nutrient per C12 in seeds [kg/kg]
     real(r8) :: seed_prod              ! Seed produced in this dynamics step [kg/day]
@@ -1777,6 +1817,10 @@ contains
     do el = 1, num_elements
 
        site_seed_rain(:) = 0._r8
+       site_seed_rain_managed(:) = 0._r8  ![JStenzel]
+       site_area_primary = 0._r8 ![JStenzel]
+       site_area_secondary = 0._r8 ![JStenzel]
+       site_area_tertiary= 0._r8 ![JStenzel]
 
        element_id = element_list(el)
 
@@ -1785,6 +1829,15 @@ contains
        ! Loop over all patches and sum up the seed input for each PFT
        currentPatch => currentSite%oldest_patch
        do while (associated(currentPatch))
+
+          ! [JStenzel] sum site primary and secondary,and tertiary (NEW: managed) area
+          if ( currentPatch%anthro_disturbance_label .eq. primaryforest ) then
+             site_area_primary = site_area_primary + currentPatch%area
+          elseif ( currentPatch%anthro_disturbance_label .eq. tertiaryforest ) then  ! [JStenzel added]
+             site_area_tertiary = site_area_tertiary + currentPatch%area
+          else
+             site_area_secondary = site_area_secondary + currentPatch%area
+          end if
 
           currentCohort => currentPatch%tallest
           do while (associated(currentCohort))
@@ -1813,8 +1866,14 @@ contains
                 currentcohort%seed_prod = seed_prod
              end if
 
-             site_seed_rain(pft) = site_seed_rain(pft) +  &
-                  (seed_prod * currentCohort%n + store_m_to_repro)
+             if ( currentPatch%anthro_disturbance_label .eq. primaryforest .or. &
+                  currentPatch%anthro_disturbance_label .eq. secondaryforest ) then   !!!!  [JStenzel start]
+                site_seed_rain(pft) = site_seed_rain(pft) +  &
+                     (seed_prod * currentCohort%n + store_m_to_repro)
+             else if ( currentPatch%anthro_disturbance_label .eq. tertiaryforest ) then
+                site_seed_rain_managed(pft) = site_seed_rain_managed(pft) +  &
+                     (seed_prod * currentCohort%n + store_m_to_repro)
+             end if   ! [JStenzel end]
 
              currentCohort => currentCohort%shorter
           enddo !cohort loop
@@ -1839,10 +1898,28 @@ contains
 
           litt => currentPatch%litter(el)
           do pft = 1,numpft
+             ! [JStenzel] Allow pfts that weren't on the site from the run start to germinate if
+             ! germination mass is added externally. !!!! Need to check back if there is any reasons
+             ! for an "if" statement here other than to disallow 'seed_in_external' set by Fates
+             ! parameters and reduce computation.
 
-             if(currentSite%use_this_pft(pft).eq.itrue)then
+             !if(currentSite%use_this_pft(pft).eq.itrue &    ! [JStenzel comment out]
+                  !.or. litt%seed_germ(pft) .gt. min_n_safemath &) then  !!! vs 0.0_r8
+
                 ! Seed input from local sources (within site)
-                litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain(pft)/area
+                ! [JStenzel Start]
+                if ( currentPatch%anthro_disturbance_label .eq. primaryforest .or. &
+                     currentPatch%anthro_disturbance_label .eq. secondaryforest ) then
+                   !litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain(pft)/area
+                   litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain(pft) &
+                        /(site_area_primary + site_area_secondary)  !!!! [JStenzel edited ]to add 1st/2nd forest areas
+                else if ( currentPatch%anthro_disturbance_label .eq. tertiaryforest ) then
+                   !litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain_managed(pft)/area
+                   litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain_managed(pft) &
+                        /site_area_tertiary          ! JStenzel edited for new, Tertiary forest type
+                end if ![ JStenzel End]
+
+
 
                 ! If there is forced external seed rain, we calculate the input mass flux
                 ! from the different elements, using the mean stoichiometry of new
@@ -1862,12 +1939,15 @@ contains
                 end select
 
                 ! Seed input from external sources (user param seed rain, or dispersal model)
+
                 seed_in_external =  seed_stoich*EDPftvarcon_inst%seed_suppl(pft)*years_per_day
                 litt%seed_in_extern(pft) = litt%seed_in_extern(pft) + seed_in_external
 
                 ! Seeds entering externally [kg/site/day]
-                site_mass%seed_in = site_mass%seed_in + seed_in_external*currentPatch%area
-             end if !use this pft
+                site_mass%seed_in = site_mass%seed_in + &
+                     ![JStenzel] Add seed_in_planted(pft) to site seed_in flux sum
+                     ( seed_in_external + litt%seed_in_planted(pft)) *currentPatch%area !!!! !!!!
+             ! end if !use this pft   [JStenzel commented out]
           enddo
 
 
@@ -1881,7 +1961,7 @@ contains
 
   ! ============================================================================
 
-  subroutine SeedDecay( litt )
+  subroutine SeedDecay( litt , temp_in_min_C )
     !
     ! !DESCRIPTION:
     !  Flux from seed pool into leaf litter pool
@@ -1891,6 +1971,7 @@ contains
     !
     ! !LOCAL VARIABLES:
     integer  ::  pft
+    real(r8), intent(in) :: temp_in_min_C ! [JStenzel] 24 hr min veg temperature C
     !----------------------------------------------------------------------
 
     ! default value from Liscke and Loffler 2006 ; making this a PFT-specific parameter
@@ -1899,12 +1980,33 @@ contains
     ! seed_decay is kg/day
     ! Assume that decay rates are same for all chemical species
 
-    do pft = 1,numpft
-       litt%seed_decay(pft) = litt%seed(pft) * &
-            EDPftvarcon_inst%seed_decay_rate(pft)*years_per_day
 
-       litt%seed_germ_decay(pft) = litt%seed_germ(pft) * &
-            EDPftvarcon_inst%seed_decay_rate(pft)*years_per_day
+    ! [JStenzel] If seed_kill pools exist for a pft this timestep, set decay to seed_kill fluxes
+    !to prevent double counting w/ decay + kill !!! Need to make sure this doesn't prevent decay
+    ! normally.
+    do pft = 1,numpft
+
+      if ( litt%seed_kill(pft) .eq. 0.0_r8 ) then
+         litt%seed_decay(pft) = litt%seed(pft) * &
+              EDPftvarcon_inst%seed_decay_rate(pft)*years_per_day
+      else
+         litt%seed_decay(pft) = litt%seed_kill(pft)   ![JStenzel]
+      end if
+
+      if ( litt%seed_germ_kill(pft) .eq. 0.0_r8  ) then
+
+         ! [JStenzel] If 24 hr veg min temp is less than the seedling freezetol, all existing
+         ! seed_germ mass is added to the decay flux
+         if ( temp_in_min_C .ge. EDPftvarcon_inst%freezetol_seedling(pft) ) then
+            litt%seed_germ_decay(pft) = litt%seed_germ(pft) * &
+               EDPftvarcon_inst%seed_decay_rate(pft)*years_per_day
+         else
+             litt%seed_germ_decay(pft) = litt%seed_germ(pft)
+         end if
+
+      else
+         litt%seed_germ_decay(pft) = litt%seed_germ_kill(pft)   ![JStenzel]
+      end if
 
     enddo
 
@@ -1912,7 +2014,7 @@ contains
   end subroutine SeedDecay
 
   ! ============================================================================
-  subroutine SeedGermination( litt, cold_stat, drought_stat )
+  subroutine SeedGermination( litt, cold_stat, drought_stat, temp_in_min_C )
     !
     ! !DESCRIPTION:
     !  Flux from seed pool into sapling pool
@@ -1924,6 +2026,7 @@ contains
     type(litter_type) :: litt
     integer, intent(in) :: cold_stat    ! Is the site in cold leaf-off status?
     integer, intent(in) :: drought_stat ! Is the site in drought leaf-off status?
+    real(r8), intent(in) :: temp_in_min_C ! [JStenzel] 24 hr min veg temperature C
     !
     ! !LOCAL VARIABLES:
     integer :: pft
@@ -1931,10 +2034,14 @@ contains
 
     real(r8), parameter ::  max_germination = 1.0_r8 ! Cap on germination rates.
     ! KgC/m2/yr Lishcke et al. 2009
+    real(r8) :: temp_dep_fraction  ! [JStenzel] Temp. function (germination freezing mortality)
+
 
     ! Turning of this cap? because the cap will impose changes on proportionality
     ! of nutrients. (RGK 02-2019)
     !real(r8), parameter :: max_germination = 1.e6_r8  ! Force to very high number
+
+    real(r8), parameter :: frost_mort_buffer = 5.0_r8  ! 5deg buffer for freezing mortality
 
     !----------------------------------------------------------------------
 
@@ -1944,9 +2051,27 @@ contains
     ! and thus the mortality rate (in units of individuals) is the product of
     ! that times the ratio of (hypothetical) seed mass to recruit biomass
 
+
     do pft = 1,numpft
-       litt%seed_germ_in(pft) =  min(litt%seed(pft) * EDPftvarcon_inst%germination_rate(pft), &
-            max_germination)*years_per_day
+
+       ! [JStenzel] Only calculate a seed germination flux if seed_kill(pft) equals zeros
+       ! To prevent double counting of fluxes.
+       if ( litt%seed_kill(pft) .eq. 0.0_r8 ) then
+
+          ! [JStenzel] Germinated seedlings (-> recruitment) fail for 24 hr periods w/ tmin below pft tolerance
+          ! litt%seed_germ_decay(pft) for the existing germination pool was calculated immediately before this
+          if ( temp_in_min_C .ge. EDPftvarcon_inst%freezetol_seedling(pft) ) then
+             litt%seed_germ_in(pft) =  min(litt%seed(pft) * EDPftvarcon_inst%germination_rate(pft), &
+                 max_germination)*years_per_day
+          else
+             litt%seed_germ_in(pft) =  min(litt%seed(pft) * EDPftvarcon_inst%germination_rate(pft), &
+                 max_germination)*years_per_day
+             litt%seed_germ_decay(pft) = litt%seed_germ_decay(pft) + litt%seed_germ_in(pft)
+          end if
+
+       else
+          litt%seed_germ_in(pft) = 0.0_r8
+       end if
 
        !set the germination only under the growing season...c.xu
 
@@ -1980,7 +2105,7 @@ contains
     ! !USES:
     use FatesInterfaceTypesMod, only : hlm_use_ed_prescribed_phys
     use FatesLitterMod   , only : ncwd
-    
+
     !
     ! !ARGUMENTS
     type(ed_site_type), intent(inout), target   :: currentSite
@@ -1990,7 +2115,7 @@ contains
     ! !LOCAL VARIABLES:
     class(prt_vartypes), pointer :: prt
     integer :: ft
-    integer :: c 
+    integer :: c
     type (ed_cohort_type) , pointer :: temp_cohort
     type (litter_type), pointer     :: litt          ! The litter object (carbon right now)
     type(site_massbal_type), pointer :: site_mass    ! For accounting total in-out mass fluxes
@@ -2034,8 +2159,16 @@ contains
        ! is permitted on a given gridcell or not, it applies to the prescribed biogeography case only.
        ! If nocomp is enabled, then we must determine whether a given PFT is allowed on a given patch or not.
 
-       if(currentSite%use_this_pft(ft).eq.itrue &
-            .and. ((hlm_use_nocomp .eq. ifalse) .or. (ft .eq. currentPatch%nocomp_pft_label)))then
+       !if(currentSite%use_this_pft(ft).eq.itrue &
+            !.and. ((hlm_use_nocomp .eq. ifalse) .or. (ft .eq. currentPatch%nocomp_pft_label)))then
+
+       ! [JStenzel] Allow recruitment on sites with a PFT that was not initially allowed by the
+       ! 'use_this_pft' flag. !! This needs to be checked for functionality !!! However, cohorts
+       ! should only be created if 'seed_germ' > 0; ie mass is available for recruitment.!!! This
+       ! should only be provided during a planting event / supplemental seeding.
+       if( (currentSite%use_this_pft(ft).eq.itrue .or. &
+            currentPatch%litter(1)%seed_germ(ft) .gt. min_n_safemath) &   ! vs 0.0_r8
+            .and. ((hlm_use_nocomp .eq. ifalse) .or. (ft .eq. currentPatch%nocomp_pft_label)) ) then !
 
           temp_cohort%canopy_trim = init_recruit_trim
           temp_cohort%pft         = ft
@@ -2044,10 +2177,10 @@ contains
           stem_drop_fraction      = EDPftvarcon_inst%phen_stem_drop_fraction(ft)
           temp_cohort%l2fr        = currentSite%rec_l2fr(ft,currentPatch%NCL_p)
           temp_cohort%crowndamage = 1       ! new recruits are undamaged
-          
+
           call h2d_allom(temp_cohort%hite,ft,temp_cohort%dbh)
 
-       
+
           ! Initialize live pools
           call bleaf(temp_cohort%dbh,ft,temp_cohort%crowndamage,&
                temp_cohort%canopy_trim,c_leaf)
@@ -2271,7 +2404,7 @@ contains
                   temp_cohort%canopy_trim,temp_cohort%c_area, &
                   currentPatch%NCL_p, &
                   temp_cohort%crowndamage, &
-                  currentSite%spread, bc_in)
+                  currentPatch%spread, bc_in)
 
              ! Note that if hydraulics is on, the number of cohorts may had
              ! changed due to hydraulic constraints.
@@ -2303,6 +2436,7 @@ contains
     !
     ! !USES:
 
+    use SFParamsMod , only : SF_val_CWD_turnover_frac        ! non-mortality turnover fractions (ie branchfall)
     !
     ! !ARGUMENTS
     type(ed_site_type), intent(inout), target :: currentSite
@@ -2347,6 +2481,7 @@ contains
     integer  :: pft
     integer  :: dcmpy             ! decomposability pool index
     integer  :: numlevsoil        ! Actual number of soil layers
+
     !----------------------------------------------------------------------
 
     ! -----------------------------------------------------------------------------------
@@ -2440,15 +2575,15 @@ contains
        do c = 1,ncwd
           litt%ag_cwd_in(c) = litt%ag_cwd_in(c) + &
                (sapw_m_turnover + struct_m_turnover) * &
-               SF_val_CWD_frac(c) * plant_dens * &
+               SF_val_CWD_turnover_frac(c) * plant_dens * &
                prt_params%allom_agb_frac(pft)
 
           flux_diags%cwd_ag_input(c)  = flux_diags%cwd_ag_input(c) + &
-               (struct_m_turnover + sapw_m_turnover) * SF_val_CWD_frac(c) * &
+               (struct_m_turnover + sapw_m_turnover) * SF_val_CWD_turnover_frac(c) * &
                prt_params%allom_agb_frac(pft) * currentCohort%n
 
           bg_cwd_tot = (sapw_m_turnover + struct_m_turnover) * &
-               SF_val_CWD_frac(c) * plant_dens * &
+               SF_val_CWD_turnover_frac(c) * plant_dens * &
                (1.0_r8-prt_params%allom_agb_frac(pft))
 
           do ilyr = 1, numlevsoil
@@ -2492,11 +2627,11 @@ contains
 
        dead_n_natural = dead_n - dead_n_dlogging - dead_n_ilogging
 
-
+       ![JStenzel reverted] was going to use: "( dead_n_dlogging + dead_n_ilogging )". However,
+       !leaf_litter_input will now include inputs to snag pools because snags are not indexed by pft
        flux_diags%leaf_litter_input(pft) = &
             flux_diags%leaf_litter_input(pft) +  &
-            leaf_m * dead_n*currentPatch%area
-
+            leaf_m * dead_n *currentPatch%area
 
        ! %n has not been updated due to mortality yet, thus
        ! the litter flux has already been counted since it captured
@@ -2505,11 +2640,18 @@ contains
        root_fines_tot =  dead_n * (fnrt_m + &
             store_m*(1._r8-EDPftvarcon_inst%allom_frbstor_repro(pft)) )
 
+       litt%snag_in(dl_sf) = litt%snag_in(dl_sf) + &                  ![JStenzel added] All leaf/repro c from non-logging goes IN to snag leaf pool
+           (leaf_m+repro_m) * ( dead_n_natural )
+       ![JStenzel added]
+       !?flux_diags%snag_input(dl_sf) = flux_diags%snag_input(dl_sf) + (leaf_m+repro_m) * &
+         !?   ( dead_n_natural )
+
        do dcmpy=1,ndcmpy
 
           dcmpy_frac = GetDecompyFrac(pft,leaf_organ,dcmpy)
           litt%leaf_fines_in(dcmpy) = litt%leaf_fines_in(dcmpy) + &
-               (leaf_m+repro_m) * dead_n * dcmpy_frac
+               (leaf_m+repro_m) * ( dead_n_dlogging + dead_n_ilogging ) * dcmpy_frac   ! [JStenzel edit] from "x (dead_n)"" ; only logged tree leaves immediately reach the ground.
+
 
           dcmpy_frac = GetDecompyFrac(pft,fnrt_organ,dcmpy)
           do ilyr = 1, numlevsoil
@@ -2565,23 +2707,55 @@ contains
 
              ! Add AG wood to litter from indirect anthro sources
 
-             litt%ag_cwd_in(c) = litt%ag_cwd_in(c) + (struct_m + sapw_m) * &
-                  SF_val_CWD_frac(c) * (dead_n_natural+dead_n_ilogging)  * &
+             litt%snag_in(c) = litt%snag_in(c) + (struct_m + sapw_m) * &    ![JStenzel] Now, add natural dead boles to litter% snag pools
+                  SF_val_CWD_frac(c) * (dead_n_natural)  * &
                   prt_params%allom_agb_frac(pft)
 
-             flux_diags%cwd_ag_input(c)  = flux_diags%cwd_ag_input(c) + &
-                  SF_val_CWD_frac(c) * (dead_n_natural+dead_n_ilogging) * &
-                  currentPatch%area * prt_params%allom_agb_frac(pft)
-
-          else
-
-             litt%ag_cwd_in(c) = litt%ag_cwd_in(c) + (struct_m + sapw_m) * &
-                  SF_val_CWD_frac(c) * dead_n  * &
+             litt%ag_cwd_in(c) = litt%ag_cwd_in(c) + (struct_m + sapw_m) * &   ![JStenzel] Now, only add logging indirect dead boles to cwd ("knocked over")
+                  SF_val_CWD_frac(c) * (dead_n_ilogging)  * &
                   prt_params%allom_agb_frac(pft)
+
+
+             !litt%ag_cwd_in(c) = litt%ag_cwd_in(c) + (struct_m + sapw_m) * &
+               !   SF_val_CWD_frac(c) * (dead_n_natural+dead_n_ilogging)  * &
+               !   prt_params%allom_agb_frac(pft)
+
+             !flux_diags%cwd_ag_input(c)  = flux_diags%cwd_ag_input(c) + &
+               !   SF_val_CWD_frac(c) * (dead_n_ilogging) * &  ![JStenzel] Now, only logging indirect inputs
+               !   currentPatch%area * prt_params%allom_agb_frac(pft)
+
+               ![Jstenzel reverted ] cwd diags will now include inputs to snag pools because snags are not indexed by pft
+            flux_diags%cwd_ag_input(c)  = flux_diags%cwd_ag_input(c) + &
+                 SF_val_CWD_frac(c) * (dead_n_natural+dead_n_ilogging) * &
+                 currentPatch%area * prt_params%allom_agb_frac(pft)
+
+         else
+
+             !litt%ag_cwd_in(c) = litt%ag_cwd_in(c) + (struct_m + sapw_m) * &
+               !   SF_val_CWD_frac(c) * dead_n  * &
+               !   prt_params%allom_agb_frac(pft)
 
              flux_diags%cwd_ag_input(c)  = flux_diags%cwd_ag_input(c) + &
                   SF_val_CWD_frac(c) * dead_n * (struct_m + sapw_m) * &
                   currentPatch%area * prt_params%allom_agb_frac(pft)
+
+            ![JStenzel reverted] Note: flux_diags%cwd_input will encompass total inputs to the combined snag/cwd pool, as these are the 2 destinations for dying tree wood. Outputs will only be outputs from thw cwd pool, as no mass is entering the soil directly from snag pools.
+            ! flux_diags%cwd_ag_input(c)  = flux_diags%cwd_ag_input(c) + &
+            !      SF_val_CWD_frac(c) * (dead_n_ilogging + dead_n_dlogging) * (struct_m + sapw_m) * &
+            !      currentPatch%area * prt_params%allom_agb_frac(pft)
+
+            ! [JStenzel replace] Despite comments, dead_n_natural should include overstory trees IF  'fates_mort_disturb_frac' = 0
+             litt%ag_cwd_in(c) = litt%ag_cwd_in(c) + (struct_m + sapw_m) * &
+                  SF_val_CWD_frac(c) * (dead_n_ilogging + dead_n_dlogging)  * &  ![JStenzel] Now, only harvest-killed non-boles got to cwd
+                  prt_params%allom_agb_frac(pft)
+
+             litt%snag_in(c) = litt%snag_in(c) + (struct_m + sapw_m) * &    ![JStenzel] Now, add natural dead non-boles go to snag pools
+                  SF_val_CWD_frac(c) * (dead_n_natural)  * &
+                  prt_params%allom_agb_frac(pft)
+             ![JStenzel added]
+             !?flux_diags%snag_input(c) = flux_diags%snag_input(c) + SF_val_CWD_frac(c) * &
+                  !?(dead_n_natural) * (struct_m + sapw_m) * currentPatch%area * &
+                   !?prt_params%allom_agb_frac(pft)
 
           end if
 
@@ -2628,6 +2802,20 @@ contains
 
        currentCohort => currentCohort%taller
     enddo  ! end loop over cohorts
+
+    ! [Jstenzel reverted] cwd_ag_input that goes to snags is now counted at tree death, not after snag fall.
+    !do c= 1,ncwd
+      !flux_diags%cwd_ag_input(c)  = flux_diags%cwd_ag_input(c) + &
+      !      litt%snag_frag(c) * currentPatch%area
+    !
+    !end do
+
+    !do dcmpy=1,ndcmpy   ![ JStenzel reverted]  snag_frac(dl_sf) is now being added in PreDisturbanceIntergrateLitter to not mix fluxes
+
+      !dcmpy_frac = GetDecompyFrac(pft,leaf_organ,dcmpy)
+      !litt%leaf_fines_in(dcmpy) = litt%leaf_fines_in(dcmpy) + &
+         !  litt%snag_frag(dl_sf) * dcmpy_frac
+   ! end do
 
 
     return
@@ -2711,17 +2899,18 @@ contains
 
   ! ============================================================================
 
-  subroutine CWDOut( litt, fragmentation_scaler, nlev_eff_decomp )
+  subroutine CWDOut( litt, fragmentation_scaler, nlev_eff_decomp) ![JStenzel reverted] removed 'currentSite' argument
     !
     ! !DESCRIPTION:
     ! Simple CWD fragmentation Model
     ! spawn new cohorts of juveniles of each PFT
     !
     ! !USES:
-    use SFParamsMod, only : SF_val_max_decomp
+    use SFParamsMod, only : SF_val_max_decomp , SF_val_ag_dead_fallrate ![JStenzel add]
 
     !
     ! !ARGUMENTS
+    !?type(ed_site_type), intent(in), target     :: currentSite !!!![JStenzel reverted]
     type(litter_type),intent(inout),target     :: litt
     real(r8),intent(in)                        :: fragmentation_scaler(:)
 
@@ -2736,14 +2925,26 @@ contains
     integer :: ilyr                    ! Soil layer index
     integer :: dcmpy                   ! Decomposibility pool indexer
     integer :: soil_layer_index = 1    ! Soil layer index associated with above ground litter
+    ![JStenzel added]
+    !?type(site_fluxdiags_type), pointer :: flux_diags
+    !?integer  :: element_id        ! element id consistent with parteh/PRTGenericMod.F90
     !----------------------------------------------------------------------
 
+    !?element_id = litt%element_id
+    !?flux_diags => currentSite%flux_diags(element_pos(element_id))
 
     ! Above ground litters are associated with the top soil layer temperature and
     ! moisture scalars and fragmentation scalar associated with specified index value
     ! is used for ag_cwd_frag and root_fines_frag calculations.
 
     do c = 1,ncwd
+       ![JStenzel added] Snag fall ("frag") variables
+       litt%snag_frag(c) = litt%snag(c) * SF_val_ag_dead_fallrate(c) * &
+            years_per_day * fragmentation_scaler(soil_layer_index)
+
+      !? flux_diags%snag_fall(c) = flux_diags%snag_fall(c) + litt%snag(c) * &
+      !?      SF_val_ag_dead_fallrate(c) * years_per_day * fragmentation_scaler(soil_layer_index)
+
 
        litt%ag_cwd_frag(c)   = litt%ag_cwd(c) * SF_val_max_decomp(c) * &
              years_per_day * fragmentation_scaler(soil_layer_index)
@@ -2753,6 +2954,13 @@ contains
                 years_per_day * fragmentation_scaler(ilyr)
        enddo
     end do
+
+    ![Jstenzel] Snag leaf-fall to cwd pool
+    litt%snag_frag(dl_sf) = litt%snag(dl_sf) * SF_val_ag_dead_fallrate(dl_sf) * &
+         years_per_day * fragmentation_scaler(soil_layer_index)
+
+    !?flux_diags%snag_fall(dl_sf) = flux_diags%snag_fall(dl_sf) + litt%snag(dl_sf) * &
+      !?  SF_val_ag_dead_fallrate(dl_sf) * years_per_day * fragmentation_scaler(soil_layer_index)
 
     ! this is the rate at which dropped leaves stop being part of the burnable pool
     ! and begin to be part of the decomposing pool. This should probably be highly
@@ -2771,16 +2979,16 @@ contains
     enddo
 
   end subroutine CWDOut
-  
+
   subroutine UpdateRecruitL2FR(csite)
-    
+
 
     ! When CNP is active, the l2fr (target leaf to fine-root biomass multiplier)
     ! is dynamic. We therefore update what the l2fr for recruits
     ! are, taking an exponential moving average of all plants that
     ! are within recruit size limitations (less than recruit size + delta)
     ! and less than the max_count cohort.
-    
+
     type(ed_site_type) :: csite
     type(ed_patch_type), pointer :: cpatch
     type(ed_cohort_type), pointer :: ccohort
@@ -2794,11 +3002,11 @@ contains
     real(r8), parameter :: max_delta = 5.0_r8  ! dbh tolerance, cm, consituting a recruit
     real(r8), parameter :: smth_wgt = 1._r8/300.0_r8
     integer, parameter :: max_count = 3
-    
+
     ! Difference in dbh (cm) to consider a plant was recruited fairly recently
 
     if(hlm_parteh_mode .ne. prt_cnp_flex_allom_hyp) return
-    
+
     rec_n(1:numpft,1:nclmax) = 0._r8
     rec_l2fr0(1:numpft,1:nclmax) = 0._r8
 
@@ -2806,7 +3014,7 @@ contains
     do while(associated(cpatch))
 
        rec_count(1:numpft,1:nclmax) = 0
-       
+
        ccohort => cpatch%shortest
        cloop: do while(associated(ccohort))
 
@@ -2855,16 +3063,16 @@ contains
     integer  :: ft                       ! functional type index
     integer  :: cl                       ! canopy layer index
     real(r8) :: rec_l2fr_pft             ! Actual l2fr of a pft in it's patch
-    
+
     ! Update the total plant stoichiometry of a new recruit, based on the updated
     ! L2FR values
 
     if(hlm_parteh_mode .ne. prt_cnp_flex_allom_hyp) return
-    
+
     cpatch => csite%youngest_patch
     do while(associated(cpatch))
        cl = cpatch%ncl_p
-       
+
        do ft = 1,numpft
           rec_l2fr_pft = csite%rec_l2fr(ft,cl)
           cpatch%nitr_repro_stoich(ft) = &
@@ -2880,15 +3088,15 @@ contains
           ccohort%pc_repro = NewRecruitTotalStoichiometry(ccohort%pft,rec_l2fr_pft,phosphorus_element)
           ccohort => ccohort%taller
        end do cloop
-       
+
        cpatch => cpatch%older
     end do
-       
+
     return
   end subroutine UpdateRecruitStoich
 
   ! ======================================================================
-  
+
   subroutine SetRecruitL2FR(csite)
 
 
@@ -2896,9 +3104,9 @@ contains
     type(ed_patch_type), pointer :: cpatch
     type(ed_cohort_type), pointer :: ccohort
     integer :: ft,cl
-    
+
     if(hlm_parteh_mode .ne. prt_cnp_flex_allom_hyp) return
-    
+
     cpatch => csite%youngest_patch
     do while(associated(cpatch))
        ccohort => cpatch%shortest
@@ -2915,8 +3123,8 @@ contains
 
        cpatch => cpatch%older
     end do
-    
+
     return
   end subroutine SetRecruitL2FR
-  
+
 end module EDPhysiologyMod

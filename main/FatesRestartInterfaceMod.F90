@@ -40,7 +40,7 @@ module FatesRestartInterfaceMod
   use FatesInterfaceTypesMod,       only : nlevsclass
   use FatesInterfaceTypesMod,  only : nlevdamage
   use FatesLitterMod,          only : litter_type
-  use FatesLitterMod,          only : ncwd
+  use FatesLitterMod,          only : ncwd, nsnag
   use FatesLitterMod,          only : ndcmpy
   use EDTypesMod,              only : nfsc, nlevleaf, area
   use PRTGenericMod,           only : prt_global
@@ -115,7 +115,7 @@ module FatesRestartInterfaceMod
   integer :: ir_daily_p_uptake_co
   integer :: ir_daily_n_demand_co
   integer :: ir_daily_p_demand_co
-  
+
   integer :: ir_size_class_lasttimestep_co
   integer :: ir_dbh_co
   integer :: ir_coage_co
@@ -133,6 +133,7 @@ module FatesRestartInterfaceMod
   integer :: ir_hmort_co
   integer :: ir_cmort_co
   integer :: ir_frmort_co
+  integer :: ir_heatmort_co
   integer :: ir_smort_co
   integer :: ir_asmort_co
   integer :: ir_dgmort_co
@@ -158,10 +159,12 @@ module FatesRestartInterfaceMod
   ! Running Means
   integer :: ir_tveg24_pa
   integer :: ir_tveglpa_pa
+  integer :: ir_tveg24_min_pa    ![JStenzel]
+  integer :: ir_tveg24_max_pa
 
   !  (Keeping as an example)
   !!integer :: ir_tveglpa_co
-  
+
   integer :: ir_ddbhdt_co
   integer :: ir_resp_tstep_co
   integer :: ir_pft_co
@@ -170,6 +173,7 @@ module FatesRestartInterfaceMod
 
   ! Litter
   integer :: ir_agcwd_litt
+  integer :: ir_snag_litt   ![JStenzel add]
   integer :: ir_bgcwd_litt
   integer :: ir_leaf_litt
   integer :: ir_fnrt_litt
@@ -177,10 +181,16 @@ module FatesRestartInterfaceMod
   integer :: ir_seedgerm_litt
   integer :: ir_seed_decay_litt
   integer :: ir_seedgerm_decay_litt
+  ! [JStenzel added]
+  integer :: ir_seed_kill_litt !!!!
+  integer :: ir_seedgerm_kill_litt !!!!
+  integer :: ir_seed_in_planted_litt!!!!
+
   integer :: ir_seed_prod_co
   integer :: ir_livegrass_pa
   integer :: ir_age_pa
   integer :: ir_area_pa
+  integer :: ir_spread_pa   ![JStenzel add]
   integer :: ir_agesinceanthrodist_pa
   integer :: ir_patchdistturbcat_pa
   integer :: ir_nocomp_pft_label_pa
@@ -189,6 +199,7 @@ module FatesRestartInterfaceMod
   ! with nutrient dynamics on, restarting
   ! mid-day
   integer :: ir_agcwd_frag_litt
+  integer :: ir_snag_frag_litt   ![JStenzel add]
   integer :: ir_bgcwd_frag_litt
   integer :: ir_lfines_frag_litt
   integer :: ir_rfines_frag_litt
@@ -205,6 +216,7 @@ module FatesRestartInterfaceMod
   integer :: ir_recrate_sift
   integer :: ir_use_this_pft_sift
   integer :: ir_area_pft_sift
+  integer :: ir_fire_scalar_si           ![JStenzel add]
   integer :: ir_fmortrate_cano_siscpf
   integer :: ir_fmortrate_usto_siscpf
   integer :: ir_imortrate_siscpf
@@ -231,6 +243,11 @@ module FatesRestartInterfaceMod
 
   integer :: ir_cwdagin_flxdg
   integer :: ir_cwdbgin_flxdg
+  ![JStenzel added]
+  !?integer :: ir_snagin_flxdg
+  !?integer :: ir_snagfall_flxdg
+  !?integer :: ir_snagburn_flxdg
+
   integer :: ir_leaflittin_flxdg
   integer :: ir_rootlittin_flxdg
   integer :: ir_oldstock_mbal
@@ -686,6 +703,10 @@ contains
          units='kgC/m2', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_trunk_product_si )
 
+    call this%set_restart_var(vname='fates_fire_scalar_site', vtype=site_r8, &     ![JStenzel add]
+         long_name='Fates fire duration scalar', &
+         units='unitless', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_fire_scalar_si )
 
     ! -----------------------------------------------------------------------------------
     ! Variables stored within cohort vectors
@@ -731,7 +752,7 @@ contains
     call this%set_restart_var(vname='fates_crowndamage', vtype=cohort_int, &
          long_name='ed cohort - crowndamage class', units='unitless', flushval = flushinvalid, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_crowndamage_co )
-    
+
     call this%set_restart_var(vname='fates_canopy_trim', vtype=cohort_r8, &
          long_name='ed cohort - canopy_trim', units='fraction', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_canopy_trim_co )
@@ -741,7 +762,7 @@ contains
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_l2fr_co )
 
     if(hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
-    
+
        call this%set_restart_var(vname='fates_cx_int', vtype=cohort_r8, &
             long_name='ed cohort - emacx', units='fraction', flushval = flushzero, &
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cx_int_co )
@@ -749,11 +770,11 @@ contains
        call this%set_restart_var(vname='fates_emadcxdt', vtype=cohort_r8, &
             long_name='ed cohort - emadcxdt', units='fraction', flushval = flushzero, &
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_emadcxdt_co )
-       
+
        call this%set_restart_var(vname='fates_cx0', vtype=cohort_r8, &
             long_name='ed cohort - cx0', units='fraction', flushval = flushzero, &
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cx0_co )
-       
+
        call this%set_restart_var(vname='fates_cnplimiter', vtype=cohort_r8, &
             long_name='ed cohort - cnp limiter index', units='index', flushval = flushzero, &
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cnplimiter_co )
@@ -762,34 +783,34 @@ contains
             long_name='fates cohort- daily ammonium [NH4] uptake', &
             units='kg/plant/day', flushval = flushzero, &
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_daily_nh4_uptake_co )
-       
+
        call this%set_restart_var(vname='fates_daily_no3_uptake', vtype=cohort_r8, &
             long_name='fates cohort- daily ammonium [NO3] uptake', &
             units='kg/plant/day', flushval = flushzero, &
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_daily_no3_uptake_co )
-       
+
        call this%set_restart_var(vname='fates_daily_n_fixation', vtype=cohort_r8, &
             long_name='fates cohort- daily N symbiotic fixation', &
             units='kg/plant/day', flushval = flushzero, &
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_daily_n_fixation_co )
-       
+
        call this%set_restart_var(vname='fates_daily_p_uptake', vtype=cohort_r8, &
             long_name='fates cohort- daily phosphorus uptake', &
             units='kg/plant/day', flushval = flushzero, &
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_daily_p_uptake_co )
-       
+
        call this%set_restart_var(vname='fates_daily_p_demand', vtype=cohort_r8, &
             long_name='fates cohort- daily phosphorus demand', &
             units='kgP/plant/day', flushval = flushzero, &
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_daily_p_demand_co )
-       
+
        call this%set_restart_var(vname='fates_daily_n_demand', vtype=cohort_r8, &
             long_name='fates cohort- daily nitrogen demand', &
             units='kgN/plant/day', flushval = flushzero, &
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_daily_n_demand_co )
-       
+
     end if
-       
+
     call this%set_restart_var(vname='fates_size_class_lasttimestep', vtype=cohort_int, &
          long_name='ed cohort - size-class last timestep', units='index', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_size_class_lasttimestep_co )
@@ -868,6 +889,11 @@ contains
          units='/year', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_frmort_co )
 
+    call this%set_restart_var(vname='fates_heatmort', vtype=cohort_r8, &
+         long_name='ed cohort - max heat mortality rate', &
+         units='/year', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_heatmort_co )
+
     call this%set_restart_var(vname='fates_smort', vtype=cohort_r8, &
          long_name='ed cohort - senescence mortality rate', &
          units='/year', flushval = flushzero, &
@@ -880,7 +906,7 @@ contains
 
     call this%set_restart_var(vname='fates_dgmort', vtype=cohort_r8, &
          long_name='ed cohort - damage mortality rate', &
-         units = '/year', flushval = flushzero, & 
+         units = '/year', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_dgmort_co )
 
     call this%set_restart_var(vname='fates_lmort_direct', vtype=cohort_r8, &
@@ -979,6 +1005,11 @@ contains
          long_name='scorch height', units='m', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_litter_moisture_pa_nfsc)
 
+    call this%set_restart_var(vname='fates_patch_spread', vtype=cohort_r8, &
+         long_name='canopy spread of the patch', units='fraction', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_spread_pa )
+
+
     ! Site Level Diagnostics over multiple nutrients
 
 
@@ -988,6 +1019,11 @@ contains
             long_name_base='above ground CWD',  &
             units='kg/m2', veclength=num_elements, flushval = flushzero, &
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_agcwd_litt)
+
+    call this%RegisterCohortVector(symbol_base='fates_snag', vtype=cohort_r8, &   ![JStenzel add]
+            long_name_base='snag wood',  &
+            units='kg/m2', veclength=num_elements, flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_snag_litt)
 
     call this%RegisterCohortVector(symbol_base='fates_bg_cwd', vtype=cohort_r8, &
             long_name_base='below ground CWD',  &
@@ -1025,6 +1061,28 @@ contains
            units='kg/m2', veclength=num_elements, flushval = flushzero, &
            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_seedgerm_decay_litt)
 
+! [ JStenzel added x 4] !!!!
+    call this%RegisterCohortVector(symbol_base='fates_seed_kill_frag', vtype=cohort_r8, &
+           long_name_base='seed bank kill fragmentation flux (non-germinated)',  &
+           units='kg/m2', veclength=num_elements, flushval = flushzero, &
+           hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_seed_kill_litt)
+
+    call this%RegisterCohortVector(symbol_base='fates_seedgerm_kill_frag', vtype=cohort_r8, &
+           long_name_base='seed bank kill fragmentation flux (germinated)',  &
+           units='kg/m2', veclength=num_elements, flushval = flushzero, &
+           hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_seedgerm_kill_litt)
+
+    call this%RegisterCohortVector(symbol_base='fates_seed_in_planted', vtype=cohort_r8, & !!!!!!!!naming convention?
+           long_name_base='seed bank fragmentation flux (germinated)',  &
+           units='kg/m2', veclength=num_elements, flushval = flushzero, &
+           hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_seed_in_planted_litt)
+
+    call this%RegisterCohortVector(symbol_base='fates_snag_frag', vtype=cohort_r8, &
+           long_name_base='above ground snag fall flux',  &
+           units='kg/m2/day', veclength=num_elements, flushval = flushzero, &
+           hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_snag_frag_litt)
+! [JStenzel end]
+
     call this%RegisterCohortVector(symbol_base='fates_ag_cwd_frag', vtype=cohort_r8, &
             long_name_base='above ground CWD frag flux',  &
             units='kg/m2/day', veclength=num_elements, flushval = flushzero, &
@@ -1058,6 +1116,24 @@ contains
             units='kg/ha', veclength=num_elements, flushval = flushzero, &
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cwdbgin_flxdg)
 
+    ![JStenzel added]
+    !?call this%RegisterCohortVector(symbol_base='fates_snagin', vtype=cohort_r8, &
+         !?   long_name_base='Input flux of snag', &
+         !?   units='kg/ha', veclength=num_elements, flushval = flushzero, &
+         !?   hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_snagin_flxdg)
+
+    ![JStenzel added]
+    !?call this%RegisterCohortVector(symbol_base='fates_snagfall', vtype=cohort_r8, &
+            !?long_name_base='Fall flux of snag', &
+         !?   units='kg/ha', veclength=num_elements, flushval = flushzero, &
+         !?   hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_snagfall_flxdg)
+
+    ![JStenzel added]
+    !?call this%RegisterCohortVector(symbol_base='fates_snagburn', vtype=cohort_r8, &
+         !?   long_name_base='Combustion flux of snag', &
+         !?   units='kg/ha', veclength=num_elements, flushval = flushzero, &
+         !?   hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_snagburn_flxdg)
+
     call this%RegisterCohortVector(symbol_base='fates_leaflittin', vtype=cohort_r8, &
             long_name_base='Input flux of leaf litter', &
             units='kg/ha', veclength=num_elements, flushval = flushzero, &
@@ -1084,7 +1160,7 @@ contains
          long_name_base='Current wood product flux', &
          units='kg/m2/day', veclength=num_elements, flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_woodprod_mbal)
-    
+
     ! Only register satellite phenology related restart variables if it is turned on!
 
     if(hlm_use_sp .eq. itrue) then
@@ -1184,7 +1260,7 @@ contains
          long_name='site-level mean recruit l2frs, by pft x canopy layer', &
          units='-', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_recl2fr_sipfcl)
-    
+
     call this%set_restart_var(vname='fates_water_memory', vtype=cohort_r8, &
          long_name='last 10 days of volumetric soil water, by site x day-index', &
          units='m3/m3', flushval = flushzero, &
@@ -1224,7 +1300,7 @@ contains
          long_name='fates diagnostics on impact mortality', &
          units='indiv/ha/year', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_imortrate_siscpf)
-    
+
     call this%set_restart_var(vname='fates_fmortrate_crown', vtype=cohort_r8, &
          long_name='fates diagnostics on crown fire mortality', &
          units='indiv/ha/year', flushval = flushzero, &
@@ -1365,7 +1441,7 @@ contains
          long_name='biomass of indivs killed due to fire mort by damage class', &
          units='kgC/ha/day', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_fmortcflux_cano_sicdsc)
-    
+
     call this%set_restart_var(vname='fates_fmortcflux_usto_dam', vtype=cohort_r8, &
          long_name='biomass of indivs killed due to fire mort by damage class', &
          units='kgC/ha/day', flushval = flushzero, &
@@ -1385,6 +1461,16 @@ contains
         long_name='24-hour patch veg temp', &
         units='K', initialize=initialize_variables,ivar=ivar, index = ir_tveg24_pa)
 
+! [Jstenzel]
+   call this%DefineRMeanRestartVar(vname='fates_tveg24_min_patch',vtype=cohort_r8, &
+        long_name='24-hour min patch veg temp', &
+        units='K', initialize=initialize_variables,ivar=ivar, index = ir_tveg24_min_pa)
+
+! [Jstenzel]
+   call this%DefineRMeanRestartVar(vname='fates_tveg24_max_patch',vtype=cohort_r8, &
+        long_name='24-hour max patch veg temp', &
+        units='K', initialize=initialize_variables,ivar=ivar, index = ir_tveg24_max_pa)
+
    call this%DefineRMeanRestartVar(vname='fates_tveglpapatch',vtype=cohort_r8, &
         long_name='running average (EMA) of patch veg temp for photo acclim', &
         units='K', initialize=initialize_variables,ivar=ivar, index = ir_tveglpa_pa)
@@ -1393,7 +1479,7 @@ contains
    !call this%DefineRMeanRestartVar(vname='fates_tveglpacohort',vtype=cohort_r8, &
    !     long_name='running average (EMA) of cohort veg temp for photo acclim', &
    !     units='K', initialize=initialize_variables,ivar=ivar, index = ir_tveglpa_co)
-   
+
 
     ! Register all of the PRT states and fluxes
 
@@ -1408,7 +1494,7 @@ contains
  end subroutine define_restart_vars
 
  ! =====================================================================================
- 
+
  subroutine DefineRMeanRestartVar(this,vname,vtype,long_name,units,initialize,ivar,index)
 
    class(fates_restart_interface_type) :: this
@@ -1421,7 +1507,7 @@ contains
    integer,intent(inout)        :: index
 
    integer :: dummy_index
-   
+
    call this%set_restart_var(vname= trim(vname)//'_cmean', vtype=vtype, &
         long_name=long_name//' current mean', &
         units=units, flushval = flushzero, &
@@ -1431,59 +1517,59 @@ contains
         long_name=long_name//' latest mean', &
         units=units, flushval = flushzero, &
         hlms='CLM:ALM', initialize=initialize, ivar=ivar, index = dummy_index )
-   
+
    call this%set_restart_var(vname= trim(vname)//'_cindex', vtype=vtype, &
         long_name=long_name//' index', &
         units='index', flushval = flushzero, &
         hlms='CLM:ALM', initialize=initialize, ivar=ivar, index = dummy_index )
 
-   
+
    return
  end subroutine DefineRMeanRestartVar
 
 
  ! =====================================================================================
-  
+
   subroutine GetRMeanRestartVar(this, rmean_var, ir_var_index, position_index)
-    
+
     class(fates_restart_interface_type) , intent(inout) :: this
     class(rmean_type), intent(inout) :: rmean_var
 
     integer,intent(in)     :: ir_var_index
     integer,intent(in)     :: position_index
-    
+
     integer :: i_pos              ! vector position loop index
     integer :: ir_pos_var         ! global variable index
 
 
     rmean_var%c_mean  = this%rvars(ir_var_index)%r81d(position_index)
-     
+
     rmean_var%l_mean  = this%rvars(ir_var_index+1)%r81d(position_index)
-    
+
     rmean_var%c_index = nint(this%rvars(ir_var_index+2)%r81d(position_index))
-    
+
     return
   end subroutine GetRMeanRestartVar
 
   ! =======================================================================================
-  
+
   subroutine SetRMeanRestartVar(this, rmean_var, ir_var_index, position_index)
-    
+
     class(fates_restart_interface_type) , intent(inout) :: this
     class(rmean_type), intent(inout) :: rmean_var
 
     integer,intent(in)     :: ir_var_index
     integer,intent(in)     :: position_index
-    
+
     integer :: i_pos              ! vector position loop index
     integer :: ir_pos_var         ! global variable index
 
     this%rvars(ir_var_index)%r81d(position_index) = rmean_var%c_mean
-     
+
     this%rvars(ir_var_index+1)%r81d(position_index) = rmean_var%l_mean
-    
+
     this%rvars(ir_var_index+2)%r81d(position_index) = real(rmean_var%c_index,r8)
-    
+
     return
   end subroutine SetRMeanRestartVar
 
@@ -1677,7 +1763,7 @@ contains
     end do
 
   end subroutine RegisterCohortVector
-  
+
   ! =====================================================================================
 
   subroutine GetCohortRealVector(this, state_vector, len_state_vector, &
@@ -1837,6 +1923,11 @@ contains
     integer  :: io_idx_si_pft  ! each site-pft index
     integer  :: io_idx_si_vtmem ! indices for veg-temp memory at site
     integer  :: io_idx_pa_ncl   ! each canopy layer within each patch
+    integer  :: io_idx_pa_nsnag  ! each patch-nsnag index  ![JStenzel add]
+
+    ![JStenzel added]
+    !?integer  :: io_idx_si_nsnag  ! each site-nsnag index
+
 
     ! Some counters (for checking mostly)
     integer  :: totalcohorts   ! total cohort count on this thread (diagnostic)
@@ -1859,7 +1950,7 @@ contains
     integer  :: i_cdam           ! loop counter for damage
     integer  :: icdi             ! loop counter for damage
     integer  :: icdj             ! loop counter for damage
-    
+
     type(fates_restart_variable_type) :: rvar
     type(ed_patch_type),pointer  :: cpatch
     type(ed_cohort_type),pointer :: ccohort
@@ -1879,6 +1970,7 @@ contains
            rio_gdd_si                  => this%rvars(ir_gdd_si)%r81d, &
            rio_snow_depth_si           => this%rvars(ir_snow_depth_si)%r81d, &
            rio_trunk_product_si        => this%rvars(ir_trunk_product_si)%r81d, &
+           rio_fire_scalar_si          => this%rvars(ir_fire_scalar_si)%r81d, &    ![JStenzel add]
            rio_ncohort_pa              => this%rvars(ir_ncohort_pa)%int1d, &
            rio_fcansno_pa              => this%rvars(ir_fcansno_pa)%r81d, &
            rio_solar_zenith_flag_pa    => this%rvars(ir_solar_zenith_flag_pa)%int1d, &
@@ -1909,6 +2001,7 @@ contains
            rio_asmort_co               => this%rvars(ir_asmort_co)%r81d, &
            rio_dgmort_co               => this%rvars(ir_dgmort_co)%r81d, &
            rio_frmort_co               => this%rvars(ir_frmort_co)%r81d, &
+           rio_heatmort_co             => this%rvars(ir_heatmort_co)%r81d, &
            rio_lmort_direct_co         => this%rvars(ir_lmort_direct_co)%r81d, &
            rio_lmort_collateral_co     => this%rvars(ir_lmort_collateral_co)%r81d, &
            rio_lmort_infra_co          => this%rvars(ir_lmort_infra_co)%r81d, &
@@ -1923,6 +2016,7 @@ contains
            rio_livegrass_pa            => this%rvars(ir_livegrass_pa)%r81d, &
            rio_age_pa                  => this%rvars(ir_age_pa)%r81d, &
            rio_patchdistturbcat_pa     => this%rvars(ir_patchdistturbcat_pa)%int1d, &
+           rio_spread_pa               => this%rvars(ir_spread_pa)%r81d, &              ![JStenzel]
            rio_agesinceanthrodist_pa   => this%rvars(ir_agesinceanthrodist_pa)%r81d, &
            rio_nocomp_pft_label_pa     => this%rvars(ir_nocomp_pft_label_pa)%int1d, &
            rio_area_pa                 => this%rvars(ir_area_pa)%r81d, &
@@ -1944,7 +2038,7 @@ contains
            rio_promrate_sisc           => this%rvars(ir_promrate_sisc)%r81d, &
            rio_termcarea_cano_si       => this%rvars(ir_termcarea_cano_si)%r81d, &
            rio_termcarea_usto_si       => this%rvars(ir_termcarea_usto_si)%r81d, &
-           
+
            rio_imortcarea_si           => this%rvars(ir_imortcarea_si)%r81d, &
            rio_fmortcarea_cano_si      => this%rvars(ir_fmortcarea_cano_si)%r81d, &
            rio_fmortcarea_usto_si      => this%rvars(ir_fmortcarea_usto_si)%r81d, &
@@ -1967,7 +2061,7 @@ contains
            rio_fmortcflux_usto_sicdsc  => this%rvars(ir_fmortcflux_usto_sicdsc)%r81d, &
            rio_crownarea_cano_damage_si=> this%rvars(ir_crownarea_cano_si)%r81d, &
            rio_crownarea_usto_damage_si=> this%rvars(ir_crownarea_usto_si)%r81d)
-      
+
        totalCohorts = 0
 
        ! ---------------------------------------------------------------------------------
@@ -2010,6 +2104,8 @@ contains
              rio_use_this_pft_sift(io_idx_co_1st+i_pft-1)   = sites(s)%use_this_pft(i_pft)
           end do
 
+          rio_fire_scalar_si(io_idx_si) = sites(s)%fire_scalar ![JStenzel add]
+
           do i_pft = 1,numpft
              rio_area_pft_sift(io_idx_co_1st+i_pft-1)      = sites(s)%area_pft(i_pft)
           end do
@@ -2019,12 +2115,21 @@ contains
              io_idx_si_cwd = io_idx_co_1st
              io_idx_si_pft = io_idx_co_1st
              io_idx_si_scpf = io_idx_co_1st
+             !?io_idx_si_nsnag = io_idx_co_1st ![JStenzel added]
 
              do i_cwd=1,ncwd
                 this%rvars(ir_cwdagin_flxdg+el-1)%r81d(io_idx_si_cwd) = sites(s)%flux_diags(el)%cwd_ag_input(i_cwd)
                 this%rvars(ir_cwdbgin_flxdg+el-1)%r81d(io_idx_si_cwd) = sites(s)%flux_diags(el)%cwd_bg_input(i_cwd)
                 io_idx_si_cwd = io_idx_si_cwd + 1
              end do
+
+             ![JStenzel added] !!!! !!!! !!!!
+             !?do i_nsnag=1,nsnag
+               !? this%rvars(ir_snagin_flxdg+el-1)%r81d(io_idx_si_nsnag) = sites(s)%flux_diags(el)%snag_input(i_nsnag)
+                !?this%rvars(ir_snagburn_flxdg+el-1)%r81d(io_idx_si_nsnag) = sites(s)%flux_diags(el)%snag_combusted(i_nsnag)
+               !? this%rvars(ir_snagfall_flxdg+el-1)%r81d(io_idx_si_nsnag) = sites(s)%flux_diags(el)%snag_fall(i_nsnag)
+               !? io_idx_si_nsnag = io_idx_si_nsnag + 1
+             !?end do
 
              do i_pft=1,numpft
                 this%rvars(ir_leaflittin_flxdg+el-1)%r81d(io_idx_si_pft) = sites(s)%flux_diags(el)%leaf_litter_input(i_pft)
@@ -2035,7 +2140,7 @@ contains
              this%rvars(ir_oldstock_mbal+el-1)%r81d(io_idx_si) = sites(s)%mass_balance(el)%old_stock
              this%rvars(ir_errfates_mbal+el-1)%r81d(io_idx_si) = sites(s)%mass_balance(el)%err_fates
              this%rvars(ir_woodprod_mbal+el-1)%r81d(io_idx_si) = sites(s)%mass_balance(el)%wood_product
-             
+
           end do
 
 
@@ -2099,7 +2204,7 @@ contains
                 end do
 
                 rio_l2fr_co(io_idx_co)         = ccohort%l2fr
-                
+
                 if(hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
                    this%rvars(ir_cx_int_co)%r81d(io_idx_co)       = ccohort%cx_int
                    this%rvars(ir_emadcxdt_co)%r81d(io_idx_co)     = ccohort%ema_dcxdt
@@ -2131,7 +2236,7 @@ contains
                 rio_canopy_layer_yesterday_co(io_idx_co) = ccohort%canopy_layer_yesterday
                 rio_crowndamage_co(io_idx_co) = ccohort%crowndamage
                 rio_canopy_trim_co(io_idx_co)  = ccohort%canopy_trim
-                
+
                 rio_seed_prod_co(io_idx_co)    = ccohort%seed_prod
                 rio_size_class_lasttimestep(io_idx_co) = ccohort%size_class_lasttimestep
                 rio_dbh_co(io_idx_co)          = ccohort%dbh
@@ -2154,7 +2259,9 @@ contains
                 rio_smort_co(io_idx_co)        = ccohort%smort
                 rio_asmort_co(io_idx_co)       = ccohort%asmort
                 rio_dgmort_co(io_idx_co)       = ccohort%dgmort
-                rio_frmort_co(io_idx_co)       = ccohort%frmort                
+                rio_frmort_co(io_idx_co)       = ccohort%frmort
+
+                rio_heatmort_co(io_idx_co)     = ccohort%heatmort
 
 
                 !Logging
@@ -2201,11 +2308,15 @@ contains
              rio_agesinceanthrodist_pa(io_idx_co_1st) = cpatch%age_since_anthro_disturbance
              rio_nocomp_pft_label_pa(io_idx_co_1st)= cpatch%nocomp_pft_label
              rio_area_pa(io_idx_co_1st)        = cpatch%area
+             rio_spread_pa(io_idx_co_1st)   = cpatch%spread
 
              ! Patch level running means
              call this%SetRMeanRestartVar(cpatch%tveg24, ir_tveg24_pa, io_idx_co_1st)
              call this%SetRMeanRestartVar(cpatch%tveg_lpa, ir_tveglpa_pa, io_idx_co_1st)
-             
+             ! [Jstenzel]
+             call this%SetRMeanRestartVar(cpatch%tveg24_min, ir_tveg24_min_pa, io_idx_co_1st)
+             call this%SetRMeanRestartVar(cpatch%tveg24_max, ir_tveg24_max_pa, io_idx_co_1st)
+
              ! set cohorts per patch for IO
              rio_ncohort_pa( io_idx_co_1st )   = cohortsperpatch
 
@@ -2249,6 +2360,7 @@ contains
                  io_idx_pa_cwsl = io_idx_co_1st
                  io_idx_pa_dcsl = io_idx_co_1st
                  io_idx_pa_dc   = io_idx_co_1st
+                 io_idx_pa_nsnag = io_idx_co_1st ![JStenzel added]
 
                  litt => cpatch%litter(el+1)
 
@@ -2257,6 +2369,11 @@ contains
                     this%rvars(ir_seedgerm_litt+el)%r81d(io_idx_pa_pft) = litt%seed_germ(i)
                     this%rvars(ir_seed_decay_litt+el)%r81d(io_idx_pa_pft) = litt%seed_decay(i)
                     this%rvars(ir_seedgerm_decay_litt+el)%r81d(io_idx_pa_pft) = litt%seed_germ_decay(i)
+                    ! [JStenzel added]
+                    this%rvars(ir_seed_kill_litt+el)%r81d(io_idx_pa_pft) = litt%seed_kill(i) !!!!
+                    this%rvars(ir_seedgerm_kill_litt+el)%r81d(io_idx_pa_pft) = litt%seed_germ_kill(i) !!!!
+                    this%rvars(ir_seed_in_planted_litt+el)%r81d(io_idx_pa_pft) = litt%seed_in_planted(i) !!!!
+
                     io_idx_pa_pft = io_idx_pa_pft + 1
                  end do
 
@@ -2272,9 +2389,17 @@ contains
                      end do
                  end do
 
+                 do i = 1,nsnag
+                    this%rvars(ir_snag_litt+el)%r81d(io_idx_pa_nsnag) = litt%snag(i)        ![JStenzel add]
+                    this%rvars(ir_snag_frag_litt+el)%r81d(io_idx_pa_nsnag) = litt%snag_frag(i)
+
+                    io_idx_pa_nsnag = io_idx_pa_nsnag + 1
+                 end do
+
                  do i = 1,ncwd
                      this%rvars(ir_agcwd_litt+el)%r81d(io_idx_pa_cwd) = litt%ag_cwd(i)
                      this%rvars(ir_agcwd_frag_litt+el)%r81d(io_idx_pa_cwd) = litt%ag_cwd_frag(i)
+
                      io_idx_pa_cwd = io_idx_pa_cwd + 1
                      do ilyr=1,sites(s)%nlevsoil
                          this%rvars(ir_bgcwd_litt+el)%r81d(io_idx_pa_cwsl) = litt%bg_cwd(i,ilyr)
@@ -2309,6 +2434,7 @@ contains
              io_idx_pa_ib   = io_idx_co_1st
              io_idx_co      = io_idx_co_1st
              io_idx_pa_ncl  = io_idx_co_1st
+             io_idx_pa_nsnag  = io_idx_co_1st  !JStenzel
 
              if ( debug ) then
                 write(fates_log(),*) 'CLTV io_idx_co_1st ', io_idx_co_1st
@@ -2345,15 +2471,15 @@ contains
           end do
           rio_termcarea_cano_si(io_idx_si)  = sites(s)%term_crownarea_canopy
           rio_termcarea_usto_si(io_idx_si)  = sites(s)%term_crownarea_ustory
-          
+
 
           ! this only copies live portions of transitions - but that's ok because the mortality
           ! bit only needs to be added for history outputs
           if(hlm_use_tree_damage .eq. itrue) then
-             
+
              do i_scls = 1, nlevsclass
                 do i_cdam = 1, nlevdamage
-                   do i_pft = 1, numpft 
+                   do i_pft = 1, numpft
                       rio_imortrate_sicdpf(io_idx_si_cdpf)       = sites(s)%imort_rate_damage(i_cdam, i_scls, i_pft)
                       rio_termnindiv_cano_sicdpf(io_idx_si_cdpf) = sites(s)%term_nindivs_canopy_damage(i_cdam,i_scls,i_pft)
                       rio_termnindiv_usto_sicdpf(io_idx_si_cdpf) = sites(s)%term_nindivs_ustory_damage(i_cdam,i_scls,i_pft)
@@ -2372,10 +2498,10 @@ contains
 
              rio_crownarea_cano_damage_si(io_idx_si) = sites(s)%crownarea_canopy_damage
              rio_crownarea_usto_damage_si(io_idx_si) = sites(s)%crownarea_ustory_damage
-             
+
           end if
 
-          
+
           rio_democflux_si(io_idx_si)       = sites(s)%demotion_carbonflux
           rio_promcflux_si(io_idx_si)       = sites(s)%promotion_carbonflux
 
@@ -2418,7 +2544,7 @@ contains
                 io_idx_si_pfcl = io_idx_si_pfcl + 1
              end do
           end do
-          
+
           do i = 1,numWaterMem ! numWaterMem currently 10
              rio_watermem_siwm( io_idx_si_wmem ) = sites(s)%water_memory(i)
              io_idx_si_wmem = io_idx_si_wmem + 1
@@ -2563,6 +2689,7 @@ contains
                 call newp%litter(el)%InitConditions(init_leaf_fines=fates_unset_r8, &
                      init_root_fines=fates_unset_r8, &
                      init_ag_cwd=fates_unset_r8, &
+                     init_snag=fates_unset_r8, &     ![JStenzel]
                      init_bg_cwd=fates_unset_r8, &
                      init_seed=fates_unset_r8, &
                      init_seed_germ=fates_unset_r8)
@@ -2607,7 +2734,7 @@ contains
                 ! correct boundary condition fields
                 new_cohort%prt => null()
                 call InitPRTObject(new_cohort%prt)
-                
+
 
 
                 ! Allocate hydraulics arrays
@@ -2620,7 +2747,7 @@ contains
                 !allocate(new_cohort%tveg_lpa)
                 !call new_cohort%tveg_lpa%InitRMean(ema_lpa)
 
-                
+
                 ! Update the previous
                 prev_cohort => new_cohort
 
@@ -2685,7 +2812,7 @@ contains
      use EDTypesMod, only : numWaterMem
      use EDTypesMod, only : num_vegtemp_mem
      use FatesSizeAgeTypeIndicesMod, only : get_age_class_index
-     
+
      ! !ARGUMENTS:
      class(fates_restart_interface_type) , intent(inout) :: this
      integer                     , intent(in)            :: nc
@@ -2729,10 +2856,14 @@ contains
      integer  :: io_idx_si_capf ! each cohort age class x pft index within site
      integer  :: io_idx_si_cwd
      integer  :: io_idx_si_pft
-     integer  :: io_idx_si_cdsc ! each damage x size class within site 
+     integer  :: io_idx_si_cdsc ! each damage x size class within site
      integer  :: io_idx_si_cdpf ! damage x size x pft within site
-     
+
      integer  :: io_idx_pa_ncl   ! each canopy layer within each patch
+     integer  :: io_idx_pa_nsnag ! [JStenzel added] nsnag patch index
+
+     ![JStenzel added]
+     !?integer  :: io_idx_si_nsnag
 
      ! Some counters (for checking mostly)
      integer  :: totalcohorts   ! total cohort count on this thread (diagnostic)
@@ -2751,7 +2882,7 @@ contains
      integer  :: i_cacls          ! loop counter for cohort age class
      integer  :: i_cdam           ! loop counter for damage class
      integer  :: icdj             ! loop counter for damage class
-     integer  :: icdi             ! loop counter for damage class 
+     integer  :: icdi             ! loop counter for damage class
 
      associate( rio_npatch_si         => this%rvars(ir_npatch_si)%int1d, &
           rio_cd_status_si            => this%rvars(ir_cd_status_si)%int1d, &
@@ -2797,6 +2928,7 @@ contains
           rio_asmort_co               => this%rvars(ir_asmort_co)%r81d, &
           rio_dgmort_co               => this%rvars(ir_dgmort_co)%r81d, &
           rio_frmort_co               => this%rvars(ir_frmort_co)%r81d, &
+          rio_heatmort_co             => this%rvars(ir_heatmort_co)%r81d, &
           rio_lmort_direct_co         => this%rvars(ir_lmort_direct_co)%r81d, &
           rio_lmort_collateral_co     => this%rvars(ir_lmort_collateral_co)%r81d, &
           rio_lmort_infra_co          => this%rvars(ir_lmort_infra_co)%r81d, &
@@ -2811,6 +2943,8 @@ contains
           rio_livegrass_pa            => this%rvars(ir_livegrass_pa)%r81d, &
           rio_age_pa                  => this%rvars(ir_age_pa)%r81d, &
           rio_patchdistturbcat_pa     => this%rvars(ir_patchdistturbcat_pa)%int1d,  &
+          rio_spread_pa               => this%rvars(ir_spread_pa)%r81d,  &   ![JStenzel]
+          rio_fire_scalar_si          => this%rvars(ir_fire_scalar_si)%r81d,  &   ![JStenzel]
           rio_agesinceanthrodist_pa   => this%rvars(ir_agesinceanthrodist_pa)%r81d, &
           rio_nocomp_pft_label_pa     => this%rvars(ir_nocomp_pft_label_pa)%int1d, &
           rio_area_pa                 => this%rvars(ir_area_pa)%r81d, &
@@ -2879,7 +3013,7 @@ contains
           io_idx_si_cacls= io_idx_co_1st
           io_idx_si_cdsc = io_idx_co_1st
           io_idx_si_cdpf = io_idx_co_1st
-          
+
           ! read seed_bank info(site-level, but PFT-resolved)
           do i_pft = 1,numpft
              sites(s)%recruitment_rate(i_pft) = rio_recrate_sift(io_idx_co_1st+i_pft-1)
@@ -2900,18 +3034,29 @@ contains
              endif
           endif
 
+          sites(s)%fire_scalar = rio_fire_scalar_si(io_idx_si)   ![JStenzel added]
+
           ! Mass balance and diagnostics across elements at the site level
           do el = 1, num_elements
 
              io_idx_si_cwd = io_idx_co_1st
              io_idx_si_pft = io_idx_co_1st
              io_idx_si_scpf = io_idx_co_1st
+             !?io_idx_si_nsnag = io_idx_co_1st
 
              do i_cwd=1,ncwd
                 sites(s)%flux_diags(el)%cwd_ag_input(i_cwd) = this%rvars(ir_cwdagin_flxdg+el-1)%r81d(io_idx_si_cwd)
                 sites(s)%flux_diags(el)%cwd_bg_input(i_cwd) = this%rvars(ir_cwdbgin_flxdg+el-1)%r81d(io_idx_si_cwd)
                 io_idx_si_cwd = io_idx_si_cwd + 1
              end do
+
+             ![JStenzel added]
+             !?do i_nsnag,nsnag
+                !?sites(s)%flux_diags(el)%snag_input(i_nsnag) = this%rvars(ir_snagin_flxdg+el-1)%r81d(io_idx_si_nsnag)
+                !?sites(s)%flux_diags(el)%snag_fall(i_nsnag) = this%rvars(ir_snagfall_flxdg+el-1)%r81d(io_idx_si_nsnag)
+               !? sites(s)%flux_diags(el)%snag_combusted(i_nsnag) = this%rvars(ir_snagburn_flxdg+el-1)%r81d(io_idx_si_nsnag)
+               !? io_idx_si_nsnag = io_idx_si_nsnag + 1
+             !?end do
 
              do i_pft=1,numpft
                 sites(s)%flux_diags(el)%leaf_litter_input(i_pft) = this%rvars(ir_leaflittin_flxdg+el-1)%r81d(io_idx_si_pft)
@@ -3018,7 +3163,8 @@ contains
                 ccohort%dgmort       = rio_dgmort_co(io_idx_co)
                 ccohort%frmort        = rio_frmort_co(io_idx_co)
 
-                
+                ccohort%heatmort     = rio_heatmort_co(io_idx_co) ![JStenzel added]
+
 
                 !Logging
                 ccohort%lmort_direct       = rio_lmort_direct_co(io_idx_co)
@@ -3053,7 +3199,7 @@ contains
 
                 !  (Keeping as an example)
                 !call this%GetRMeanRestartVar(ccohort%tveg_lpa, ir_tveglpa_co, io_idx_co)
-                
+
                 if (hlm_use_sp .eq. itrue) then
                     ccohort%c_area = this%rvars(ir_c_area_co)%r81d(io_idx_co)
                     ccohort%treelai = this%rvars(ir_treelai_co)%r81d(io_idx_co)
@@ -3083,6 +3229,7 @@ contains
              cpatch%area               = rio_area_pa(io_idx_co_1st)
              cpatch%age_class          = get_age_class_index(cpatch%age)
              cpatch%fcansno            = rio_fcansno_pa(io_idx_co_1st)
+             cpatch%spread              = rio_spread_pa(io_idx_co_1st)
 
              ! Set zenith angle info
              cpatch%solar_zenith_flag  = ( rio_solar_zenith_flag_pa(io_idx_co_1st) .eq. itrue )
@@ -3091,7 +3238,12 @@ contains
 
              call this%GetRMeanRestartVar(cpatch%tveg24, ir_tveg24_pa, io_idx_co_1st)
              call this%GetRMeanRestartVar(cpatch%tveg_lpa, ir_tveglpa_pa, io_idx_co_1st)
-             
+
+             ! [Jstenzel]
+             call this%GetRMeanRestartVar(cpatch%tveg24_min, ir_tveg24_min_pa, io_idx_co_1st)
+             call this%GetRMeanRestartVar(cpatch%tveg24_max, ir_tveg24_max_pa, io_idx_co_1st)
+
+
              ! set cohorts per patch for IO
 
              if ( debug ) then
@@ -3124,6 +3276,7 @@ contains
                  io_idx_pa_cwsl = io_idx_co_1st
                  io_idx_pa_dcsl = io_idx_co_1st
                  io_idx_pa_dc   = io_idx_co_1st
+                 io_idx_pa_nsnag = io_idx_co_1st ![JStenzel added]
 
                  litt => cpatch%litter(el+1)
                  nlevsoil = size(litt%bg_cwd,dim=2)
@@ -3133,7 +3286,18 @@ contains
                      litt%seed_germ(i)  = this%rvars(ir_seedgerm_litt+el)%r81d(io_idx_pa_pft)
                      litt%seed_decay(i)       = this%rvars(ir_seed_decay_litt+el)%r81d(io_idx_pa_pft)
                      litt%seed_germ_decay(i)  = this%rvars(ir_seedgerm_decay_litt+el)%r81d(io_idx_pa_pft)
+                     ! [JStenzel added]
+                     litt%seed_kill(i)  = this%rvars(ir_seed_kill_litt+el)%r81d(io_idx_pa_pft) !!!!
+                     litt%seed_germ_kill(i)  = this%rvars(ir_seedgerm_kill_litt+el)%r81d(io_idx_pa_pft)!!!!
+                     litt%seed_in_planted(i)  = this%rvars(ir_seed_in_planted_litt+el)%r81d(io_idx_pa_pft) !!!!
+
                      io_idx_pa_pft      = io_idx_pa_pft + 1
+                  end do
+
+                  do i = 1,nsnag
+                     litt%snag(i) = this%rvars(ir_snag_litt+el)%r81d(io_idx_pa_nsnag)                 ![JStenzel add]
+                     litt%snag_frag(i) = this%rvars(ir_snag_frag_litt+el)%r81d(io_idx_pa_nsnag)
+                     io_idx_pa_nsnag = io_idx_pa_nsnag + 1
                   end do
 
                   do i = 1,ndcmpy
@@ -3151,6 +3315,7 @@ contains
 
                      litt%ag_cwd(i) = this%rvars(ir_agcwd_litt+el)%r81d(io_idx_pa_cwd)
                      litt%ag_cwd_frag(i) = this%rvars(ir_agcwd_frag_litt+el)%r81d(io_idx_pa_cwd)
+
                      io_idx_pa_cwd = io_idx_pa_cwd + 1
 
                      do ilyr=1,nlevsoil
@@ -3186,6 +3351,7 @@ contains
              io_idx_pa_ib   = io_idx_co_1st
              io_idx_co      = io_idx_co_1st
              io_idx_pa_ncl  = io_idx_co_1st
+             io_idx_pa_nsnag  = io_idx_co_1st !JStenel
 
              if ( debug ) then
                 write(fates_log(),*) 'CVTL io_idx_co_1st ', io_idx_co_1st
@@ -3208,7 +3374,7 @@ contains
                 io_idx_si_pfcl = io_idx_si_pfcl + 1
              end do
           end do
-          
+
           do i = 1,numWaterMem
              sites(s)%water_memory(i) = rio_watermem_siwm( io_idx_si_wmem )
              io_idx_si_wmem = io_idx_si_wmem + 1
@@ -3270,7 +3436,7 @@ contains
 
              io_idx_si_sc = io_idx_si_sc + 1
           end do
-          
+
           if (hlm_use_tree_damage .eq. itrue) then
              do i_cdam = 1, nlevdamage
                 do i_pft = 1, numpft

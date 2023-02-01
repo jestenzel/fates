@@ -31,9 +31,10 @@ module FatesConstantsMod
   integer, parameter, public :: ifalse = 0
 
   ! Labels for patch disturbance history
-  integer, parameter, public :: n_anthro_disturbance_categories = 2
+  integer, parameter, public :: n_anthro_disturbance_categories = 3  ![JStenzel changed]
   integer, parameter, public :: primaryforest = 1
   integer, parameter, public :: secondaryforest = 2
+  integer, parameter, public :: tertiaryforest = 3                   ! [ JStenzel added]
 
 
   ! Flags specifying how phosphorous uptake and turnover interacts
@@ -205,7 +206,7 @@ module FatesConstantsMod
 
   ! Approximate molar mass of water vapor to dry air (-)
   real(fates_r8), parameter, public :: molar_mass_ratio_vapdry= 0.622_fates_r8
-  
+
   ! Gravity constant on earth [m/s]
   real(fates_r8), parameter, public :: grav_earth = 9.8_fates_r8
 

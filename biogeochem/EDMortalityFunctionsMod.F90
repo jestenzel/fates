@@ -5,6 +5,7 @@ module EDMortalityFunctionsMod
   ! ============================================================================
 
    use FatesConstantsMod     , only : r8 => fates_r8
+   use FatesConstantsMod , only : tfrz => t_water_freeze_k_1atm
    use FatesGlobals          , only : fates_log
    use FatesGlobals          , only : endrun => fates_endrun
    use FatesGlobals          , only : fates_log
@@ -22,24 +23,25 @@ module EDMortalityFunctionsMod
    use FatesInterfaceTypesMod     , only : hlm_use_tree_damage
    use EDLoggingMortalityMod , only : LoggingMortality_frac
    use EDParamsMod           , only : fates_mortality_disturbance_fraction
+   use EDParamsMod           , only : temp_delay   ![JStenzel added]
 
    use PRTGenericMod,          only : carbon12_element
    use PRTGenericMod,          only : store_organ
    use shr_log_mod           , only : errMsg => shr_log_errMsg
-   
+
    implicit none
    private
-   
+
 
    logical, parameter :: debug = .false.
    character(len=*), parameter, private :: sourcefile = &
         __FILE__
-   
+
    public :: mortality_rates
    public :: Mortality_Derivative
    public :: ExemptTreefallDist
-   
-   
+
+
    ! ============================================================================
    ! 10/30/09: Created by Rosie Fisher
    ! 02/20/18: Refactored Ryan Knox
@@ -50,24 +52,25 @@ contains
 
 
 
-  subroutine mortality_rates( cohort_in,bc_in,cmort,hmort,bmort,frmort,smort,asmort,dgmort )
+  subroutine mortality_rates( cohort_in,bc_in,cmort,hmort,bmort,frmort,heatmort,smort,asmort,dgmort)
 
     ! ============================================================================
-    !  Calculate mortality rates from carbon storage, hydraulic cavitation, 
+    !  Calculate mortality rates from carbon storage, hydraulic cavitation,
     !  background and freezing and size and age dependent senescence
     ! ============================================================================
-    
+
     use FatesConstantsMod,  only : tfrz => t_water_freeze_k_1atm
-    use FatesInterfaceTypesMod        , only : hlm_hio_ignore_val   
+    use FatesInterfaceTypesMod        , only : hlm_hio_ignore_val
     use FatesConstantsMod,  only : fates_check_param_set
     use DamageMainMod,      only : GetDamageMortality
-    
-    type (ed_cohort_type), intent(in) :: cohort_in 
+
+    type (ed_cohort_type), intent(in) :: cohort_in
     type (bc_in_type), intent(in) :: bc_in
     real(r8),intent(out) :: bmort ! background mortality : Fraction per year
     real(r8),intent(out) :: cmort  ! carbon starvation mortality
     real(r8),intent(out) :: hmort  ! hydraulic failure mortality
     real(r8),intent(out) :: frmort ! freezing stress mortality
+    real(r8),intent(out) :: heatmort ! heat stress mortality
     real(r8),intent(out) :: smort  ! size dependent senescence term
     real(r8),intent(out) :: asmort ! age dependent senescence term
     real(r8),intent(out) :: dgmort ! damage dependent mortality
@@ -76,35 +79,41 @@ contains
     real(r8) :: target_leaf_c      ! target leaf biomass for the current trim status and
                                    ! damage class [kgC]
     real(r8) :: store_c
-    real(r8) :: hf_sm_threshold    ! hydraulic failure soil moisture threshold 
+    real(r8) :: hf_sm_threshold    ! hydraulic failure soil moisture threshold
     real(r8) :: hf_flc_threshold   ! hydraulic failure fractional loss of conductivity threshold
-    real(r8) :: mort_ip_size_senescence ! inflection point for increase in mortality with dbh 
+    real(r8) :: mort_ip_size_senescence ! inflection point for increase in mortality with dbh
     real(r8) :: mort_r_size_senescence  ! rate of mortality increase with dbh in senesence term
     real(r8) :: mort_ip_age_senescence ! inflection point for increase in mortality with age
-    real(r8) :: mort_r_age_senescence ! rate of mortality increase with age in senescence term 
+    real(r8) :: mort_r_age_senescence ! rate of mortality increase with age in senescence term
     real(r8) :: temp_dep_fraction  ! Temp. function (freezing mortality)
+    real(r8) :: temp_heat_fraction  ! Temp. function (heat mortality)
     real(r8) :: temp_in_C          ! Daily averaged temperature in Celcius
+    real(r8) :: temp_in_min_C      ! Daily minimum temperature in Celcius [JStenzel]
+    real(r8) :: temp_in_max_C      ! Daily maximum temperature in Celcius [JStenzel]
     real(r8) :: min_fmc_ag         ! minimum fraction of maximum conductivity for aboveground
     real(r8) :: min_fmc_tr         ! minimum fraction of maximum conductivity for transporting root
     real(r8) :: min_fmc_ar         ! minimum fraction of maximum conductivity for absorbing root
     real(r8) :: min_fmc            ! minimum fraction of maximum conductivity for whole plant
-    real(r8) :: flc                ! fractional loss of conductivity 
+    real(r8) :: flc                ! fractional loss of conductivity
+    logical :: unfrozen_soil        ![JStenzel added]
+    integer  :: j                  ![JStenzel added]
+
     real(r8), parameter :: frost_mort_buffer = 5.0_r8  ! 5deg buffer for freezing mortality
     logical, parameter :: test_zero_mortality = .false. ! Developer test which
                                                         ! may help to debug carbon imbalances
                                                         ! and the like
 
-    
-    
+
+
    ! Size Dependent Senescence
     ! rate (r) and inflection point (ip) define the increase in mortality rate with dbh
     mort_r_size_senescence = EDPftvarcon_inst%mort_r_size_senescence(cohort_in%pft)
     mort_ip_size_senescence = EDPftvarcon_inst%mort_ip_size_senescence(cohort_in%pft)
-    
+
     ! if param values have been set then calculate smort
-    if ( mort_ip_size_senescence < fates_check_param_set ) then 
+    if ( mort_ip_size_senescence < fates_check_param_set ) then
        smort = 1.0_r8 / ( 1.0_r8 + exp( -1.0_r8 * mort_r_size_senescence * &
-            (cohort_in%dbh - mort_ip_size_senescence) ) ) 
+            (cohort_in%dbh - mort_ip_size_senescence) ) )
     else
        smort = 0.0_r8
     end if
@@ -112,11 +121,28 @@ contains
     ! if param values have been set then calculate asmort
     mort_r_age_senescence = EDPftvarcon_inst%mort_r_age_senescence(cohort_in%pft)
     mort_ip_age_senescence = EDPftvarcon_inst%mort_ip_age_senescence(cohort_in%pft)
-    
+
+    ![JStenzel added] Decide if any surface layers of soil are frozen. This is meant to prevent hydraulic
+    ! failure mortality from small trees with roots in superficial layers only.
+    unfrozen_soil = .true.
+    !if ( minval( bc_in%eff_porosity_sl(1:4)/bc_in%watsat_sl(1:4) ) .lt. 0.30_r8 ) then
+      ! unfrozen_soil = .false.
+    !end if
+    do j =1,4
+       !if( (bc_in%eff_porosity_sl(j)/bc_in%watsat_sl(j)) .lt. 0.3_r8 ) then
+         ! unfrozen_soil = .false.
+       !end if
+       if ( bc_in%tempk_sl(j) .lt. tfrz-2._r8 ) then
+         unfrozen_soil = .false.
+       end if
+    end do
+
+
+
     if ( mort_ip_age_senescence < fates_check_param_set ) then
        ! Age Dependent Senescence
        ! rate and inflection point define the change in mortality with age
-       
+
        asmort = 1.0_r8 / (1.0_r8 + exp(-1.0_r8 * mort_r_age_senescence * &
             (cohort_in%coage - mort_ip_age_senescence ) ) )
     else
@@ -130,90 +156,149 @@ contains
        dgmort = 0.0_r8
     end if
 
-    
-    if (hlm_use_ed_prescribed_phys .eq. ifalse) then
 
-       ! 'Background' mortality (can vary as a function of 
-       !  density as in ED1.0 and ED2.0, but doesn't here for tractability) 
+if (hlm_use_ed_prescribed_phys .eq. ifalse) then
+
+    ! 'Background' mortality (can vary as a function of
+    !  density as in ED1.0 and ED2.0, but doesn't here for tractability)
 
        bmort = EDPftvarcon_inst%bmort(cohort_in%pft)
 
-       ! Proxy for hydraulic failure induced mortality. 
-       hf_sm_threshold = EDPftvarcon_inst%hf_sm_threshold(cohort_in%pft)
-       hf_flc_threshold = EDPftvarcon_inst%hf_flc_threshold(cohort_in%pft)
-       if(hlm_use_planthydro.eq.itrue)then
-          !note the flc is set as the fraction of max conductivity in hydro
-          min_fmc_ag = minval(cohort_in%co_hydr%ftc_ag(:))
-          min_fmc_tr = cohort_in%co_hydr%ftc_troot
-          min_fmc_ar = minval(cohort_in%co_hydr%ftc_aroot(:))
-          min_fmc = min(min_fmc_ag, min_fmc_tr)
-          min_fmc = min(min_fmc, min_fmc_ar)
-          flc = 1.0_r8-min_fmc
-          if(flc >= hf_flc_threshold .and. hf_flc_threshold < 1.0_r8 )then 
-             hmort = (flc-hf_flc_threshold)/(1.0_r8-hf_flc_threshold) * &
-                  EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)
-          else
-             hmort = 0.0_r8
-          endif
+    ! Proxy for hydraulic failure induced mortality.
+    hf_sm_threshold = EDPftvarcon_inst%hf_sm_threshold(cohort_in%pft)
+    hf_flc_threshold = EDPftvarcon_inst%hf_flc_threshold(cohort_in%pft)
+
+
+    if ( hlm_model_day > 90.0_r8 ) then         !!!![JStenzel added] temporary shutoff of hydraulic failure mortality until after temp_delay days are exceeded
+      if(hlm_use_planthydro.eq.itrue)then
+       !note the flc is set as the fraction of max conductivity in hydro
+       min_fmc_ag = minval(cohort_in%co_hydr%ftc_ag(:))
+       min_fmc_tr = cohort_in%co_hydr%ftc_troot
+       min_fmc_ar = minval(cohort_in%co_hydr%ftc_aroot(:))
+       min_fmc = min(min_fmc_ag, min_fmc_tr)
+       min_fmc = min(min_fmc, min_fmc_ar)
+       flc = 1.0_r8-min_fmc
+       if(flc >= hf_flc_threshold .and. hf_flc_threshold < 1.0_r8 )then
+         hmort = (flc-hf_flc_threshold)/(1.0_r8-hf_flc_threshold) * &
+             EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)
        else
-          if(cohort_in%patchptr%btran_ft(cohort_in%pft) <= hf_sm_threshold)then 
-             hmort = EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)
-          else
-             hmort = 0.0_r8
-          endif
+         hmort = 0.0_r8
+       endif
+      else
+       !if(cohort_in%patchptr%btran_ft(cohort_in%pft) <= hf_sm_threshold)then
+      !   hmort = EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)
+      ![JStenzel] HMort based on new cohort btran. Hmort prevented if ice is present in any of the
+      !first 5 soil layers to prevent hydraulic mortality during winter.
+         if(cohort_in%btran_coh <= hf_sm_threshold .and. unfrozen_soil) then
+            hmort = EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)
+         else
+            hmort = 0.0_r8
+         endif
+      endif
+    else   !!!!
+      hmort = 0.0_r8
+   endif                               !!!!!!!!!!!!! [JStenzel] End temporary hmort shutoff
+
+
+
+    ! Carbon Starvation induced mortality.
+    if ( cohort_in%dbh  >  0._r8 ) then
+
+       call bleaf(cohort_in%dbh,cohort_in%pft,cohort_in%crowndamage,cohort_in%canopy_trim,target_leaf_c)
+       store_c = cohort_in%prt%GetState(store_organ,carbon12_element)
+
+       call storage_fraction_of_target(target_leaf_c, store_c, frac)
+    ! [JStenzel 1.27.2022] Added cstarvetol parameter in place of "1" to allow mortality threshold to vary.
+    ![JStenzel 4.2022] Added background mortality stress scalar.
+       if( frac .lt. EDPftvarcon_inst%cstarvetol(cohort_in%pft) ) then
+          cmort = max(0.0_r8,EDPftvarcon_inst%mort_scalar_cstarvation(cohort_in%pft) * &
+               (1.0_r8 - (frac / EDPftvarcon_inst%cstarvetol(cohort_in%pft)) ))
+          !bmort = bmort + &
+            !   max(0, bmort * (1.0_r8 - (frac/ EDPftvarcon_inst%cstarvetol(cohort_in%pft)) ) * &
+            !   max(0.0_r8, (EDPftvarcon_inst%bmort_stress_multiplier(cohort_in%pft) - 1.0_r8) )
+       else
+          cmort = 0.0_r8
        endif
 
-       ! Carbon Starvation induced mortality.
-       if ( cohort_in%dbh  >  0._r8 ) then
-
-          call bleaf(cohort_in%dbh,cohort_in%pft,cohort_in%crowndamage,cohort_in%canopy_trim,target_leaf_c)
-          store_c = cohort_in%prt%GetState(store_organ,carbon12_element)
-
-          call storage_fraction_of_target(target_leaf_c, store_c, frac)
-          if( frac .lt. 1._r8) then
-             cmort = max(0.0_r8,EDPftvarcon_inst%mort_scalar_cstarvation(cohort_in%pft) * &
-                  (1.0_r8 - frac))
-          else
-             cmort = 0.0_r8
-          endif
-
-    
-       else
-          write(fates_log(),*) 'dbh problem in mortality_rates', &
-               cohort_in%dbh,cohort_in%pft,cohort_in%n,cohort_in%canopy_layer
-          call endrun(msg=errMsg(sourcefile, __LINE__))
-       endif
-       !-------------------------------------------------------------------------------- 
-       !    Mortality due to cold and freezing stress (frmort), based on ED2 and:           
-       !      Albani, M.; D. Medvigy; G. C. Hurtt; P. R. Moorcroft, 2006: The contributions 
-       !           of land-use change, CO2 fertilization, and climate variability to the    
-       !           Eastern US carbon sink.  Glob. Change Biol., 12, 2370-2390,              
-       !           doi: 10.1111/j.1365-2486.2006.01254.x                                    
+    else
+      write(fates_log(),*) 'dbh problem in mortality_rates', &
+           cohort_in%dbh,cohort_in%pft,cohort_in%n,cohort_in%canopy_layer
+      call endrun(msg=errMsg(sourcefile, __LINE__))
+    endif
+    !--------------------------------------------------------------------------------
+    !    Mortality due to cold and freezing stress (frmort), based on ED2 and:
+    !      Albani, M.; D. Medvigy; G. C. Hurtt; P. R. Moorcroft, 2006: The contributions
+    !           of land-use change, CO2 fertilization, and climate variability to the
+    !           Eastern US carbon sink.  Glob. Change Biol., 12, 2370-2390,
+    !           doi: 10.1111/j.1365-2486.2006.01254.x
+    !
+    ! [Jstenzel 2.8.2022 ]
+    ! Freezing mortality prevented until after day = temp_delay to prevent initial cohort mortality
+    ! Freeze tolerances now set for seedlings vs hardened plants via individual parameters + a dbh cutoff for "seedling" class.
 
     temp_in_C = cohort_in%patchptr%tveg24%GetMean() - tfrz
-    
-       temp_dep_fraction  = max(0.0_r8, min(1.0_r8, 1.0_r8 - (temp_in_C - &
-            EDPftvarcon_inst%freezetol(cohort_in%pft))/frost_mort_buffer) )
-       frmort    = EDPftvarcon_inst%mort_scalar_coldstress(cohort_in%pft) * temp_dep_fraction
+    temp_in_min_C = cohort_in%patchptr%tveg24_min%GetMean() - tfrz ! 24 hr tmin [Jstenzel]
+    temp_in_max_C = cohort_in%patchptr%tveg24_max%GetMean() - tfrz ! 24 hr tmax [Jstenzel]
 
-       !mortality_rates = bmort + hmort + cmort
+    if ( hlm_model_day > temp_delay ) then         ! temperature mortality only after temp_delay days are exceeded
 
-    else ! i.e. hlm_use_ed_prescribed_phys is true 
+      if ( cohort_in%dbh < EDPftvarcon_inst%hard_dbh(cohort_in%pft)  ) then
+        temp_dep_fraction  = max(0.0_r8, min(1.0_r8, 1.0_r8 - (temp_in_min_C - &
+                             EDPftvarcon_inst%freezetol_seedling(cohort_in%pft))/frost_mort_buffer) )
+      else
+        temp_dep_fraction  = max(0.0_r8, min(1.0_r8, 1.0_r8 - (temp_in_min_C - &
+                             EDPftvarcon_inst%freezetol(cohort_in%pft))/frost_mort_buffer) )
+      end if
+
+      frmort    = EDPftvarcon_inst%mort_scalar_coldstress(cohort_in%pft) * temp_dep_fraction
+
+    else
+      frmort = 0.0_r8
+    end if
+
+
+    !--------------------------------------------------------------------------------
+    ! [JStenzel 2.8.2022] Mortality due to heat stress (heatmort).
+    ! Heat stress mortality prevented until after day = temp_delay to prevent initial cohort mortality
+    ! Heat tolerances now set for seedlings vs hardened plants via individual parameters + a dbh cutoff for "seedling" class.
+
+    if ( hlm_model_day > temp_delay ) then    ! temperature mortality only after temp_delay days are exceeded
+
+      if ( cohort_in%dbh < EDPftvarcon_inst%hard_dbh(cohort_in%pft) ) then
+        temp_heat_fraction  = max(0.0_r8, min(1.0_r8, (temp_in_max_C - &
+                             EDPftvarcon_inst%heat_tol_seedling(cohort_in%pft)) ) )
+        heatmort    = EDPftvarcon_inst%mort_scalar_heatstress(cohort_in%pft) * temp_heat_fraction
+      else
+        temp_heat_fraction  = max(0.0_r8, min(1.0_r8, (temp_in_max_C - &
+                             EDPftvarcon_inst%heat_tol(cohort_in%pft)) ) )
+         heatmort    = EDPftvarcon_inst%mort_scalar_heatstress(cohort_in%pft) * temp_heat_fraction
+      endif
+    else
+      heatmort = 0.0_r8
+    end if
+
+
+
+    !------------------------------------------------------------------------------------
+
+    else ! i.e. hlm_use_ed_prescribed_phys is true
 
        if ( cohort_in%canopy_layer .eq. 1) then
-          bmort = EDPftvarcon_inst%prescribed_mortality_canopy(cohort_in%pft) 
+          bmort = EDPftvarcon_inst%prescribed_mortality_canopy(cohort_in%pft)
        else
           bmort = EDPftvarcon_inst%prescribed_mortality_understory(cohort_in%pft)
        endif
        cmort  = 0._r8
        hmort  = 0._r8
        frmort = 0._r8
+       heatmort = 0._r8
     endif
 
     if (test_zero_mortality) then
        cmort = 0.0_r8
        hmort = 0.0_r8
        frmort = 0.0_r8
+       heatmort = 0.0_r8
        bmort = 0.0_r8
        smort = 0.0_r8
        asmort = 0.0_r8
@@ -225,7 +310,8 @@ contains
 
  ! ============================================================================
 
- subroutine Mortality_Derivative( currentSite, currentCohort, bc_in, frac_site_primary)
+ subroutine Mortality_Derivative( currentSite, currentCohort, bc_in, frac_site_primary, &
+    frac_site_harvest_pot) ![JStenzel added]
 
     !
     ! !DESCRIPTION:
@@ -237,30 +323,32 @@ contains
 
     use FatesInterfaceTypesMod, only : hlm_freq_day
     !
-    ! !ARGUMENTS    
+    ! !ARGUMENTS
     type(ed_site_type), intent(inout), target  :: currentSite
     type(ed_cohort_type),intent(inout), target :: currentCohort
     type(bc_in_type), intent(in)               :: bc_in
     real(r8), intent(in)                       :: frac_site_primary
+    real(r8), intent(in)                       :: frac_site_harvest_pot ![JStenzel added]
     !
     ! !LOCAL VARIABLES:
     real(r8) :: cmort    ! starvation mortality rate (fraction per year)
     real(r8) :: bmort    ! background mortality rate (fraction per year)
     real(r8) :: hmort    ! hydraulic failure mortality rate (fraction per year)
     real(r8) :: frmort   ! freezing mortality rate (fraction per year)
+    real(r8) :: heatmort   ! heat mortality rate (fraction per year)
     real(r8) :: smort    ! size dependent senescence mortality rate (fraction per year)
     real(r8) :: asmort   ! age dependent senescence mortality rate (fraction per year)
     real(r8) :: dgmort   ! damage mortality (fraction per year)
     real(r8) :: dndt_logging      ! Mortality rate (per day) associated with the a logging event
     integer  :: ipft              ! local copy of the pft index
-   
+
    !----------------------------------------------------------------------
 
     ipft = currentCohort%pft
-    
-    ! Mortality for trees in the understorey. 
+
+    ! Mortality for trees in the understorey.
     !if trees are in the canopy, then their death is 'disturbance'. This probably needs a different terminology
-    call mortality_rates(currentCohort,bc_in,cmort,hmort,bmort,frmort,smort, asmort, dgmort)
+    call mortality_rates(currentCohort,bc_in,cmort,hmort,bmort,frmort,heatmort,smort,asmort,dgmort)
     call LoggingMortality_frac(ipft, currentCohort%dbh, currentCohort%canopy_layer, &
                                currentCohort%lmort_direct,                       &
                                currentCohort%lmort_collateral,                    &
@@ -270,21 +358,21 @@ contains
                                bc_in%hlm_harvest_catnames, &
                                bc_in%hlm_harvest_units, &
                                currentCohort%patchptr%anthro_disturbance_label, &
-                               currentCohort%patchptr%age_since_anthro_disturbance, &
-                               frac_site_primary)
+                               currentCohort%patchptr%dbh_tall, & ! currentCohort%patchptr%age_since_anthro_disturbance, & [!Jstenzel edit #2]  to use patch max cohort age, not age since anthro disturbance
+                               frac_site_primary, frac_site_harvest_pot)  ![JStenzel added] "frac_site_harvest_pot"
 
-    
-    
 
-    if (currentCohort%canopy_layer > 1)then 
+
+
+    if (currentCohort%canopy_layer > 1)then
        ! Include understory logging mortality rates not associated with disturbance
        dndt_logging = (currentCohort%lmort_direct     + &
             currentCohort%lmort_collateral + &
             currentCohort%lmort_infra)/hlm_freq_day
 
-       
+
        currentCohort%dndt = -1.0_r8 * &
-            (cmort+hmort+bmort+frmort+smort+asmort+dgmort + dndt_logging) &
+            (cmort+hmort+bmort+frmort+smort+asmort+dgmort+heatmort + dndt_logging) &
             * currentCohort%n
     else
 
@@ -294,7 +382,7 @@ contains
        ! need to include all of their mortality here rather than part of it here
        ! and part in disturbance routine.
 
-       currentCohort%dndt= -(cmort+hmort+bmort+frmort+smort+asmort+dgmort) * currentCohort%n
+       currentCohort%dndt= -(cmort+hmort+bmort+frmort+heatmort+smort+asmort+dgmort) * currentCohort%n
        if ( .not. ExemptTreefallDist(currentCohort)) then
           currentCohort%dndt = (1.0_r8-fates_mortality_disturbance_fraction) * currentCohort%dndt
        endif

@@ -30,7 +30,12 @@ module SFParamsMod
    real(r8),protected, public :: SF_val_durat_slope
    real(r8),protected, public :: SF_val_drying_ratio
    real(r8),protected, public :: SF_val_fire_threshold    ! threshold for fires that spread or go out. kW/m (Pyne 1996)
-   real(r8),protected, public :: SF_val_CWD_frac(ncwd)
+   real(r8),protected, public :: SF_val_CWD_frac(ncwd)    !mortality fractions
+   real(r8),protected, public :: SF_val_CWD_turnover_frac(ncwd) ![JStenzel ] non-mort turnover fractions
+   real(r8),protected, public :: SF_val_snag_burn_switch ![JStenzel]
+   real(r8),protected, public :: SF_val_ag_dead_fallrate(NFSC) ![JStenzel]
+   real(r8),protected, public :: SF_val_dead_slash_burn(NFSC) ![JStenzel]
+   real(r8),protected, public :: SF_val_live_slash_burn(NFSC) ![JStenzel]
    real(r8),protected, public :: SF_val_max_decomp(NFSC)
    real(r8),protected, public :: SF_val_SAV(NFSC)
    real(r8),protected, public :: SF_val_FBD(NFSC)
@@ -53,6 +58,11 @@ module SFParamsMod
    character(len=param_string_length),parameter :: SF_name_drying_ratio = "fates_fire_drying_ratio"
    character(len=param_string_length),parameter :: SF_name_fire_threshold = "fates_fire_threshold"
    character(len=param_string_length),parameter :: SF_name_CWD_frac = "fates_frag_cwd_frac"
+   character(len=param_string_length),parameter :: SF_name_CWD_turnover_frac = "fates_CWD_turnover_frac"
+   character(len=param_string_length),parameter :: SF_name_ag_dead_fallrate = "fates_ag_dead_fallrate" ![JStenzel]
+   character(len=param_string_length),parameter :: SF_name_dead_slash_burn = "fates_dead_slash_burn" ![JStenzel]
+   character(len=param_string_length),parameter :: SF_name_live_slash_burn = "fates_live_slash_burn" ![JStenzel]
+   character(len=param_string_length),parameter :: SF_name_snag_burn_switch = "fates_snag_burn_switch"  ![JStenzel]
    character(len=param_string_length),parameter :: SF_name_max_decomp = "fates_frag_maxdecomp"
    character(len=param_string_length),parameter :: SF_name_SAV = "fates_fire_SAV"
    character(len=param_string_length),parameter :: SF_name_FBD = "fates_fire_FBD"
@@ -84,7 +94,7 @@ contains
      ! ----------------------------------------------------------------------------------
      !
      ! This subroutine performs logical checks on user supplied parameters.  It cross
-     ! compares various parameters and will fail if they don't make sense.  
+     ! compares various parameters and will fail if they don't make sense.
      ! Examples:
      ! Decomposition rates should not be less than zero or greater than 1
      ! -----------------------------------------------------------------------------------
@@ -100,7 +110,7 @@ contains
 
 
      if(.not.is_master) return
-     
+
      ! Move these checks to initialization
      do c = 1,nfsc
         if ( SF_val_max_decomp(c) < 0._r8) then
@@ -111,7 +121,7 @@ contains
      end do
 
      ! Check if the CWD fraction sums to unity, if it is not wayyy off,
-     ! add a small correction to the largest pool. 
+     ! add a small correction to the largest pool.
      ! This is important for tight mass conservation
      ! checks
 
@@ -126,8 +136,20 @@ contains
          SF_val_CWD_frac(corr_id(1)) = SF_val_CWD_frac(corr_id(1)) + correction
      end if
 
+     ! [JStenzel] Add check for SF_val_CWD_turnover_frac
+     if(abs(1.0_r8 - sum(SF_val_CWD_turnover_frac(1:ncwd))) > 1.e-5_r8) then
+         write(fates_log(),*) 'The CWD turnover fractions from index 1:4 must sum to unity'
+         write(fates_log(),*) 'SF_val_CWD_turnover_frac(1:ncwd) = ',SF_val_CWD_turnover_frac(1:ncwd)
+         write(fates_log(),*) 'error = ',1.0_r8 - sum(SF_val_CWD_turnover_frac(1:ncwd))
+         call endrun(msg=errMsg(sourcefile, __LINE__))
+     else
+         correction = 1._r8 - sum(SF_val_CWD_turnover_frac(1:ncwd))
+         corr_id = maxloc(SF_val_CWD_turnover_frac(1:ncwd))
+         SF_val_CWD_turnover_frac(corr_id(1)) = SF_val_CWD_turnover_frac(corr_id(1)) + correction
+     end if
+
      ! Check to see if the fire threshold is above the minimum and set at all
-     if(SF_val_fire_threshold < min_fire_threshold .or. & 
+     if(SF_val_fire_threshold < min_fire_threshold .or. &
            SF_val_fire_threshold >  fates_check_param_set ) then
          write(fates_log(),*) 'The fates_fire_threshold parameter must be set, and > ',min_fire_threshold
          write(fates_log(),*) 'The value is set at :',SF_val_fire_threshold
@@ -143,7 +165,7 @@ contains
   subroutine SpitFireParamsInit()
     ! Initialize all parameters to nan to ensure that we get valid
     ! values back from the host.
-    
+
     use shr_infnan_mod , only : nan => shr_infnan_nan, assignment(=)
 
     implicit none
@@ -160,6 +182,11 @@ contains
     SF_val_drying_ratio = nan
     SF_val_fire_threshold = nan
     SF_val_CWD_frac(:) = nan
+    SF_val_CWD_turnover_frac(:) = nan  ![Jstenzel]
+    SF_val_ag_dead_fallrate(:) = nan ![JStenzel]
+    SF_val_dead_slash_burn(:) = nan ![JStenzel]
+    SF_val_live_slash_burn(:) = nan ![JStenzel]
+    SF_val_snag_burn_switch = nan ![JStenzel]
     SF_val_max_decomp(:) = nan
     SF_val_SAV(:) = nan
     SF_val_FBD(:) = nan
@@ -190,17 +217,17 @@ contains
 
  !-----------------------------------------------------------------------
  subroutine SpitFireReceiveParams(fates_params)
-   
+
    use FatesParametersInterface, only : fates_parameters_type, dimension_name_scalar
-   
+
    implicit none
-   
+
     class(fates_parameters_type), intent(inout) :: fates_params
-    
+
     call SpitFireReceiveScalars(fates_params)
     call SpitFireReceiveNCWD(fates_params)
     call SpitFireReceiveNFSC(fates_params)
-    
+
   end subroutine SpitFireReceiveParams
 
   !-----------------------------------------------------------------------
@@ -213,7 +240,7 @@ contains
     class(fates_parameters_type), intent(inout) :: fates_params
 
     character(len=param_string_length), parameter :: dim_names_scalar(1) = (/dimension_name_scalar/)
-    
+
     call fates_params%RegisterParameter(name=SF_name_fdi_a, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
@@ -247,18 +274,21 @@ contains
     call fates_params%RegisterParameter(name=SF_name_fire_threshold, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
+    call fates_params%RegisterParameter(name=SF_name_snag_burn_switch, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
   end subroutine SpitFireRegisterScalars
 
  !-----------------------------------------------------------------------
  subroutine SpitFireReceiveScalars(fates_params)
-   
+
     use FatesParametersInterface, only : fates_parameters_type, dimension_name_scalar
 
     implicit none
 
     class(fates_parameters_type), intent(inout) :: fates_params
     real(r8) :: tmp_real
-    
+
 
     call fates_params%RetrieveParameter(name=SF_name_fdi_a, &
          data=SF_val_fdi_a)
@@ -293,8 +323,8 @@ contains
     call fates_params%RetrieveParameter(name=SF_name_fire_threshold, &
          data=SF_val_fire_threshold)
 
-
-
+    call fates_params%RetreiveParameter(name=SF_name_snag_burn_switch, &   ![JStenzel]
+         data=SF_val_snag_burn_switch)
 
   end subroutine SpitFireReceiveScalars
 
@@ -312,11 +342,14 @@ contains
     call fates_params%RegisterParameter(name=SF_name_CWD_frac, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names_cwd)
 
+    call fates_params%RegisterParameter(name=SF_name_CWD_turnover_frac, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_cwd)
+
   end subroutine SpitFireRegisterNCWD
 
  !-----------------------------------------------------------------------
  subroutine SpitFireReceiveNCWD(fates_params)
-   
+
     use FatesParametersInterface, only : fates_parameters_type, dimension_name_scalar
 
     implicit none
@@ -326,7 +359,9 @@ contains
     call fates_params%RetrieveParameter(name=SF_name_CWD_frac, &
          data=SF_val_CWD_frac)
 
-    
+    call fates_params%RetreiveParameter(name=SF_name_CWD_turnover_frac, &
+         data=SF_val_CWD_turnover_frac)
+
 
   end subroutine SpitFireReceiveNCWD
 
@@ -368,18 +403,27 @@ contains
     call fates_params%RegisterParameter(name=SF_name_max_decomp, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
+    call fates_params%RegisterParameter(name=SF_name_ag_dead_fallrate, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
+
+    call fates_params%RegisterParameter(name=SF_name_dead_slash_burn, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
+
+    call fates_params%RegisterParameter(name=SF_name_live_slash_burn, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
+
   end subroutine SpitFireRegisterNFSC
 
  !-----------------------------------------------------------------------
  subroutine SpitFireReceiveNFSC(fates_params)
-   
+
     use FatesParametersInterface, only : fates_parameters_type
 
     implicit none
 
     class(fates_parameters_type), intent(inout) :: fates_params
 
-    
+
     call fates_params%RetrieveParameter(name=SF_name_SAV, &
          data=SF_val_SAV)
 
@@ -406,6 +450,15 @@ contains
 
     call fates_params%RetrieveParameter(name=SF_name_max_decomp, &
          data=SF_val_max_decomp)
+
+    call fates_params%RetreiveParameter(name=SF_name_ag_dead_fallrate, &   ![JStenzel]
+         data=SF_val_ag_dead_fallrate)
+
+    call fates_params%RetreiveParameter(name=SF_name_dead_slash_burn, &   ![JStenzel]
+         data=SF_val_dead_slash_burn)
+
+    call fates_params%RetreiveParameter(name=SF_name_live_slash_burn, &   ![JStenzel]
+         data=SF_val_live_slash_burn)
 
   end subroutine SpitFireReceiveNFSC
   !-----------------------------------------------------------------------

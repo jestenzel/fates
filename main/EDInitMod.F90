@@ -79,7 +79,7 @@ module EDInitMod
   use PRTGenericMod,          only : SetState
   use FatesSizeAgeTypeIndicesMod,only : get_age_class_index
   use DamageMainMod,          only : undamaged_class
-  
+
   ! CIME GLOBALS
   use shr_log_mod               , only : errMsg => shr_log_errMsg
 
@@ -132,7 +132,7 @@ contains
     allocate(site_in%mass_balance(1:num_elements))
     allocate(site_in%flux_diags(1:num_elements))
 
-    if (hlm_use_tree_damage .eq. itrue) then 
+    if (hlm_use_tree_damage .eq. itrue) then
        allocate(site_in%term_nindivs_canopy_damage(1:nlevdamage, 1:nlevsclass, 1:numpft))
        allocate(site_in%term_nindivs_ustory_damage(1:nlevdamage, 1:nlevsclass, 1:numpft))
        allocate(site_in%imort_rate_damage(1:nlevdamage, 1:nlevsclass, 1:numpft))
@@ -140,9 +140,9 @@ contains
        allocate(site_in%term_cflux_canopy_damage(1:nlevdamage, 1:nlevsclass))
        allocate(site_in%term_cflux_ustory_damage(1:nlevdamage, 1:nlevsclass))
        allocate(site_in%fmort_rate_canopy_damage(1:nlevdamage, 1:nlevsclass, 1:numpft))
-       allocate(site_in%fmort_rate_ustory_damage(1:nlevdamage, 1:nlevsclass, 1:numpft)) 
+       allocate(site_in%fmort_rate_ustory_damage(1:nlevdamage, 1:nlevsclass, 1:numpft))
        allocate(site_in%fmort_cflux_canopy_damage(1:nlevdamage, 1:nlevsclass))
-       allocate(site_in%fmort_cflux_ustory_damage(1:nlevdamage, 1:nlevsclass)) 
+       allocate(site_in%fmort_cflux_ustory_damage(1:nlevdamage, 1:nlevsclass))
     else
        allocate(site_in%term_nindivs_canopy_damage(1,1,1))
        allocate(site_in%term_nindivs_ustory_damage(1,1,1))
@@ -161,7 +161,7 @@ contains
     allocate(site_in%imort_carbonflux(1:numpft))
     allocate(site_in%fmort_carbonflux_canopy(1:numpft))
     allocate(site_in%fmort_carbonflux_ustory(1:numpft))
-    
+
     site_in%nlevsoil   = bc_in%nlevsoil
     allocate(site_in%rootfrac_scr(site_in%nlevsoil))
     allocate(site_in%zi_soil(0:site_in%nlevsoil))
@@ -171,7 +171,8 @@ contains
     if (hlm_use_nocomp .eq. itrue) then
        allocate(site_in%area_pft(0:numpft))
     else  ! SP and nocomp require a bare-ground patch.
-       allocate(site_in%area_pft(1:numpft))  
+       allocate(site_in%area_pft(1:numpft))
+       allocate(site_in%fire_scalar)                               ![JStenzel] coopt bare ground for fire scalar
     endif
 
     allocate(site_in%use_this_pft(1:numpft))
@@ -180,8 +181,8 @@ contains
     ! for CNP dynamics, track the mean l2fr of recruits
     ! for different pfts and canopy positions
     allocate(site_in%rec_l2fr(1:numpft,nclmax))
-    
-    
+
+
     ! SP mode
     allocate(site_in%sp_tlai(1:numpft))
     allocate(site_in%sp_tsai(1:numpft))
@@ -245,6 +246,9 @@ contains
     site_in%disturbance_rates_primary_to_secondary(:) = 0.0_r8
     site_in%disturbance_rates_primary_to_primary(:) = 0.0_r8
 
+    site_in%disturbance_rates_any_to_tertiary(:) = 0.0_r8       ! [JStenzel add]
+    site_in%disturbance_rates_tertiary_to_tertiary(:) = 0.0_r8  ! [JStenzel add]
+
     ! FIRE
     site_in%acc_ni           = 0.0_r8     ! daily nesterov index accumulating over time. time unlimited theoretically.
     site_in%FDI              = 0.0_r8     ! daily fire danger index (0-1)
@@ -301,7 +305,7 @@ contains
     site_in%fmort_rate_ustory_damage(:,:,:) = 0._r8
     site_in%fmort_cflux_canopy_damage(:,:) = 0._r8
     site_in%fmort_cflux_ustory_damage(:,:) = 0._r8
-    
+
     ! Resources management (logging/harvesting, etc)
     site_in%resources_management%trunk_product_site  = 0.0_r8
 
@@ -309,9 +313,10 @@ contains
     site_in%spread = 0._r8
 
     site_in%area_pft(:) = 0._r8
+    site_in%fire_scalar = 0._r8                ![JStenzel]
     site_in%use_this_pft(:) = fates_unset_int
     site_in%area_by_age(:) = 0._r8
-    
+
   end subroutine zero_site
 
   ! ============================================================================
@@ -388,11 +393,11 @@ contains
           do ft =  1,numpft
              sites(s)%rec_l2fr(ft,:) = prt_params%allom_l2fr(ft)
           end do
-          
+
           ! Its difficult to come up with a resonable starting smoothing value, so
           ! we initialize on a cold-start to -1
           sites(s)%ema_npp = -9999._r8
-          
+
           if(hlm_use_fixed_biogeog.eq.itrue)then
              ! MAPPING OF FATES PFTs on to HLM_PFTs
              ! add up the area associated with each FATES PFT
@@ -425,8 +430,14 @@ contains
              ! the bare ground will no longer be proscribed and should emerge from FATES
              ! this may or may not be the right way to deal with this?
 
-             if(hlm_use_nocomp.eq.ifalse)then ! when not in nocomp (i.e. or SP) mode, 
+             if(hlm_use_nocomp.eq.ifalse)then ! when not in nocomp (i.e. or SP) mode,
                 ! subsume bare ground evenly into the existing patches.
+
+                sites(s)%fire_scalar = bc_in(s)%pft_areafrac(0)   ![JStenzel] Bare ground value will be interpreted as a fire duration scalar.
+                                                                  ! This can represent spatial suppression, etc. Only use if nocomp is FALSE
+                if( sites(s)%fire_scalar .lt. 0.001_r8 ) then      !
+                   sites(s)%fire_scalar = 0.0_r8                  !
+                end if                                            !
 
                 sumarea = sum(sites(s)%area_pft(1:numpft))
                 do ft =  1,numpft
@@ -440,7 +451,7 @@ contains
                 end do !ft
              else ! for sp and nocomp mode, assert a bare ground patch if needed
                 sumarea = sum(sites(s)%area_pft(1:numpft))
-                
+
                ! In all the other FATES modes, bareground is the area in which plants
                ! do not grow of their own accord. In SP mode we assert that the canopy is full for
                ! each PFT patch. Thus, we also need to assert a bare ground area in
@@ -500,7 +511,7 @@ contains
     integer  :: el
     real(r8) :: age !notional age of this patch
     integer  :: ageclass
-    
+
     ! dummy locals
     real(r8) :: biomass_stock
     real(r8) :: litter_stock
@@ -627,6 +638,7 @@ contains
                    call newp%litter(el)%InitConditions(init_leaf_fines=0._r8, &
                         init_root_fines=0._r8, &
                         init_ag_cwd=0._r8, &
+                        init_snag=0._r8, &     ![JStenzel]
                         init_bg_cwd=0._r8, &
                         init_seed=0._r8,   &
                         init_seed_germ=0._r8)
@@ -721,7 +733,7 @@ contains
 
     return
   end subroutine init_patches
-  
+
   ! ============================================================================
   subroutine init_cohorts( site_in, patch_in, bc_in)
     !
@@ -729,7 +741,7 @@ contains
     ! initialize new cohorts on bare ground
     !
     ! !USES:
-    
+
     !
     ! !ARGUMENTS
     type(ed_site_type), intent(inout),  pointer  :: site_in
@@ -816,7 +828,7 @@ contains
              temp_cohort%l2fr = prt_params%allom_l2fr(pft)
 
              ! Assume no damage to begin with - since we assume no damage
-             ! we do not need to initialise branch frac just yet. 
+             ! we do not need to initialise branch frac just yet.
              temp_cohort%crowndamage = 1
 
              !  h,dbh,leafc,n from SP values or from small initial size.
@@ -829,7 +841,7 @@ contains
 
              else
                 temp_cohort%hite        = EDPftvarcon_inst%hgt_min(pft)
-                
+
                 ! Calculate the plant diameter from height
                 call h2d_allom(temp_cohort%hite,pft,temp_cohort%dbh)
 
@@ -953,10 +965,10 @@ contains
              end do
 
              call prt_obj%CheckInitialConditions()
-             
+
              call create_cohort(site_in, patch_in, pft, temp_cohort%n, temp_cohort%hite, &
                   temp_cohort%coage, temp_cohort%dbh, prt_obj, cstatus, rstatus,        &
-                  temp_cohort%canopy_trim, temp_cohort%c_area,1,temp_cohort%crowndamage, site_in%spread, bc_in)
+                  temp_cohort%canopy_trim, temp_cohort%c_area,1,temp_cohort%crowndamage, patch_in%spread, bc_in)
 
              deallocate(temp_cohort) ! get rid of temporary cohort
 

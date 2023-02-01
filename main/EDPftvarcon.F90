@@ -42,16 +42,26 @@ module EDPftvarcon
   !ED specific variables.
   type, public ::  EDPftvarcon_type
 
-     real(r8), allocatable :: freezetol(:)           ! minimum temperature tolerance
+     real(r8), allocatable :: freezetol(:)           ! minimum temperature tolerance, post-hardened plants
+     real(r8), allocatable :: freezetol_seedling(:)  ! [JStenzel 2.7.2022] Minimum temperature tolerance, pre-hardened plants
      real(r8), allocatable :: hgt_min(:)             ! sapling height m
      real(r8), allocatable :: dleaf(:)               ! leaf characteristic dimension length (m)
      real(r8), allocatable :: z0mr(:)                ! ratio of roughness length of vegetation to height (-)
      real(r8), allocatable :: displar(:)             ! ratio of displacement height to canopy top height
      real(r8), allocatable :: bark_scaler(:)         ! scaler from dbh to bark thickness. For fire model.
+     real(r8), allocatable :: cstarvetol(:)          ! [JStenzel 1.27.2022] Added parameter throughout file. Purpose: Set threshold store:leaf c for mortality.
+     real(r8), allocatable :: heat_tol_seedling(:)   ! [JStenzel 2.7.2022] maximum temperature tolerance, pre-hardened plants
+     real(r8), allocatable :: heat_tol(:)            ! [JStenzel 2.7.2022] maximum temperature tolerance, post-hardened plants
+     real(r8), allocatable :: hard_dbh(:)            ! [JStenzel 2.7.2022] minimum dbh above which hardened (vs pre-hardened) mortality occurs
      real(r8), allocatable :: crown_kill(:)          ! scaler on fire death. For fire model.
      real(r8), allocatable :: initd(:)               ! initial seedling density
 
      real(r8), allocatable :: seed_suppl(:)          ! seeds that come from outside the gridbox.
+     ! [JStenzel added]
+     real(r8), allocatable :: seed_planted_VH2(:)        ! VH1 planted seeds that come from outside the gridbox
+     real(r8), allocatable :: seed_planted_SH1(:)        ! SH1 planted seeds that come from outside the gridbox
+     real(r8), allocatable :: seed_planted_SH2(:)        ! SH2 planted seeds that come from outside the gridbox
+     real(r8), allocatable :: seed_planted_SH3(:)        ! SH3 planted seeds that come from outside the gridbox
      real(r8), allocatable :: bb_slope(:)            ! ball berry slope parameter
      real(r8), allocatable :: medlyn_slope(:)        ! Medlyn slope parameter KPa^0.5
      real(r8), allocatable :: stomatal_intercept(:)  ! intercept of stomatal conductance model
@@ -75,6 +85,8 @@ module EDPftvarcon
      real(r8), allocatable :: smpsc(:)               ! Soil water potential at full stomatal closure
                                                      ! (non-HYDRO mode only) [mm]
 
+     real(r8), allocatable :: smp_coeff(:)           ![JStenzel] Coefficient determining linearity of
+                                                     ! pft BTRAN x smp response
 
      real(r8), allocatable :: maintresp_reduction_curvature(:) ! curvature of MR reduction as f(carbon storage),
                                                                ! 1=linear, 0=very curved
@@ -86,7 +98,9 @@ module EDPftvarcon
      real(r8), allocatable :: mort_ip_age_senescence(:) ! inflection point of age dependent senescence
      real(r8), allocatable :: mort_r_age_senescence(:) ! rate of change in mortality with age
      real(r8), allocatable :: mort_scalar_coldstress(:)
-     real(r8), allocatable :: mort_scalar_cstarvation(:)
+     real(r8), allocatable :: mort_scalar_heatstress(:)
+     real(r8), allocatable :: bmort_stress_multiplier(:)
+     real(r8), allocatable :: mort_scalar_cstarvation(:) ![JStenzel]
      real(r8), allocatable :: mort_scalar_hydrfailure(:)
      real(r8), allocatable :: hf_sm_threshold(:)
      real(r8), allocatable :: hf_flc_threshold(:)
@@ -154,9 +168,9 @@ module EDPftvarcon
                                           ! sequentially
      real(r8), allocatable :: vmax_p(:)   ! maximum production rate for plant p uptake     [gP/gC/s]
 
-     
 
-     
+
+
      ! ECA Parameters: See Zhu et al. Multiple soil nutrient competition between plants,
      !                     microbes, and mineral surfaces: model development, parameterization,
      !                     and example applications in several tropical forests.  Biogeosciences,
@@ -164,13 +178,13 @@ module EDPftvarcon
      ! KM: Michaeles-Menten half-saturation constants for ECA (plant–enzyme affinity)
      ! VMAX: Product of the reaction-rate and enzyme abundance for each PFT in ECA
      ! Note*: units of [gC] is grams carbon of fine-root
-     
+
      real(r8), allocatable :: eca_km_nh4(:)   ! half-saturation constant for plant nh4 uptake  [gN/m3]
-     
+
      real(r8), allocatable :: eca_km_no3(:)   ! half-saturation constant for plant no3 uptake  [gN/m3]
-    
+
      real(r8), allocatable :: eca_km_p(:)     ! half-saturation constant for plant p uptake    [gP/m3]
-     
+
      real(r8), allocatable :: eca_km_ptase(:)     ! half-saturation constant for biochemical P production [gP/m3]
      real(r8), allocatable :: eca_vmax_ptase(:)   ! maximum production rate for biochemical P prod        [gP/gC/s]
      real(r8), allocatable :: eca_alpha_ptase(:)  ! Fraction of min P generated from ptase activity
@@ -214,7 +228,7 @@ module EDPftvarcon
      real(r8), allocatable :: hydr_rfrac_stem(:)    ! fraction of total tree resistance from troot to canopy
      real(r8), allocatable :: hydr_avuln_gs(:)      ! shape parameter for stomatal control of water vapor exiting leaf
      real(r8), allocatable :: hydr_p50_gs(:)        ! water potential at 50% loss of stomatal conductance
-     real(r8), allocatable :: hydr_k_lwp(:)         ! inner leaf humidity scaling coefficient 
+     real(r8), allocatable :: hydr_k_lwp(:)         ! inner leaf humidity scaling coefficient
 
      ! PFT x Organ Dimension  (organs are: 1=leaf, 2=stem, 3=transporting root, 4=absorbing root)
      ! ----------------------------------------------------------------------------------
@@ -342,6 +356,26 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_mort_freezetol_seedling'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_mort_cstarvetol'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_mort_heat_tol'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_mort_heat_tol_seedling'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_mort_hard_dbh'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
     name = 'fates_recruit_height_min'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -361,6 +395,23 @@ contains
     name = 'fates_recruit_seed_supplement'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+! [JStenzel added]
+    name = 'fates_seed_planted_VH2'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+        dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_seed_planted_SH1'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+        dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_seed_planted_SH2'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+        dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_seed_planted_SH3'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+        dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fates_leaf_stomatal_slope_ballberry'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
@@ -415,6 +466,10 @@ contains
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fates_nonhydro_smpsc'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_smp_coeff'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -522,7 +577,15 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_mort_scalar_heatstress'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
     name = 'fates_mort_scalar_cstarvation'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_bmort_stress_multiplier'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -690,8 +753,28 @@ contains
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%freezetol)
 
+    name = 'fates_mort_freezetol_seedling'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%freezetol_seedling)
+
+    name = 'fates_mort_cstarvetol'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%cstarvetol)
+
+    name = 'fates_mort_heat_tol'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%heat_tol)
+
+    name = 'fates_mort_heat_tol_seedling'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%heat_tol_seedling)
+
+    name = 'fates_mort_hard_dbh'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%hard_dbh)
+
     name = 'fates_recruit_height_min'
-    call fates_params%RetrieveParameterAllocate(name=name, &
+    call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%hgt_min)
 
     name = 'fates_fire_bark_scaler'
@@ -709,6 +792,23 @@ contains
     name = 'fates_recruit_seed_supplement'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%seed_suppl)
+
+! [JStenzel added]
+    name = 'fates_seed_planted_VH2'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+        data=this%seed_planted_VH2)
+
+    name = 'fates_seed_planted_SH1'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+       data=this%seed_planted_SH1)
+
+    name = 'fates_seed_planted_SH2'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+        data=this%seed_planted_SH2)
+
+    name = 'fates_seed_planted_SH3'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+        data=this%seed_planted_SH3)
 
     name = 'fates_leaf_stomatal_slope_ballberry'
     call fates_params%RetrieveParameterAllocate(name=name, &
@@ -766,6 +866,10 @@ contains
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%smpsc)
 
+    name = 'fates_smp_coeff'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%smp_coeff)
+
     name = 'fates_maintresp_reduction_curvature'
     call fates_params%RetrieveParameterAllocate(name=name, &
           data=this%maintresp_reduction_curvature)
@@ -805,7 +909,7 @@ contains
     name = 'fates_damage_mort_p2'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%damage_mort_p2)
-    
+
     name = 'fates_damage_recovery_scalar'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%damage_recovery_scalar)
@@ -854,14 +958,21 @@ contains
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%mort_scalar_coldstress)
 
+    name = 'fates_mort_scalar_heatstress'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%mort_scalar_heatstress)
+
     name = 'fates_mort_scalar_cstarvation'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%mort_scalar_cstarvation)
 
+    name = 'fates_bmort_stress_multiplier'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%bmort_stress_multiplier)
+
     name = 'fates_mort_scalar_hydrfailure'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%mort_scalar_hydrfailure)
-
 
     name = 'fates_mort_ip_size_senescence'
     call fates_params%RetrieveParameterAllocate(name=name, &
@@ -887,6 +998,9 @@ contains
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%mort_scalar_cstarvation)
 
+    name = 'fates_mort_scalar_heatstress'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%mort_scalar_heatstress)
 
     name = 'fates_mort_hf_sm_threshold'
     call fates_params%RetrieveParameterAllocate(name=name, &
@@ -979,7 +1093,7 @@ contains
     name = 'fates_cnp_eca_km_nh4'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%eca_km_nh4)
-    
+
     name = 'fates_cnp_vmax_nh4'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%vmax_nh4)
@@ -1425,6 +1539,11 @@ contains
 
         write(fates_log(),*) '-----------  FATES PFT Parameters -----------------'
         write(fates_log(),fmt0) 'freezetol = ',EDPftvarcon_inst%freezetol
+	      write(fates_log(),fmt0) 'freezetol_seedling = ',EDPftvarcon_inst%freezetol_seedling
+	      write(fates_log(),fmt0) 'cstarvetol = ',EDPftvarcon_inst%cstarvetol
+ 	      write(fates_log(),fmt0) 'heat_tol = ',EDPftvarcon_inst%heat_tol
+	      write(fates_log(),fmt0) 'heat_tol_seedling = ',EDPftvarcon_inst%heat_tol_seedling
+        write(fates_log(),fmt0) 'hard_dbh = ',EDPftvarcon_inst%hard_dbh
         write(fates_log(),fmt0) 'hgt_min = ',EDPftvarcon_inst%hgt_min
         write(fates_log(),fmt0) 'dleaf = ',EDPftvarcon_inst%dleaf
         write(fates_log(),fmt0) 'z0mr = ',EDPftvarcon_inst%z0mr
@@ -1448,13 +1567,16 @@ contains
         write(fates_log(),fmt0) 'vcmax25top = ',EDPftvarcon_inst%vcmax25top
         write(fates_log(),fmt0) 'smpso = ',EDPftvarcon_inst%smpso
         write(fates_log(),fmt0) 'smpsc = ',EDPftvarcon_inst%smpsc
+        write(fates_log(),fmt0) 'smp_coeff = ',EDPftvarcon_inst%smp_coeff
         write(fates_log(),fmt0) 'bmort = ',EDPftvarcon_inst%bmort
         write(fates_log(),fmt0) 'mort_ip_size_senescence = ', EDPftvarcon_inst%mort_ip_size_senescence
         write(fates_log(),fmt0) 'mort_r_size_senescence = ', EDPftvarcon_inst%mort_r_size_senescence
         write(fates_log(),fmt0) 'mort_ip_age_senescence = ', EDPftvarcon_inst%mort_ip_age_senescence
         write(fates_log(),fmt0) 'mort_r_age_senescence = ', EDPftvarcon_inst%mort_r_age_senescence
         write(fates_log(),fmt0) 'mort_scalar_coldstress = ',EDPftvarcon_inst%mort_scalar_coldstress
+	write(fates_log(),fmt0) 'mort_scalar_heatstress = ',EDPftvarcon_inst%mort_scalar_heatstress
         write(fates_log(),fmt0) 'mort_scalar_cstarvation = ',EDPftvarcon_inst%mort_scalar_cstarvation
+        write(fates_log(),fmt0) 'bmort_stress_multiplier = ',EDPftvarcon_inst%bmort_stress_multiplier
         write(fates_log(),fmt0) 'mort_scalar_hydrfailure = ',EDPftvarcon_inst%mort_scalar_hydrfailure
         write(fates_log(),fmt0) 'hf_sm_threshold = ',EDPftvarcon_inst%hf_sm_threshold
         write(fates_log(),fmt0) 'hf_flc_threshold = ',EDPftvarcon_inst%hf_flc_threshold
@@ -1556,7 +1678,7 @@ contains
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
 
-        
+
         ! If nitrogen is turned on, check to make sure there are valid ammonium
         ! parameters
         if(hlm_nitrogen_spec>0)then
@@ -1806,7 +1928,7 @@ contains
               end if
            end do !hlm_pft
         end if
-        
+
      end do !ipft
 
 
@@ -1885,4 +2007,3 @@ contains
 
 
 end module EDPftvarcon
-
