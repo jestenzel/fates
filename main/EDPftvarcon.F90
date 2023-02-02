@@ -754,27 +754,27 @@ contains
          data=this%freezetol)
 
     name = 'fates_mort_freezetol_seedling'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%freezetol_seedling)
 
     name = 'fates_mort_cstarvetol'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%cstarvetol)
 
     name = 'fates_mort_heat_tol'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%heat_tol)
 
     name = 'fates_mort_heat_tol_seedling'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%heat_tol_seedling)
 
     name = 'fates_mort_hard_dbh'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%hard_dbh)
 
     name = 'fates_recruit_height_min'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%hgt_min)
 
     name = 'fates_fire_bark_scaler'
@@ -795,19 +795,19 @@ contains
 
 ! [JStenzel added]
     name = 'fates_seed_planted_VH2'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
         data=this%seed_planted_VH2)
 
     name = 'fates_seed_planted_SH1'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
        data=this%seed_planted_SH1)
 
     name = 'fates_seed_planted_SH2'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
         data=this%seed_planted_SH2)
 
     name = 'fates_seed_planted_SH3'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
         data=this%seed_planted_SH3)
 
     name = 'fates_leaf_stomatal_slope_ballberry'
@@ -867,7 +867,7 @@ contains
          data=this%smpsc)
 
     name = 'fates_smp_coeff'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%smp_coeff)
 
     name = 'fates_maintresp_reduction_curvature'
@@ -959,7 +959,7 @@ contains
          data=this%mort_scalar_coldstress)
 
     name = 'fates_mort_scalar_heatstress'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%mort_scalar_heatstress)
 
     name = 'fates_mort_scalar_cstarvation'
@@ -967,7 +967,7 @@ contains
          data=this%mort_scalar_cstarvation)
 
     name = 'fates_bmort_stress_multiplier'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%bmort_stress_multiplier)
 
     name = 'fates_mort_scalar_hydrfailure'
@@ -999,7 +999,7 @@ contains
          data=this%mort_scalar_cstarvation)
 
     name = 'fates_mort_scalar_heatstress'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%mort_scalar_heatstress)
 
     name = 'fates_mort_hf_sm_threshold'

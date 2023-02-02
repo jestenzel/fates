@@ -323,7 +323,7 @@ contains
     call fates_params%RetrieveParameter(name=SF_name_fire_threshold, &
          data=SF_val_fire_threshold)
 
-    call fates_params%RetreiveParameter(name=SF_name_snag_burn_switch, &   ![JStenzel]
+    call fates_params%RetrieveParameter(name=SF_name_snag_burn_switch, &   ![JStenzel]
          data=SF_val_snag_burn_switch)
 
   end subroutine SpitFireReceiveScalars
@@ -359,7 +359,7 @@ contains
     call fates_params%RetrieveParameter(name=SF_name_CWD_frac, &
          data=SF_val_CWD_frac)
 
-    call fates_params%RetreiveParameter(name=SF_name_CWD_turnover_frac, &
+    call fates_params%RetrieveParameter(name=SF_name_CWD_turnover_frac, &
          data=SF_val_CWD_turnover_frac)
 
 
@@ -451,13 +451,13 @@ contains
     call fates_params%RetrieveParameter(name=SF_name_max_decomp, &
          data=SF_val_max_decomp)
 
-    call fates_params%RetreiveParameter(name=SF_name_ag_dead_fallrate, &   ![JStenzel]
+    call fates_params%RetrieveParameter(name=SF_name_ag_dead_fallrate, &   ![JStenzel]
          data=SF_val_ag_dead_fallrate)
 
-    call fates_params%RetreiveParameter(name=SF_name_dead_slash_burn, &   ![JStenzel]
+    call fates_params%RetrieveParameter(name=SF_name_dead_slash_burn, &   ![JStenzel]
          data=SF_val_dead_slash_burn)
 
-    call fates_params%RetreiveParameter(name=SF_name_live_slash_burn, &   ![JStenzel]
+    call fates_params%RetrieveParameter(name=SF_name_live_slash_burn, &   ![JStenzel]
          data=SF_val_live_slash_burn)
 
   end subroutine SpitFireReceiveNFSC
