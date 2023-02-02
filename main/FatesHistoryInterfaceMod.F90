@@ -3824,9 +3824,9 @@ end subroutine flush_hvars
 
       ![JStenzel added]
       hio_canopy_m5_carbonflux_si(io_si) = hio_canopy_m5_carbonflux_si(io_si) + &
-        sites(s)%fmort_carbonflux_canopy / g_per_kg
+        sum(sites(s)%fmort_carbonflux_canopy(:)) / g_per_kg
       hio_understory_m5_carbonflux_si(io_si) = hio_understory_m5_carbonflux_si(io_si) + &
-        sites(s)%fmort_carbonflux_ustory / g_per_kg
+        sum(sites(s)%fmort_carbonflux_ustory(:)) / g_per_kg
       !!!!
 
       ! treat carbon flux from imort the same way
