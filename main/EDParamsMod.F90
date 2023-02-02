@@ -236,6 +236,9 @@ module EDParamsMod
                                                     ! leftovers will be left onsite as large CWD
    character(len=param_string_length),parameter,public :: logging_name_export_frac ="fates_landuse_logging_export_frac"
 
+   real(r8),protected,public :: logging_patch_dbhmin       ![JStenzel added] ! "Minimum patch age for a harvest to go into effect"
+   character(len=param_string_length),parameter,public :: logging_name_patch_dbhmin ="fates_logging_patch_dbhmin"
+
    real(r8),protected,public :: pprodharv10_forest_mean ! "mean harvest mortality proportion of deadstem to 10-yr
                                                         ! product pool (pprodharv10) of all woody PFT types
    character(len=param_string_length),parameter,public :: logging_name_pprodharv10="fates_landuse_pprodharv10_forest_mean"
@@ -706,11 +709,14 @@ contains
     call fates_params%RetrieveParameter(name=logging_name_dbhmax_infra, &
           data=logging_dbhmax_infra)
 
-    call fates_params%RetrieveParameter(name=logging_name_export_frac, &
+    call fates_params%RetrieveParameter(name=logging_name_export_frac, &  ![JStenzel edit] !+
           data=logging_export_frac)
 
     call fates_params%RetrieveParameter(name=logging_name_pprodharv10, &
          data=pprodharv10_forest_mean)
+
+    call fates_params%RetreiveParameter(name=logging_name_patch_dbhmin, &
+          data=logging_patch_dbhmin)
 
     call fates_params%RetrieveParameter(name=eca_name_plant_escalar, &
           data=eca_plant_escalar)
