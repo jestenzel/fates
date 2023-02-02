@@ -58,9 +58,9 @@ module SFParamsMod
    character(len=param_string_length),parameter :: SF_name_drying_ratio = "fates_fire_drying_ratio"
    character(len=param_string_length),parameter :: SF_name_fire_threshold = "fates_fire_threshold"
    character(len=param_string_length),parameter :: SF_name_CWD_frac = "fates_frag_cwd_frac"
-   character(len=param_string_length),parameter :: SF_name_CWD_turnover_frac = "fates_CWD_turnover_frac" !==
-   character(len=param_string_length),parameter :: SF_name_ag_dead_fallrate = "fates_ag_dead_fallrate" ![JStenzel] !==
-   character(len=param_string_length),parameter :: SF_name_dead_slash_burn = "fates_dead_slash_burn" ![JStenzel]  s
+   character(len=param_string_length),parameter :: SF_name_CWD_turnover_frac = "fates_CWD_turnover_frac" ![JStenzel]
+   character(len=param_string_length),parameter :: SF_name_ag_dead_fallrate = "fates_ag_dead_fallrate" ![JStenzel]
+   character(len=param_string_length),parameter :: SF_name_dead_slash_burn = "fates_dead_slash_burn" ![JStenzel]
    character(len=param_string_length),parameter :: SF_name_live_slash_burn = "fates_live_slash_burn" ![JStenzel]
    character(len=param_string_length),parameter :: SF_name_snag_burn_switch = "fates_snag_burn_switch"  ![JStenzel]
    character(len=param_string_length),parameter :: SF_name_max_decomp = "fates_frag_maxdecomp"
